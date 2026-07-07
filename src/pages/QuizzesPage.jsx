@@ -8,6 +8,9 @@ export default function QuizzesPage() {
     const [loading, setLoading] = useState(true)
     const navigate = useNavigate()
 
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    const isEditorOrAdmin = user.role === 'EDITOR' || user.role === 'ADMIN'
+
     useEffect(() => {
         api.get(`/quizzes/module/${moduleId}`)
             .then(res => setQuizzes(res.data))
@@ -58,10 +61,21 @@ export default function QuizzesPage() {
                                         <p style={styles.cardDesc}>{q.description}</p>
                                         {q.maxAttempts > 0 && (
                                             <span style={styles.badge}>
-                        {q.maxAttempts} incercari
-                      </span>
+                                                {q.maxAttempts} incercari
+                                            </span>
                                         )}
                                     </div>
+                                    {isEditorOrAdmin && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(`/editor/create?quizId=${q.id}`);
+                                            }}
+                                            style={styles.createExerciseBtn}
+                                        >
+                                            + Creează exercițiu
+                                        </button>
+                                    )}
                                     <span style={styles.arrow}>→</span>
                                 </div>
                             ))}
@@ -186,5 +200,18 @@ const styles = {
         borderTop: '3px solid #58CC02',
         borderRadius: '50%',
         animation: 'spin 0.8s linear infinite',
+    },
+    createExerciseBtn: {
+        background: '#4F6BF6',
+        color: 'white',
+        border: 'none',
+        padding: '8px 14px',
+        borderRadius: 8,
+        fontSize: '0.8rem',
+        fontWeight: 800,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        boxShadow: '0 2px 0 #3a52c4',
+        flexShrink: 0,
     },
 }

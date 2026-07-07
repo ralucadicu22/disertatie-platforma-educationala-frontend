@@ -12,7 +12,7 @@ export default function ModulesPage() {
     const role = user.role || 'ELEV'
 
     useEffect(() => {
-        if (role === 'ELEV' || role === 'PROFESOR') {
+        if (role === 'ELEV' || role === 'PROFESOR' || role === 'EDITOR' || role === 'ADMIN') {
             api.get('/modules')
                 .then(res => setModules(res.data))
                 .catch(err => console.error(err))
@@ -171,52 +171,61 @@ export default function ModulesPage() {
                     </>
                 )}
 
-                {/* EDITOR — panou de creare continut */}
+                {/* EDITOR — vede modulele si acceseaza editorul prin quiz-uri */}
                 {role === 'EDITOR' && (
                     <>
                         <div style={styles.welcome}>
                             <h1 style={styles.welcomeTitle}>Bine ai venit, {user.name?.split(' ')[0]}! ✏️</h1>
-                            <p style={styles.welcomeSub}>Construiesti exercitii si continut educativ.</p>
+                            <p style={styles.welcomeSub}>
+                                Alege un modul pentru a construi sau edita exercitii.
+                            </p>
                         </div>
 
-                        <div style={styles.devBanner}>
-                            <div style={styles.devIcon}>🎨</div>
-                            <div>
-                                <h3 style={styles.devTitle}>Editor Vizual — in dezvoltare</h3>
-                                <p style={styles.devDesc}>
-                                    Editorul vizual va permite crearea exercitiilor prin drag & drop,
-                                    cu zone de text, imagini si elemente interactive. Fiecare exercitiu
-                                    va putea fi configurat cu solutii, hinturi si feedback personalizat.
+                        {loading ? (
+                            <div style={styles.loadingWrap}><div style={styles.spinner} /></div>
+                        ) : modules.length === 0 ? (
+                            <div style={styles.emptyState}>
+                                <div style={styles.emptyIcon}>📚</div>
+                                <h3 style={styles.emptyTitle}>Nu exista module inca</h3>
+                                <p style={styles.emptyDesc}>
+                                    Pentru a incepe sa creezi exercitii, trebuie sa existe cel putin un modul cu
+                                    un quiz asociat in platforma.
                                 </p>
                             </div>
-                        </div>
-
-                        <div style={styles.previewGrid}>
-                            <div style={styles.previewCard}>
-                                <span style={{ fontSize: '1.5rem' }}>📝</span>
-                                <h4 style={styles.previewTitle}>Zona de Text</h4>
-                                <p style={styles.previewDesc}>Enunturi, instructiuni, titluri</p>
-                            </div>
-                            <div style={styles.previewCard}>
-                                <span style={{ fontSize: '1.5rem' }}>🖼️</span>
-                                <h4 style={styles.previewTitle}>Zona de Imagine</h4>
-                                <p style={styles.previewDesc}>Scene, grid-uri, fundaluri</p>
-                            </div>
-                            <div style={styles.previewCard}>
-                                <span style={{ fontSize: '1.5rem' }}>✏️</span>
-                                <h4 style={styles.previewTitle}>Zona de Solutii</h4>
-                                <p style={styles.previewDesc}>Casute, drag & drop, selectie</p>
-                            </div>
-                            <div style={styles.previewCard}>
-                                <span style={{ fontSize: '1.5rem' }}>🎯</span>
-                                <h4 style={styles.previewTitle}>Template-uri</h4>
-                                <p style={styles.previewDesc}>Gaseste, numara, ordoneaza</p>
-                            </div>
-                        </div>
+                        ) : (
+                            <>
+                                <h2 style={styles.sectionTitle}>Module disponibile</h2>
+                                <div style={styles.grid}>
+                                    {modules.map((m, i) => (
+                                        <div
+                                            key={m.id}
+                                            onClick={() => navigate(`/module/${m.id}`)}
+                                            style={styles.card}
+                                            onMouseEnter={e => {
+                                                e.currentTarget.style.transform = 'translateY(-4px)'
+                                                e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.12)'
+                                            }}
+                                            onMouseLeave={e => {
+                                                e.currentTarget.style.transform = 'translateY(0)'
+                                                e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'
+                                            }}
+                                        >
+                                            <div style={{ ...styles.cardAccent, background: ACCENTS[i % ACCENTS.length] }} />
+                                            <div style={styles.cardIcon}>{ICONS[i % ICONS.length]}</div>
+                                            <div style={styles.cardContent}>
+                                                <h3 style={styles.cardTitle}>{m.title}</h3>
+                                                <p style={styles.cardDesc}>{m.description}</p>
+                                            </div>
+                                            <div style={styles.cardArrow}>→</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </>
                 )}
 
-                {/* ADMIN — panou de administrare */}
+                {/* ADMIN — vede statistici + modulele pentru acces la editor */}
                 {role === 'ADMIN' && (
                     <>
                         <div style={styles.welcome}>
@@ -232,7 +241,7 @@ export default function ModulesPage() {
                             </div>
                             <div style={styles.statCard}>
                                 <div style={styles.statIcon}>📚</div>
-                                <div style={styles.statNumber}>—</div>
+                                <div style={styles.statNumber}>{modules.length}</div>
                                 <div style={styles.statLabel}>Module active</div>
                             </div>
                             <div style={styles.statCard}>
@@ -242,17 +251,38 @@ export default function ModulesPage() {
                             </div>
                         </div>
 
-                        <div style={styles.devBanner}>
-                            <div style={styles.devIcon}>⚙️</div>
-                            <div>
-                                <h3 style={styles.devTitle}>Panou Administrare — in dezvoltare</h3>
-                                <p style={styles.devDesc}>
-                                    Aceasta sectiune va include: gestionarea utilizatorilor si a rolurilor,
-                                    moderarea continutului, rapoarte de activitate, configurarea platformei
-                                    si monitorizarea performantei sistemului.
-                                </p>
-                            </div>
-                        </div>
+                        {loading ? (
+                            <div style={styles.loadingWrap}><div style={styles.spinner} /></div>
+                        ) : (
+                            <>
+                                <h2 style={{ ...styles.sectionTitle, marginTop: 32 }}>Module</h2>
+                                <div style={styles.grid}>
+                                    {modules.map((m, i) => (
+                                        <div
+                                            key={m.id}
+                                            onClick={() => navigate(`/module/${m.id}`)}
+                                            style={styles.card}
+                                            onMouseEnter={e => {
+                                                e.currentTarget.style.transform = 'translateY(-4px)'
+                                                e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.12)'
+                                            }}
+                                            onMouseLeave={e => {
+                                                e.currentTarget.style.transform = 'translateY(0)'
+                                                e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'
+                                            }}
+                                        >
+                                            <div style={{ ...styles.cardAccent, background: ACCENTS[i % ACCENTS.length] }} />
+                                            <div style={styles.cardIcon}>{ICONS[i % ICONS.length]}</div>
+                                            <div style={styles.cardContent}>
+                                                <h3 style={styles.cardTitle}>{m.title}</h3>
+                                                <p style={styles.cardDesc}>{m.description}</p>
+                                            </div>
+                                            <div style={styles.cardArrow}>→</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </>
                 )}
             </div>
@@ -275,7 +305,6 @@ const ICONS   = ['📚', '🔢', '🎯', '⭐', '🧠']
 const styles = {
     page: { minHeight: '100vh', background: '#f0f2f5' },
 
-    // Header
     header: {
         background: 'white',
         borderBottom: '1px solid #e5e7eb',
@@ -323,12 +352,10 @@ const styles = {
         cursor: 'pointer',
     },
 
-    // Container
     container: {
         maxWidth: 720, margin: '0 auto', padding: '28px 20px',
     },
 
-    // Welcome
     welcome: { marginBottom: 28 },
     welcomeTitle: {
         fontSize: '1.6rem', fontWeight: 900,
@@ -338,14 +365,12 @@ const styles = {
         fontSize: '0.95rem', color: '#6b7280', fontWeight: 600,
     },
 
-    // Section
     sectionTitle: {
         fontSize: '0.85rem', fontWeight: 800,
         color: '#9ca3af', letterSpacing: '1px',
         textTransform: 'uppercase', marginBottom: 14,
     },
 
-    // Module cards
     grid: {
         display: 'flex', flexDirection: 'column', gap: 10,
     },
@@ -378,7 +403,6 @@ const styles = {
         fontWeight: 700, flexShrink: 0, paddingRight: 4,
     },
 
-    // Dashboard stats
     dashboardGrid: {
         display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
         gap: 14, marginBottom: 24,
@@ -400,7 +424,6 @@ const styles = {
         letterSpacing: '0.5px',
     },
 
-    // Dev banner
     devBanner: {
         display: 'flex', alignItems: 'flex-start', gap: 16,
         background: '#f8f9ff', border: '2px dashed #d1d9f6',
@@ -417,27 +440,30 @@ const styles = {
         fontWeight: 500, lineHeight: 1.6,
     },
 
-    // Editor preview cards
-    previewGrid: {
-        display: 'grid', gridTemplateColumns: '1fr 1fr',
-        gap: 12,
+    emptyState: {
+        background: 'white',
+        borderRadius: 14,
+        padding: '40px 24px',
+        textAlign: 'center',
+        border: '2px dashed #e5e7eb',
     },
-    previewCard: {
-        background: 'white', borderRadius: 14,
-        padding: '20px 16px', textAlign: 'center',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        border: '1px solid #f3f4f6',
+    emptyIcon: {
+        fontSize: '2.5rem',
+        marginBottom: 12,
     },
-    previewTitle: {
-        fontSize: '0.9rem', fontWeight: 800,
-        color: '#1a1d23', margin: '8px 0 4px',
+    emptyTitle: {
+        fontSize: '1rem',
+        fontWeight: 800,
+        color: '#1a1d23',
+        marginBottom: 8,
     },
-    previewDesc: {
-        fontSize: '0.78rem', color: '#9ca3af',
-        fontWeight: 600,
+    emptyDesc: {
+        fontSize: '0.85rem',
+        color: '#6b7280',
+        fontWeight: 500,
+        lineHeight: 1.6,
     },
 
-    // Loading
     loadingWrap: {
         display: 'flex', alignItems: 'center',
         justifyContent: 'center', minHeight: 200,

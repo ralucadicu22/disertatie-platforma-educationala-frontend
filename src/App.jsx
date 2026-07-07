@@ -8,6 +8,7 @@ import ProductDetailPage from "./pages/ProductsDetailPage.jsx";
 import StudentDashboard from "./pages/StudentDashboard.jsx";
 import TeacherDashboard from "./pages/TeacherDashboard.jsx";
 import ExerciseEditor from "./pages/ExerciseEditor.jsx";
+import CreateExercisePage from "./pages/CreateExercisePage.jsx";
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -52,11 +53,17 @@ function App() {
                 path="/progres"
                 element={<PrivateRoute><StudentDashboard /></PrivateRoute>}
             />
-
-
             <Route
                 path="/profesor"
                 element={<PrivateRoute><TeacherDashboard /></PrivateRoute>}
+            />
+            <Route
+                path="/editor/create"
+                element={
+                    <PrivateRoute>
+                        <CreateExercisePage />
+                    </PrivateRoute>
+                }
             />
             <Route
                 path="/editor/new"
@@ -74,7 +81,6 @@ function App() {
                     </PrivateRoute>
                 }
             />
-
         </Routes>
     )
 }
