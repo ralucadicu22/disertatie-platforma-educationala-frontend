@@ -1,0 +1,5 @@
+export const EXERCISE_TYPES = {
+    CUSTOM: 'CUSTOM',
+    FIND_AND_COUNT: 'FIND_AND_COUNT',
+
+};
