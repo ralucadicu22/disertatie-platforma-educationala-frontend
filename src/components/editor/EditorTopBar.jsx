@@ -8,7 +8,10 @@ export default function EditorTopBar({ exerciseName = 'Exercițiu nou', onSave }
         snapEnabled, setSnapEnabled,
         layersPanelOpen, setLayersPanelOpen,
         saveDraft, saveStatus, saveMessage,
+        submitForReview, draftStatus,
     } = useEditor();
+
+    const canSubmitForReview = draftStatus === 'DRAFT';
 
     return (
         <div style={styles.topBar}>
@@ -96,6 +99,23 @@ export default function EditorTopBar({ exerciseName = 'Exercițiu nou', onSave }
                 >
                     {saveStatus === 'saving' ? 'Se salveaza...' : 'Salvează draft'}
                 </button>
+                {canSubmitForReview && (
+                    <button
+                        style={{
+                            ...styles.primaryBtn,
+                            opacity: saveStatus === 'saving' ? 0.6 : 1,
+                            cursor: saveStatus === 'saving' ? 'wait' : 'pointer',
+                        }}
+                        onClick={submitForReview}
+                        disabled={saveStatus === 'saving'}
+                        title="Trimite versiunea curentă spre aprobare"
+                    >
+                        Trimite spre review
+                    </button>
+                )}
+                {draftStatus === 'PENDING_REVIEW' && (
+                    <span style={styles.pendingBadge}>În review</span>
+                )}
             </div>
         </div>
     );
@@ -221,6 +241,7 @@ const styles = {
         gap: '0.5rem',
         marginLeft: 'auto',
         flexShrink: 0,
+        alignItems: 'center',
     },
     secondaryBtn: {
         background: 'white',
@@ -243,6 +264,15 @@ const styles = {
         fontWeight: 800,
         cursor: 'pointer',
         boxShadow: '0 2px 0 #3a52c4',
+        whiteSpace: 'nowrap',
+    },
+    pendingBadge: {
+        fontSize: '0.75rem',
+        fontWeight: 800,
+        color: '#b45309',
+        background: '#fef3c7',
+        padding: '0.4rem 0.75rem',
+        borderRadius: 10,
         whiteSpace: 'nowrap',
     },
 };

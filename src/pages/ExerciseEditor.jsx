@@ -27,11 +27,12 @@ function EditorContent({ mode: routeMode }) {
         const run = async () => {
             if (routeMode === 'new') {
                 const quizId = searchParams.get('quizId');
+                const type = searchParams.get('type') || 'CUSTOM';
                 if (!quizId) {
                     console.error('Lipseste quizId in URL');
                     return;
                 }
-                const newExerciseId = await initNewExercise(quizId);
+                const newExerciseId = await initNewExercise(quizId, type);
                 if (newExerciseId) {
                     navigate(`/editor/${newExerciseId}`, { replace: true });
                 }

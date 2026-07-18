@@ -79,6 +79,23 @@ export default function ModulesPage() {
                             📊 Dashboard
                         </button>
                     )}
+                    {role === 'ADMIN' && (
+                        <button
+                            onClick={() => navigate('/admin/review')}
+                            style={{
+                                background: 'none',
+                                border: '1.5px solid #e5e7eb',
+                                borderRadius: 8,
+                                padding: '6px 14px',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                color: '#4F6BF6',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            📝 Exerciții în review
+                        </button>
+                    )}
                     <button onClick={handleLogout} style={styles.logoutBtn}>
                         Deconectare
                     </button>

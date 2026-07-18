@@ -1,5 +1,6 @@
 import { DEFAULT_CANVAS, CONFIG_SCHEMA_VERSION } from '../constants/canvas';
 import { EXERCISE_TYPES } from '../constants/exerciseTypes';
+import { getInitialLayoutForType } from './typeLayouts';
 
 export const DEFAULT_SETTINGS = {
     maxAttempts: 3,
@@ -24,16 +25,14 @@ export function createDefaultConfig({ type = EXERCISE_TYPES.CUSTOM, name = 'Exer
             description: '',
         },
         canvas: { ...DEFAULT_CANVAS },
-        elements: [],
+        elements: getInitialLayoutForType(type),
         settings: { ...DEFAULT_SETTINGS },
         solution: { ...DEFAULT_SOLUTION },
     };
 }
 
-
 export function migrateConfig(config) {
     if (!config) return createDefaultConfig();
-
     return {
         version: config.version || CONFIG_SCHEMA_VERSION,
         meta: config.meta || {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
+import { EXERCISE_TYPE_DEFINITIONS, EXERCISE_TYPES } from '../constants/exerciseTypes';
 
 export default function CreateExercisePage() {
     const [searchParams] = useSearchParams();
@@ -26,7 +27,7 @@ export default function CreateExercisePage() {
         }
     }, [activeTab]);
 
-    const handleCreateFromScratch = async () => {
+    const handleCreateFromScratch = async (exerciseType) => {
         if (!quizId) {
             setError('Lipseste quizId in URL.');
             return;
@@ -34,7 +35,7 @@ export default function CreateExercisePage() {
         setCreating(true);
         setError(null);
         try {
-            navigate(`/editor/new?quizId=${quizId}`);
+            navigate(`/editor/new?quizId=${quizId}&type=${exerciseType}`);
         } catch (err) {
             setError('Eroare la creare exercitiu.');
             setCreating(false);
@@ -114,25 +115,22 @@ export default function CreateExercisePage() {
                 )}
 
                 {activeTab === 'scratch' && (
-                    <div style={styles.scratchCard}>
-                        <div style={styles.scratchIcon}>📄</div>
-                        <h2 style={styles.scratchTitle}>Incepe cu un canvas gol</h2>
-                        <p style={styles.scratchDesc}>
-                            Ai libertate completa in constructie: adaugi elementele pe care le doresti
-                            (text, imagini, forme) si configurezi comportamentul in modul Solutie.
+                    <>
+                        <p style={styles.helpText}>
+                            Alege un tip de exercitiu pentru a incepe. Tipurile disponibile au buton verde;
+                            cele marcate „in lucru" vor fi implementate in etapele urmatoare.
                         </p>
-                        <button
-                            onClick={handleCreateFromScratch}
-                            disabled={creating}
-                            style={{
-                                ...styles.primaryBtn,
-                                opacity: creating ? 0.6 : 1,
-                                cursor: creating ? 'wait' : 'pointer',
-                            }}
-                        >
-                            {creating ? 'Se creeaza...' : 'Deschide editorul'}
-                        </button>
-                    </div>
+                        <div style={styles.typesGrid}>
+                            {EXERCISE_TYPE_DEFINITIONS.map(def => (
+                                <TypeCard
+                                    key={def.type}
+                                    def={def}
+                                    onSelect={() => handleCreateFromScratch(def.type)}
+                                    disabled={creating || (!def.implemented && def.type !== EXERCISE_TYPES.CUSTOM)}
+                                />
+                            ))}
+                        </div>
+                    </>
                 )}
 
                 {activeTab === 'template' && (
@@ -167,6 +165,36 @@ export default function CreateExercisePage() {
                     </>
                 )}
             </div>
+        </div>
+    );
+}
+
+function TypeCard({ def, onSelect, disabled }) {
+    const isCustom = def.type === EXERCISE_TYPES.CUSTOM;
+
+    return (
+        <div
+            onClick={disabled ? undefined : onSelect}
+            style={{
+                ...styles.typeCard,
+                opacity: disabled ? 0.5 : 1,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                borderColor: isCustom ? '#4F6BF6' : '#f3f4f6',
+                background: isCustom ? '#f8f9ff' : 'white',
+            }}
+        >
+            <div style={styles.typeIcon}>{def.icon}</div>
+            <h3 style={styles.typeLabel}>{def.label}</h3>
+            <p style={styles.typeDesc}>{def.description}</p>
+            {!def.implemented && !isCustom && (
+                <span style={styles.typeBadgeDisabled}>În lucru</span>
+            )}
+            {def.implemented && !isCustom && (
+                <span style={styles.typeBadgeAvailable}>Disponibil</span>
+            )}
+            {isCustom && (
+                <span style={styles.typeBadgeCustom}>Recomandat</span>
+            )}
         </div>
     );
 }
@@ -266,7 +294,7 @@ const styles = {
         color: '#1a1d23',
     },
     container: {
-        maxWidth: 900,
+        maxWidth: 1100,
         margin: '0 auto',
         padding: '32px 20px',
     },
@@ -309,41 +337,83 @@ const styles = {
         marginBottom: 16,
         border: '1px solid #fecaca',
     },
-    scratchCard: {
-        background: 'white',
-        borderRadius: 20,
-        padding: '40px 32px',
-        textAlign: 'center',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        maxWidth: 520,
-        margin: '0 auto',
-    },
-    scratchIcon: {
-        fontSize: '3rem',
-        marginBottom: 16,
-    },
-    scratchTitle: {
-        fontSize: '1.4rem',
-        fontWeight: 900,
-        color: '#1a1d23',
-        marginBottom: 10,
-    },
-    scratchDesc: {
-        fontSize: '0.9rem',
+    helpText: {
+        fontSize: '0.85rem',
         color: '#6b7280',
         fontWeight: 500,
-        lineHeight: 1.6,
-        marginBottom: 24,
+        marginBottom: 20,
     },
-    primaryBtn: {
+    typesGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+        gap: 14,
+    },
+    typeCard: {
+        background: 'white',
+        borderRadius: 12,
+        padding: '18px 14px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
+        gap: 8,
+        border: '2px solid #f3f4f6',
+        transition: 'all 0.2s ease',
+        position: 'relative',
+        minHeight: 170,
+    },
+    typeIcon: {
+        fontSize: '2rem',
+        marginBottom: 4,
+    },
+    typeLabel: {
+        fontSize: '0.9rem',
+        fontWeight: 800,
+        color: '#1a1d23',
+        margin: 0,
+    },
+    typeDesc: {
+        fontSize: '0.75rem',
+        color: '#6b7280',
+        fontWeight: 500,
+        lineHeight: 1.4,
+        margin: 0,
+    },
+    typeBadgeDisabled: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        background: '#9ca3af',
+        color: 'white',
+        fontSize: '0.65rem',
+        fontWeight: 800,
+        padding: '3px 7px',
+        borderRadius: 5,
+        letterSpacing: '0.3px',
+    },
+    typeBadgeAvailable: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        background: '#059669',
+        color: 'white',
+        fontSize: '0.65rem',
+        fontWeight: 800,
+        padding: '3px 7px',
+        borderRadius: 5,
+        letterSpacing: '0.3px',
+    },
+    typeBadgeCustom: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
         background: '#4F6BF6',
         color: 'white',
-        border: 'none',
-        padding: '13px 32px',
-        borderRadius: 12,
-        fontSize: '0.95rem',
+        fontSize: '0.65rem',
         fontWeight: 800,
-        boxShadow: '0 4px 0 #3a52c4',
+        padding: '3px 7px',
+        borderRadius: 5,
+        letterSpacing: '0.3px',
     },
     loadingWrap: {
         display: 'flex',

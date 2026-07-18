@@ -13,6 +13,7 @@ const MAX_HISTORY = 50;
 export function EditorProvider({ children }) {
     const [elements, setElements] = useState([]);
     const [selectedIds, setSelectedIds] = useState([]);
+    const [canvas, setCanvas] = useState({ ...DEFAULT_CANVAS });
     const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS });
     const [solution, setSolution] = useState({ ...DEFAULT_SOLUTION });
     const [meta, setMeta] = useState({
@@ -38,6 +39,9 @@ export function EditorProvider({ children }) {
     const [saveMessage, setSaveMessage] = useState('');
     const [loadStatus, setLoadStatus] = useState('idle');
     const [loadMessage, setLoadMessage] = useState('');
+
+    const [draftVersionId, setDraftVersionId] = useState(null);
+    const [draftStatus, setDraftStatus] = useState(null);
 
     const generateId = () => `el_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
@@ -290,6 +294,10 @@ export function EditorProvider({ children }) {
         updateElement(id, { hidden: !el.hidden });
     }, [elements, updateElement]);
 
+    const updateCanvas = useCallback((updates) => {
+        setCanvas(prev => ({ ...prev, ...updates }));
+    }, []);
+
     const saveDraft = useCallback(async () => {
         if (!exerciseId) {
             setSaveStatus('error');
@@ -302,6 +310,7 @@ export function EditorProvider({ children }) {
 
         const canvasState = {
             ...createDefaultConfig(),
+            canvas,
             meta,
             elements,
             settings,
@@ -315,6 +324,8 @@ export function EditorProvider({ children }) {
             });
             setSaveStatus('saved');
             setSaveMessage(`Salvat! Versiune ${res.data.versionNumber}`);
+            setDraftVersionId(res.data.id);
+            setDraftStatus(res.data.status);
             setTimeout(() => setSaveStatus('idle'), 3000);
         } catch (err) {
             console.error('Eroare la salvare:', err);
@@ -322,27 +333,55 @@ export function EditorProvider({ children }) {
             setSaveMessage(err.response?.data?.message || 'Eroare la salvare');
             setTimeout(() => setSaveStatus('idle'), 5000);
         }
-    }, [exerciseId, elements, meta, settings, solution]);
+    }, [exerciseId, elements, canvas, meta, settings, solution]);
 
-    const initNewExercise = useCallback(async (quizId) => {
+    const submitForReview = useCallback(async () => {
+        if (!draftVersionId) {
+            setSaveStatus('error');
+            setSaveMessage('Salvează draftul înainte de a trimite spre review');
+            setTimeout(() => setSaveStatus('idle'), 5000);
+            return;
+        }
+
+        setSaveStatus('saving');
+        setSaveMessage('Se trimite spre review...');
+
+        try {
+            const res = await api.post(`/exercises/versions/${draftVersionId}/submit-for-review`, {});
+            setSaveStatus('saved');
+            setSaveMessage('Trimis spre review!');
+            setDraftStatus(res.data.status);
+            setTimeout(() => setSaveStatus('idle'), 3000);
+        } catch (err) {
+            console.error('Eroare la trimiterea spre review:', err);
+            setSaveStatus('error');
+            setSaveMessage(err.response?.data?.message || 'Eroare la trimiterea spre review');
+            setTimeout(() => setSaveStatus('idle'), 5000);
+        }
+    }, [draftVersionId]);
+
+    const initNewExercise = useCallback(async (quizId, type = EXERCISE_TYPES.CUSTOM) => {
         setLoadStatus('loading');
         setLoadMessage('Se creeaza exercitiu nou...');
 
-        const emptyCanvas = createDefaultConfig({ type: EXERCISE_TYPES.CUSTOM });
+        const emptyCanvas = createDefaultConfig({ type });
 
         try {
             const res = await api.post(`/exercises/draft/new?quizId=${quizId}`, {
                 config: JSON.stringify(emptyCanvas),
-                type: 'CUSTOM',
+                type: type,
                 changeNote: 'Exercitiu creat din editor',
             });
             setExerciseId(res.data.exerciseId);
             setElements([]);
+            setCanvas(emptyCanvas.canvas || { ...DEFAULT_CANVAS });
             setMeta(emptyCanvas.meta);
             setSettings(emptyCanvas.settings);
             setSolution(emptyCanvas.solution);
             setHistory([[]]);
             setHistoryIndex(0);
+            setDraftVersionId(res.data.id);
+            setDraftStatus(res.data.status);
             setLoadStatus('loaded');
             setLoadMessage('');
             return res.data.exerciseId;
@@ -365,12 +404,15 @@ export function EditorProvider({ children }) {
 
             setExerciseId(id);
             setElements(canvasState.elements);
+            setCanvas(canvasState.canvas || { ...DEFAULT_CANVAS });
             setMeta(canvasState.meta);
             setSettings(canvasState.settings);
             setSolution(canvasState.solution);
             setHistory([JSON.parse(JSON.stringify(canvasState.elements))]);
             setHistoryIndex(0);
             setSelectedIds([]);
+            setDraftVersionId(res.data.id);
+            setDraftStatus(res.data.status);
             setLoadStatus('loaded');
             setLoadMessage('');
         } catch (err) {
@@ -448,6 +490,7 @@ export function EditorProvider({ children }) {
         selectedElement, selectedElements,
         selectOne, toggleSelection, clearSelection,
         mode, setMode,
+        canvas, updateCanvas,
         addElement, updateElement, updateMultipleElements,
         deleteElement, deleteSelected,
         undo, redo, canUndo, canRedo,
@@ -464,10 +507,11 @@ export function EditorProvider({ children }) {
         exerciseId, setExerciseId,
         saveDraft, saveStatus, saveMessage,
         initNewExercise, loadDraft,
-        loadStatus, loadMessage,meta, updateMeta,
+        loadStatus, loadMessage, meta, updateMeta,
         settings, updateSettings,
         solution, updateSolution,
         toggleCorrect, isCorrect: (id) => solution.correctElementIds.includes(id),
+        draftVersionId, draftStatus, submitForReview,
     };
 
     return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;

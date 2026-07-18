@@ -1,5 +1,147 @@
 export const EXERCISE_TYPES = {
     CUSTOM: 'CUSTOM',
+    FIND_AND_SELECT: 'FIND_AND_SELECT',
     FIND_AND_COUNT: 'FIND_AND_COUNT',
-
+    DRAG_AND_DROP: 'DRAG_AND_DROP',
+    MULTIPLE_CHOICE: 'MULTIPLE_CHOICE',
+    INPUT_TEXT: 'INPUT_TEXT',
+    INPUT_NUMERIC: 'INPUT_NUMERIC',
+    MATCHING: 'MATCHING',
+    ORDERING: 'ORDERING',
+    PUZZLE: 'PUZZLE',
+    COLORING: 'COLORING',
+    GRID_BASED: 'GRID_BASED',
+    VIDEO: 'VIDEO',
+    PDF: 'PDF',
+    TABLES_CHARTS: 'TABLES_CHARTS',
+    LOGICAL_SERIES: 'LOGICAL_SERIES',
+    TEXT_PROBLEMS: 'TEXT_PROBLEMS',
 };
+
+// Definiții declarative pentru fiecare tip
+export const EXERCISE_TYPE_DEFINITIONS = [
+    {
+        type: EXERCISE_TYPES.CUSTOM,
+        label: 'Personalizat',
+        description: 'Exercițiu liber, fără interactivitate specifică',
+        icon: '🎨',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.FIND_AND_SELECT,
+        label: 'Găsește și selectează',
+        description: 'Elevul dă click pe elementele corecte din canvas',
+        icon: '👆',
+        implemented: true,
+    },
+    {
+        type: EXERCISE_TYPES.FIND_AND_COUNT,
+        label: 'Găsește și numără',
+        description: 'Elevul numără elementele de fiecare categorie',
+        icon: '🔢',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.DRAG_AND_DROP,
+        label: 'Drag & drop',
+        description: 'Elevul trage elementele în zonele corecte',
+        icon: '✥',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.MULTIPLE_CHOICE,
+        label: 'Selecție multiplă',
+        description: 'Elevul alege una sau mai multe variante corecte',
+        icon: '☑️',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.INPUT_TEXT,
+        label: 'Input text',
+        description: 'Elevul scrie răspunsul',
+        icon: '⌨️',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.INPUT_NUMERIC,
+        label: 'Input numeric',
+        description: 'Elevul introduce un număr',
+        icon: '🔢',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.MATCHING,
+        label: 'Potrivire perechi',
+        description: 'Elevul potrivește perechi de elemente',
+        icon: '🔗',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.ORDERING,
+        label: 'Ordonare',
+        description: 'Elevul aranjează elementele în ordinea corectă',
+        icon: '↕️',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.PUZZLE,
+        label: 'Puzzle vizual',
+        description: 'Elevul reconstituie o imagine',
+        icon: '🧩',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.COLORING,
+        label: 'Colorare zone',
+        description: 'Elevul colorează zonele indicate',
+        icon: '🎨',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.GRID_BASED,
+        label: 'Grid interactiv',
+        description: 'Exercițiu bazat pe grilă de imagini',
+        icon: '⊞',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.VIDEO,
+        label: 'Cu video',
+        description: 'Exercițiu bazat pe conținut video',
+        icon: '🎬',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.PDF,
+        label: 'Cu PDF',
+        description: 'Exercițiu bazat pe document PDF',
+        icon: '📄',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.TABLES_CHARTS,
+        label: 'Tabele și grafice',
+        description: 'Exercițiu de interpretare tabele/grafice',
+        icon: '📊',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.LOGICAL_SERIES,
+        label: 'Șiruri logice',
+        description: 'Elevul continuă sau completează un șir logic',
+        icon: '➕',
+        implemented: false,
+    },
+    {
+        type: EXERCISE_TYPES.TEXT_PROBLEMS,
+        label: 'Probleme cu text',
+        description: 'Probleme rezolvabile prin raționament textual',
+        icon: '📝',
+        implemented: false,
+    },
+];
+
+// Helper pentru lookup rapid
+export function getTypeDefinition(type) {
+    return EXERCISE_TYPE_DEFINITIONS.find(d => d.type === type) || EXERCISE_TYPE_DEFINITIONS[0];
+}

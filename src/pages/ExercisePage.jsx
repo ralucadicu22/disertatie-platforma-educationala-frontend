@@ -31,18 +31,6 @@ export default function ExercisePage() {
             </div>
 
             <div style={styles.container}>
-                <div style={styles.infoBanner}>
-                    <div style={styles.infoIcon}>🚧</div>
-                    <div>
-                        <h3 style={styles.infoTitle}>Player-ul de exerciții e în dezvoltare</h3>
-                        <p style={styles.infoDesc}>
-                            Player-ul care rulează exercițiile pentru elevi va fi implementat împreună
-                            cu cele 16 tipuri de exerciții (etapa 1.17). Momentan poți vedea lista
-                            exercițiilor din quiz, dar rezolvarea nu este încă disponibilă.
-                        </p>
-                    </div>
-                </div>
-
                 <h2 style={styles.sectionTitle}>Exerciții în acest quiz ({exercises.length})</h2>
                 {exercises.length === 0 ? (
                     <p style={styles.emptyText}>Nu există exerciții publicate în acest quiz.</p>
@@ -57,6 +45,12 @@ export default function ExercisePage() {
                                         {ex.points} puncte · dificultate {ex.difficulty}
                                     </p>
                                 </div>
+                                <button
+                                    style={styles.playBtn}
+                                    onClick={() => navigate(`/exercise/${ex.id}/play`)}
+                                >
+                                    Rezolvă →
+                                </button>
                             </div>
                         ))}
                     </div>
@@ -107,29 +101,6 @@ const styles = {
         margin: '0 auto',
         padding: '32px 20px',
     },
-    infoBanner: {
-        display: 'flex',
-        gap: 16,
-        background: '#f8f9ff',
-        border: '2px dashed #d1d9f6',
-        borderRadius: 14,
-        padding: '20px',
-        marginBottom: 28,
-    },
-    infoIcon: { fontSize: '2rem', flexShrink: 0 },
-    infoTitle: {
-        fontSize: '1rem',
-        fontWeight: 800,
-        color: '#1a1d23',
-        margin: '0 0 6px 0',
-    },
-    infoDesc: {
-        fontSize: '0.85rem',
-        color: '#6b7280',
-        fontWeight: 500,
-        lineHeight: 1.6,
-        margin: 0,
-    },
     sectionTitle: {
         fontSize: '0.85rem',
         fontWeight: 800,
@@ -174,6 +145,17 @@ const styles = {
         color: '#6b7280',
         fontWeight: 600,
         margin: 0,
+    },
+    playBtn: {
+        padding: '9px 16px',
+        background: '#4F6BF6',
+        color: 'white',
+        border: 'none',
+        borderRadius: 10,
+        fontSize: '0.85rem',
+        fontWeight: 700,
+        cursor: 'pointer',
+        flexShrink: 0,
     },
     emptyText: {
         fontSize: '0.9rem',

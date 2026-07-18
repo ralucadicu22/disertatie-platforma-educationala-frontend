@@ -1,26 +1,24 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Stage, Layer, Rect, Line, Transformer } from 'react-konva';
+import { Stage, Layer, Rect, Line, Transformer, Image as KonvaImage } from 'react-konva';
+import useImage from 'use-image';
 import { useEditor } from '../../store/editorStore.jsx';
 import CanvasText from './elements/CanvasText';
 import CanvasImage from './elements/CanvasImage';
 import CanvasShape from './elements/CanvasShape';
-import {DEFAULT_CANVAS} from "../../constants/canvas.js";
-
-const CANVAS_WIDTH = 1200;
-const CANVAS_HEIGHT = 800;
 
 export default function EditorCanvas() {
     const {
         elements, selectedIds, selectOne, toggleSelection, clearSelection,
         updateElement, zoom, setZoom, stageOffset, setStageOffset,
         snapEnabled, snapToGrid, GRID_SIZE,
-        mode, solution,   //
+        mode, solution, canvas,
     } = useEditor();
 
     const stageRef = useRef(null);
     const transformerRef = useRef(null);
     const containerRef = useRef(null);
 
+    const [bgImage] = useImage(canvas.backgroundImage || '', 'anonymous');
 
     const [isSpacePressed, setIsSpacePressed] = useState(false);
 
@@ -200,8 +198,8 @@ export default function EditorCanvas() {
         >
             <div style={styles.canvasWrapper}>
                 <Stage
-                    width={CANVAS_WIDTH}
-                    height={CANVAS_HEIGHT}
+                    width={canvas.width}
+                    height={canvas.height}
                     ref={stageRef}
                     scaleX={zoom}
                     scaleY={zoom}
@@ -216,12 +214,23 @@ export default function EditorCanvas() {
                     <Layer>
                         <Rect
                             x={0} y={0}
-                            width={CANVAS_WIDTH} height={CANVAS_HEIGHT}
-                            fill="white"
+                            width={canvas.width} height={canvas.height}
+                            fill={canvas.background || '#ffffff'}
                             listening={false}
                         />
 
-                        {snapEnabled && mode !== 'preview' && <GridLines width={DEFAULT_CANVAS.width} height={DEFAULT_CANVAS.height} step={GRID_SIZE} />}
+                        {bgImage && (
+                            <KonvaImage
+                                image={bgImage}
+                                x={0} y={0}
+                                width={canvas.width} height={canvas.height}
+                                listening={false}
+                            />
+                        )}
+
+                        {snapEnabled && mode !== 'preview' && (
+                            <GridLines width={canvas.width} height={canvas.height} step={GRID_SIZE} />
+                        )}
 
                         {elements.map(el => {
                             if (el.hidden) return null;
@@ -281,11 +290,11 @@ export default function EditorCanvas() {
                         })}
 
                         {mode !== 'preview' && guides.vertical.map((x, i) => (
-                            <Line key={`v-${i}`} points={[x, 0, x, CANVAS_HEIGHT]}
+                            <Line key={`v-${i}`} points={[x, 0, x, canvas.height]}
                                   stroke="#FF4B4B" strokeWidth={1} dash={[4, 4]} listening={false} />
                         ))}
                         {mode !== 'preview' && guides.horizontal.map((y, i) => (
-                            <Line key={`h-${i}`} points={[0, y, CANVAS_WIDTH, y]}
+                            <Line key={`h-${i}`} points={[0, y, canvas.width, y]}
                                   stroke="#FF4B4B" strokeWidth={1} dash={[4, 4]} listening={false} />
                         ))}
 

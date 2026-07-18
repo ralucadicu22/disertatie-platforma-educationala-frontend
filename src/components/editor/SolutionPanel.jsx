@@ -1,10 +1,12 @@
 import { useEditor } from '../../store/editorStore.jsx';
+import { EXERCISE_TYPE_DEFINITIONS } from '../../constants/exerciseTypes';
 
 export default function SolutionPanel() {
     const {
         settings, updateSettings,
         solution, toggleCorrect,
         selectedElement, selectedIds, elements,
+        meta, updateMeta,
     } = useEditor();
 
     const selectedIsCorrect = selectedElement
@@ -27,6 +29,23 @@ export default function SolutionPanel() {
             <div style={styles.grid}>
 
                 <Section title="Setări generale">
+                    <Field label="Tip exercițiu">
+                        <select
+                            value={meta.type}
+                            onChange={(e) => updateMeta({ type: e.target.value })}
+                            style={styles.input}
+                        >
+                            {EXERCISE_TYPE_DEFINITIONS.map(def => (
+                                <option
+                                    key={def.type}
+                                    value={def.type}
+                                    disabled={!def.implemented && def.type !== meta.type}
+                                >
+                                    {def.icon} {def.label} {!def.implemented ? '(în lucru)' : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </Field>
                     <Field label="Număr încercări">
                         <input
                             type="number"

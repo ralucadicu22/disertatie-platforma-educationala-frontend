@@ -9,6 +9,8 @@ import StudentDashboard from "./pages/StudentDashboard.jsx";
 import TeacherDashboard from "./pages/TeacherDashboard.jsx";
 import ExerciseEditor from "./pages/ExerciseEditor.jsx";
 import CreateExercisePage from "./pages/CreateExercisePage.jsx";
+import AdminReviewPage from "./pages/AdminReviewPage.jsx";
+import ExercisePlayer from "./components/player/ExercisePlayer.jsx";
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -80,7 +82,10 @@ function App() {
                         <ExerciseEditor mode="existing" />
                     </PrivateRoute>
                 }
+
             />
+            <Route path="/admin/review" element={<AdminReviewPage />} />
+            <Route path="/exercise/:exerciseId/play" element={<ExercisePlayer />} />
         </Routes>
     )
 }

@@ -7,8 +7,19 @@ export default function EditorPropertiesPanel() {
     const {
         selectedElement, updateElement, deleteElement, deleteSelected,
         selectedIds, alignElements, distributeElements,
+        canvas, updateCanvas,
     } = useEditor();
     const fileInputRef = useRef(null);
+    const bgFileInputRef = useRef(null);
+
+    const handleBgFileSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => updateCanvas({ backgroundImage: evt.target.result });
+        reader.readAsDataURL(file);
+    };
+
     if (selectedIds.length > 1) {
         return (
             <div style={styles.panel}>
@@ -43,9 +54,47 @@ export default function EditorPropertiesPanel() {
     if (!selectedElement) {
         return (
             <div style={styles.panel}>
-                <p style={styles.emptyMsg}>
-                    Selectează un element din canvas pentru a-i modifica proprietățile.
+                <div style={styles.header}>
+                    <span style={styles.elementType}>CANVAS</span>
+                </div>
+                <p style={{ ...styles.emptyMsg, margin: '0 0 12px 0' }}>
+                    Niciun element selectat — modifici proprietățile canvasului întreg.
                 </p>
+                <div style={styles.tabs}>
+                    <Tab title="Dimensiuni">
+                        <NumField label="Lățime" value={canvas.width} onChange={v => updateCanvas({ width: v })} />
+                        <NumField label="Înălțime" value={canvas.height} onChange={v => updateCanvas({ height: v })} />
+                    </Tab>
+
+                    <Tab title="Fundal">
+                        <ColorField
+                            label="Culoare"
+                            value={canvas.background || '#ffffff'}
+                            onChange={v => updateCanvas({ background: v })}
+                        />
+                        <div style={styles.field}>
+                            <label style={styles.fieldLabel}>Imagine</label>
+                            <input
+                                ref={bgFileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleBgFileSelect}
+                                style={{ display: 'none' }}
+                            />
+                            <button onClick={() => bgFileInputRef.current?.click()} style={styles.uploadBtn}>
+                                {canvas.backgroundImage ? 'Schimbă...' : 'Încarcă imagine'}
+                            </button>
+                        </div>
+                        {canvas.backgroundImage && (
+                            <button
+                                onClick={() => updateCanvas({ backgroundImage: null })}
+                                style={{ ...styles.deleteBtn, alignSelf: 'flex-end' }}
+                            >
+                                Șterge fundal
+                            </button>
+                        )}
+                    </Tab>
+                </div>
             </div>
         );
     }
