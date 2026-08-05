@@ -1,13 +1,15 @@
 import { useEditor } from '../../store/editorStore.jsx';
-import { EXERCISE_TYPE_DEFINITIONS } from '../../constants/exerciseTypes';
+import { EXERCISE_TYPE_DEFINITIONS, EXERCISE_TYPES } from '../../constants/exerciseTypes';
 
 export default function SolutionPanel() {
     const {
         settings, updateSettings,
-        solution, toggleCorrect,
+        solution, toggleCorrect, updateSolution,
         selectedElement, selectedIds, elements,
         meta, updateMeta,
     } = useEditor();
+
+    const isDragAndDrop = meta.type === EXERCISE_TYPES.DRAG_AND_DROP;
 
     const selectedIsCorrect = selectedElement
         ? solution.correctElementIds.includes(selectedElement.id)
@@ -17,12 +19,32 @@ export default function SolutionPanel() {
         id => elements.some(el => el.id === id)
     ).length;
 
+    const dropMapping = solution.dropMapping || {};
+    const mappingCount = Object.keys(dropMapping).filter(
+        draggableId => elements.some(el => el.id === draggableId)
+    ).length;
+
+    const targetElements = elements.filter(el => el.behavior === 'dropTarget');
+    const draggableElements = elements.filter(el => el.behavior === 'draggable');
+
+    const assignTarget = (draggableId, targetId) => {
+        updateSolution({ dropMapping: { ...dropMapping, [draggableId]: targetId } });
+    };
+
+    const removeMapping = (draggableId) => {
+        const next = { ...dropMapping };
+        delete next[draggableId];
+        updateSolution({ dropMapping: next });
+    };
+
     return (
         <div style={styles.panel}>
             <div style={styles.header}>
                 <span style={styles.headerBadge}>SOLUȚIE</span>
                 <span style={styles.headerInfo}>
-                    {correctCount} {correctCount === 1 ? 'element marcat' : 'elemente marcate'} ca răspuns corect
+                    {isDragAndDrop
+                        ? `${mappingCount} ${mappingCount === 1 ? 'pereche configurată' : 'perechi configurate'}`
+                        : `${correctCount} ${correctCount === 1 ? 'element marcat' : 'elemente marcate'} ca răspuns corect`}
                 </span>
             </div>
 
@@ -115,40 +137,123 @@ export default function SolutionPanel() {
                 </Section>
 
                 <Section title="Marcare răspuns">
-                    {!selectedElement && selectedIds.length === 0 && (
-                        <p style={styles.emptyText}>
-                            Selectează un element din canvas pentru a-l marca ca răspuns corect.
-                        </p>
-                    )}
-
-                    {!selectedElement && selectedIds.length > 1 && (
-                        <p style={styles.emptyText}>
-                            Marcarea funcționează pe un singur element odată. Deselectează.
-                        </p>
-                    )}
-
-                    {selectedElement && (
+                    {!isDragAndDrop && (
                         <>
-                            <div style={styles.selectedInfo}>
-                                <span style={styles.selectedType}>{selectedElement.type}</span>
-                                <span style={styles.selectedId}>
-                                    ID: {selectedElement.id.substring(0, 15)}...
-                                </span>
-                            </div>
-                            <button
-                                onClick={() => toggleCorrect(selectedElement.id)}
-                                style={{
-                                    ...styles.markBtn,
-                                    background: selectedIsCorrect ? '#dc2626' : '#059669',
-                                }}
-                            >
-                                {selectedIsCorrect
-                                    ? '✗ Demarchează ca răspuns corect'
-                                    : '✓ Marchează ca răspuns corect'}
-                            </button>
+                            {!selectedElement && selectedIds.length === 0 && (
+                                <p style={styles.emptyText}>
+                                    Selectează un element din canvas pentru a-l marca ca răspuns corect.
+                                </p>
+                            )}
+
+                            {!selectedElement && selectedIds.length > 1 && (
+                                <p style={styles.emptyText}>
+                                    Marcarea funcționează pe un singur element odată. Deselectează.
+                                </p>
+                            )}
+
+                            {selectedElement && (
+                                <>
+                                    <div style={styles.selectedInfo}>
+                                        <span style={styles.selectedType}>{selectedElement.type}</span>
+                                        <span style={styles.selectedId}>
+                                            ID: {selectedElement.id.substring(0, 15)}...
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => toggleCorrect(selectedElement.id)}
+                                        style={{
+                                            ...styles.markBtn,
+                                            background: selectedIsCorrect ? '#dc2626' : '#059669',
+                                        }}
+                                    >
+                                        {selectedIsCorrect
+                                            ? '✗ Demarchează ca răspuns corect'
+                                            : '✓ Marchează ca răspuns corect'}
+                                    </button>
+                                </>
+                            )}
                         </>
                     )}
+
+                    {isDragAndDrop && (
+                        <DragDropMapping
+                            selectedElement={selectedElement}
+                            draggableElements={draggableElements}
+                            targetElements={targetElements}
+                            dropMapping={dropMapping}
+                            onAssign={assignTarget}
+                            onRemove={removeMapping}
+                        />
+                    )}
                 </Section>
+            </div>
+        </div>
+    );
+}
+
+function DragDropMapping({ selectedElement, draggableElements, targetElements, dropMapping, onAssign, onRemove }) {
+    if (draggableElements.length === 0 || targetElements.length === 0) {
+        return (
+            <p style={styles.emptyText}>
+                Ai nevoie de cel puțin un element cu comportament „Drag source” și unul cu „Drop target”
+                (setează din Properties Panel → tab Comportament).
+            </p>
+        );
+    }
+
+    const isDraggableSelected = selectedElement && selectedElement.behavior === 'draggable';
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {!isDraggableSelected && (
+                <p style={styles.emptyText}>
+                    Selectează pe canvas un element „Drag source” pentru a-i alege zona corectă.
+                </p>
+            )}
+
+            {isDraggableSelected && (
+                <>
+                    <div style={styles.selectedInfo}>
+                        <span style={styles.selectedType}>DRAGGABLE</span>
+                        <span style={styles.selectedId}>
+                            ID: {selectedElement.id.substring(0, 15)}...
+                        </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {targetElements.map(target => {
+                            const isAssigned = dropMapping[selectedElement.id] === target.id;
+                            return (
+                                <button
+                                    key={target.id}
+                                    onClick={() => onAssign(selectedElement.id, target.id)}
+                                    style={{
+                                        ...styles.targetOptionBtn,
+                                        background: isAssigned ? '#059669' : '#f9fafb',
+                                        color: isAssigned ? 'white' : '#1a1d23',
+                                        borderColor: isAssigned ? '#059669' : '#e5e7eb',
+                                    }}
+                                >
+                                    {isAssigned ? '✓ ' : ''}Zonă: {target.id.substring(0, 18)}...
+                                </button>
+                            );
+                        })}
+                    </div>
+                </>
+            )}
+
+            <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 10, marginTop: 4 }}>
+                <p style={{ ...styles.fieldLabel, marginBottom: 6 }}>Perechi configurate</p>
+                {Object.keys(dropMapping).length === 0 && (
+                    <p style={styles.emptyText}>Nicio pereche configurată încă.</p>
+                )}
+                {Object.entries(dropMapping).map(([draggableId, targetId]) => (
+                    <div key={draggableId} style={styles.mappingRow}>
+                        <span style={styles.mappingText}>
+                            {draggableId.substring(0, 10)}... → {targetId.substring(0, 10)}...
+                        </span>
+                        <button onClick={() => onRemove(draggableId)} style={styles.removeMappingBtn}>✕</button>
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -281,5 +386,40 @@ const styles = {
         fontWeight: 800,
         cursor: 'pointer',
         transition: 'all 0.15s',
+    },
+    targetOptionBtn: {
+        border: '1.5px solid',
+        borderRadius: 8,
+        padding: '8px 12px',
+        fontSize: '0.78rem',
+        fontWeight: 700,
+        cursor: 'pointer',
+        textAlign: 'left',
+        fontFamily: 'monospace',
+    },
+    mappingRow: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '6px 10px',
+        background: '#f9fafb',
+        borderRadius: 6,
+        marginBottom: 4,
+    },
+    mappingText: {
+        fontSize: '0.72rem',
+        color: '#374151',
+        fontFamily: 'monospace',
+    },
+    removeMappingBtn: {
+        background: '#fee2e2',
+        color: '#b91c1c',
+        border: 'none',
+        borderRadius: 6,
+        width: 22,
+        height: 22,
+        fontSize: '0.7rem',
+        cursor: 'pointer',
+        flexShrink: 0,
     },
 };

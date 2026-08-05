@@ -5,6 +5,10 @@ import { useEditor } from '../../store/editorStore.jsx';
 import CanvasText from './elements/CanvasText';
 import CanvasImage from './elements/CanvasImage';
 import CanvasShape from './elements/CanvasShape';
+import CanvasBox from './elements/CanvasBox';
+import { ELEMENT_TYPES } from '../../constants/elementTypes';
+import CanvasGrid from './elements/CanvasGrid';
+import { getAbsolutePosition, clampChildInsideParent, getGridCellRect } from '../../utils/elementPosition';
 
 export default function EditorCanvas() {
     const {
@@ -21,9 +25,55 @@ export default function EditorCanvas() {
     const [bgImage] = useImage(canvas.backgroundImage || '', 'anonymous');
 
     const [isSpacePressed, setIsSpacePressed] = useState(false);
-
     const [guides, setGuides] = useState({ vertical: [], horizontal: [] });
+    const [fitScale, setFitScale] = useState(1);
+    const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
 
+    const fitToContainer = (containerW, containerH) => {
+        const padding = 20;
+        const availableW = containerW - padding * 2;
+        const availableH = containerH - padding * 2;
+        if (availableW <= 0 || availableH <= 0) return null;
+
+        const scaleW = availableW / canvas.width;
+        const scaleH = availableH / canvas.height;
+        const fit = Math.min(scaleW, scaleH, 1);
+
+        return {
+            scale: fit,
+            offsetX: (containerW - canvas.width * fit) / 2,
+            offsetY: (containerH - canvas.height * fit) / 2,
+        };
+    };
+
+    // Observ marimea containerului; recalculez fit doar cand se schimba
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const measure = () => {
+            const w = el.clientWidth;
+            const h = el.clientHeight;
+            if (w && h && (w !== containerSize.w || h !== containerSize.h)) {
+                setContainerSize({ w, h });
+            }
+        };
+
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [containerSize.w, containerSize.h]);
+
+    // Cand se schimba marimea container-ului sau a canvasului, recalculez fit
+    useEffect(() => {
+        if (!containerSize.w || !containerSize.h) return;
+        const fit = fitToContainer(containerSize.w, containerSize.h);
+        if (!fit) return;
+        setFitScale(fit.scale);
+        setZoom(fit.scale);
+        setStageOffset({ x: fit.offsetX, y: fit.offsetY });
+    }, [containerSize.w, containerSize.h, canvas.width, canvas.height]);
 
     useEffect(() => {
         if (!transformerRef.current || !stageRef.current) return;
@@ -37,7 +87,6 @@ export default function EditorCanvas() {
             transformerRef.current.nodes([]);
         }
     }, [selectedIds, elements]);
-
 
     useEffect(() => {
         const onKeyDown = (e) => {
@@ -59,6 +108,7 @@ export default function EditorCanvas() {
         };
     }, [isSpacePressed]);
 
+    // Zoom cu Ctrl+scroll — pivotam pe pointer (nu pe origine)
     const handleWheel = (e) => {
         if (!e.evt.ctrlKey && !e.evt.metaKey) return;
         e.evt.preventDefault();
@@ -67,30 +117,55 @@ export default function EditorCanvas() {
         const oldScale = stage.scaleX();
         const scaleBy = 1.1;
         const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
-        const clampedScale = Math.max(0.25, Math.min(4, newScale));
+        const clampedScale = Math.max(fitScale * 0.25, Math.min(fitScale * 5, newScale));
 
+        // Pivot pe pointer: pastram acelasi punct al canvasului sub cursor
         const mousePointTo = {
             x: (pointer.x - stage.x()) / oldScale,
             y: (pointer.y - stage.y()) / oldScale,
         };
-        const newPos = {
+        setZoom(clampedScale);
+        setStageOffset({
             x: pointer.x - mousePointTo.x * clampedScale,
             y: pointer.y - mousePointTo.y * clampedScale,
-        };
-        setZoom(clampedScale);
-        setStageOffset(newPos);
+        });
     };
 
+    // Pan cu butoanele +/- — pivot pe centrul containerului
+    const zoomByStep = (direction) => {
+        if (!containerSize.w || !containerSize.h) return;
+        const oldScale = zoom;
+        const scaleBy = 1.15;
+        const newScale = direction === 'in' ? oldScale * scaleBy : oldScale / scaleBy;
+        const clampedScale = Math.max(fitScale * 0.25, Math.min(fitScale * 5, newScale));
+
+        const centerX = containerSize.w / 2;
+        const centerY = containerSize.h / 2;
+        const stagePointCenter = {
+            x: (centerX - stageOffset.x) / oldScale,
+            y: (centerY - stageOffset.y) / oldScale,
+        };
+        setZoom(clampedScale);
+        setStageOffset({
+            x: centerX - stagePointCenter.x * clampedScale,
+            y: centerY - stagePointCenter.y * clampedScale,
+        });
+    };
+
+    const resetView = () => {
+        if (!containerSize.w || !containerSize.h) return;
+        const fit = fitToContainer(containerSize.w, containerSize.h);
+        if (!fit) return;
+        setZoom(fit.scale);
+        setStageOffset({ x: fit.offsetX, y: fit.offsetY });
+    };
 
     const handleStageMouseDown = (e) => {
-        // Dacă apesi spacebar, nu deselect — vrei să pan
         if (isSpacePressed) return;
-        // Click direct pe stage (nu pe element) = deselect
         if (e.target === e.target.getStage()) {
             clearSelection();
         }
     };
-
 
     const handleStageDragEnd = (e) => {
         if (isSpacePressed) {
@@ -98,51 +173,49 @@ export default function EditorCanvas() {
         }
     };
 
-
     const handleElementSelect = (id, evt) => {
         if (evt?.evt?.shiftKey) {
             toggleSelection(id);
         } else {
-
             if (selectedIds.includes(id) && selectedIds.length > 1) return;
             selectOne(id);
         }
     };
 
-
-    const computeGuides = (draggedId, draggedX, draggedY, draggedW, draggedH) => {
+    const computeGuides = (draggedId, draggedAbsX, draggedAbsY, draggedW, draggedH) => {
         const others = elements.filter(e => e.id !== draggedId && !selectedIds.includes(e.id));
         const vertical = [];
         const horizontal = [];
-        const threshold = 5; // pixeli toleranță pentru snap
+        const threshold = 5;
 
         const draggedEdges = {
-            left: draggedX,
-            centerH: draggedX + draggedW / 2,
-            right: draggedX + draggedW,
-            top: draggedY,
-            centerV: draggedY + draggedH / 2,
-            bottom: draggedY + draggedH,
+            left: draggedAbsX,
+            centerH: draggedAbsX + draggedW / 2,
+            right: draggedAbsX + draggedW,
+            top: draggedAbsY,
+            centerV: draggedAbsY + draggedH / 2,
+            bottom: draggedAbsY + draggedH,
         };
 
-        let snappedX = draggedX;
-        let snappedY = draggedY;
+        let snappedAbsX = draggedAbsX;
+        let snappedAbsY = draggedAbsY;
 
         others.forEach(o => {
+            const oAbs = getAbsolutePosition(o, elements);
             const oEdges = {
-                left: o.x,
-                centerH: o.x + o.width / 2,
-                right: o.x + o.width,
-                top: o.y,
-                centerV: o.y + o.height / 2,
-                bottom: o.y + o.height,
+                left: oAbs.x,
+                centerH: oAbs.x + o.width / 2,
+                right: oAbs.x + o.width,
+                top: oAbs.y,
+                centerV: oAbs.y + o.height / 2,
+                bottom: oAbs.y + o.height,
             };
 
             ['left', 'centerH', 'right'].forEach(de => {
                 ['left', 'centerH', 'right'].forEach(oe => {
                     if (Math.abs(draggedEdges[de] - oEdges[oe]) < threshold) {
                         vertical.push(oEdges[oe]);
-                        snappedX = oEdges[oe] - (draggedEdges[de] - draggedX);
+                        snappedAbsX = oEdges[oe] - (draggedEdges[de] - draggedAbsX);
                     }
                 });
             });
@@ -151,41 +224,151 @@ export default function EditorCanvas() {
                 ['top', 'centerV', 'bottom'].forEach(oe => {
                     if (Math.abs(draggedEdges[de] - oEdges[oe]) < threshold) {
                         horizontal.push(oEdges[oe]);
-                        snappedY = oEdges[oe] - (draggedEdges[de] - draggedY);
+                        snappedAbsY = oEdges[oe] - (draggedEdges[de] - draggedAbsY);
                     }
                 });
             });
         });
 
-        return { vertical: [...new Set(vertical)], horizontal: [...new Set(horizontal)], snappedX, snappedY };
+        return {
+            vertical: [...new Set(vertical)],
+            horizontal: [...new Set(horizontal)],
+            snappedAbsX,
+            snappedAbsY,
+        };
     };
 
     const handleElementDragMove = (id, e) => {
         const el = elements.find(x => x.id === id);
         if (!el) return;
+        let localX = e.target.x();
+        let localY = e.target.y();
 
-        let x = e.target.x();
-        let y = e.target.y();
+        const parent = el.parentId ? elements.find(p => p.id === el.parentId) : null;
 
-
-        const g = computeGuides(id, x, y, el.width, el.height);
-        setGuides({ vertical: g.vertical, horizontal: g.horizontal });
-
-        if (g.vertical.length > 0) x = g.snappedX;
-        if (g.horizontal.length > 0) y = g.snappedY;
-
-        if (snapEnabled) {
-            x = snapToGrid(x);
-            y = snapToGrid(y);
+        if (parent && parent.type === 'GRID') {
+            // Copiii Grid-ului nu pot fi mutati liber — reintorcem la pozitia celulei
+            const cellRect = getGridCellRect(parent, el.slotIndex);
+            e.target.x(cellRect.x);
+            e.target.y(cellRect.y);
+            return;
         }
 
-        e.target.x(x);
-        e.target.y(y);
+        if (parent) {
+            const padding = parent.padding || 0;
+            const clamped = clampChildInsideParent(localX, localY, el.width, el.height, parent, padding);
+            e.target.x(clamped.x);
+            e.target.y(clamped.y);
+            return;
+        }
+        // ... restul functiei ramane neschimbat
+
+        const g = computeGuides(id, localX, localY, el.width, el.height);
+        setGuides({ vertical: g.vertical, horizontal: g.horizontal });
+
+        let newAbsX = localX;
+        let newAbsY = localY;
+        if (g.vertical.length > 0) newAbsX = g.snappedAbsX;
+        if (g.horizontal.length > 0) newAbsY = g.snappedAbsY;
+
+        if (snapEnabled) {
+            newAbsX = snapToGrid(newAbsX);
+            newAbsY = snapToGrid(newAbsY);
+        }
+
+        e.target.x(newAbsX);
+        e.target.y(newAbsY);
     };
 
     const handleElementDragEnd = (id, e) => {
         setGuides({ vertical: [], horizontal: [] });
         updateElement(id, { x: e.target.x(), y: e.target.y() });
+    };
+
+    const topLevelElements = elements.filter(el => !el.parentId);
+    const getChildren = (parentId) => elements.filter(el => el.parentId === parentId);
+
+    const renderElement = (el) => {
+        if (el.hidden) return null;
+
+        const isPreview = mode === 'preview';
+        const isMarkedCorrect = mode === 'solution' && solution.correctElementIds.includes(el.id);
+
+        const common = {
+            element: el,
+            isSelected: isPreview ? false : selectedIds.includes(el.id),
+            onSelect: isPreview ? () => {} : (evt) => {
+                if (el.locked) return;
+                handleElementSelect(el.id, evt);
+            },
+            onChange: isPreview ? () => {} : (updates) => {
+                if (el.locked) return;
+                updateElement(el.id, updates);
+            },
+            onDragMove: isPreview ? () => {} : (e) => {
+                if (el.locked) return;
+                handleElementDragMove(el.id, e);
+            },
+            onDragEnd: isPreview ? () => {} : (e) => {
+                if (el.locked) return;
+                handleElementDragEnd(el.id, e);
+            },
+            isLocked: isPreview ? true : el.locked,
+        };
+
+        let elementNode = null;
+        if (el.type === ELEMENT_TYPES.TEXT) elementNode = <CanvasText key={el.id} {...common} />;
+        if (el.type === ELEMENT_TYPES.IMAGE) elementNode = <CanvasImage key={el.id} {...common} />;
+        if (el.type === ELEMENT_TYPES.SHAPE) elementNode = <CanvasShape key={el.id} {...common} />;
+        if (el.type === ELEMENT_TYPES.BOX) {
+            const children = getChildren(el.id).map(child => renderElement(child));
+            elementNode = (
+                <CanvasBox key={el.id} {...common}>
+                    {children}
+                </CanvasBox>
+            );
+        }
+        if (el.type === ELEMENT_TYPES.GRID) {
+            const gridChildren = getChildren(el.id);
+            const renderedChildren = gridChildren.map(child => {
+                // Copiii Grid-ului sunt randati la pozitia celulei determinata de slotIndex
+                if (child.slotIndex === undefined) return renderElement(child);
+                const cellRect = getGridCellRect(el, child.slotIndex);
+                // Suprascriem temporar x/y ca sa randam la pozitia celulei;
+                // pastram size original pentru continut in interiorul celulei
+                const positioned = { ...child, x: cellRect.x, y: cellRect.y };
+                return renderElement(positioned);
+            });
+            elementNode = (
+                <CanvasGrid key={el.id} {...common}>
+                    {renderedChildren}
+                </CanvasGrid>
+            );
+        }
+
+        if (!elementNode) return null;
+
+        if (isMarkedCorrect) {
+            const abs = getAbsolutePosition(el, elements);
+            return (
+                <React.Fragment key={el.id}>
+                    {elementNode}
+                    <Rect
+                        x={abs.x - 4}
+                        y={abs.y - 4}
+                        width={el.width + 8}
+                        height={el.height + 8}
+                        stroke="#059669"
+                        strokeWidth={3}
+                        dash={[8, 4]}
+                        cornerRadius={6}
+                        listening={false}
+                    />
+                </React.Fragment>
+            );
+        }
+
+        return elementNode;
     };
 
     return (
@@ -196,10 +379,10 @@ export default function EditorCanvas() {
                 cursor: isSpacePressed ? 'grab' : 'default',
             }}
         >
-            <div style={styles.canvasWrapper}>
+            {containerSize.w > 0 && containerSize.h > 0 && (
                 <Stage
-                    width={canvas.width}
-                    height={canvas.height}
+                    width={containerSize.w}
+                    height={containerSize.h}
                     ref={stageRef}
                     scaleX={zoom}
                     scaleY={zoom}
@@ -217,6 +400,10 @@ export default function EditorCanvas() {
                             width={canvas.width} height={canvas.height}
                             fill={canvas.background || '#ffffff'}
                             listening={false}
+                            shadowColor="#000000"
+                            shadowBlur={20}
+                            shadowOpacity={0.1}
+                            shadowOffsetY={4}
                         />
 
                         {bgImage && (
@@ -232,62 +419,7 @@ export default function EditorCanvas() {
                             <GridLines width={canvas.width} height={canvas.height} step={GRID_SIZE} />
                         )}
 
-                        {elements.map(el => {
-                            if (el.hidden) return null;
-
-                            const isPreview = mode === 'preview';
-                            const isMarkedCorrect = mode === 'solution' && solution.correctElementIds.includes(el.id);
-
-                            const common = {
-                                element: el,
-                                isSelected: isPreview ? false : selectedIds.includes(el.id),
-                                onSelect: isPreview ? () => {} : (evt) => {
-                                    if (el.locked) return;
-                                    handleElementSelect(el.id, evt);
-                                },
-                                onChange: isPreview ? () => {} : (updates) => {
-                                    if (el.locked) return;
-                                    updateElement(el.id, updates);
-                                },
-                                onDragMove: isPreview ? () => {} : (e) => {
-                                    if (el.locked) return;
-                                    handleElementDragMove(el.id, e);
-                                },
-                                onDragEnd: isPreview ? () => {} : (e) => {
-                                    if (el.locked) return;
-                                    handleElementDragEnd(el.id, e);
-                                },
-                                isLocked: isPreview ? true : el.locked,
-                            };
-
-                            let elementNode = null;
-                            if (el.type === 'TEXT') elementNode = <CanvasText key={el.id} {...common} />;
-                            if (el.type === 'IMAGE') elementNode = <CanvasImage key={el.id} {...common} />;
-                            if (el.type === 'SHAPE') elementNode = <CanvasShape key={el.id} {...common} />;
-
-                            if (!elementNode) return null;
-
-                            if (isMarkedCorrect) {
-                                return (
-                                    <React.Fragment key={el.id}>
-                                        {elementNode}
-                                        <Rect
-                                            x={el.x - 4}
-                                            y={el.y - 4}
-                                            width={el.width + 8}
-                                            height={el.height + 8}
-                                            stroke="#059669"
-                                            strokeWidth={3}
-                                            dash={[8, 4]}
-                                            cornerRadius={6}
-                                            listening={false}
-                                        />
-                                    </React.Fragment>
-                                );
-                            }
-
-                            return elementNode;
-                        })}
+                        {topLevelElements.map(el => renderElement(el))}
 
                         {mode !== 'preview' && guides.vertical.map((x, i) => (
                             <Line key={`v-${i}`} points={[x, 0, x, canvas.height]}
@@ -307,13 +439,19 @@ export default function EditorCanvas() {
                                 }}
                             />
                         )}
-
                     </Layer>
                 </Stage>
-            </div>
+            )}
 
-            {/* Zoom indicator + reset */}
-            <ZoomIndicator zoom={zoom} onReset={() => { setZoom(1); setStageOffset({ x: 0, y: 0 }); }} />
+            <ZoomIndicator
+                zoom={zoom}
+                fitScale={fitScale}
+                onReset={resetView}
+                onZoomIn={() => zoomByStep('in')}
+                onZoomOut={() => zoomByStep('out')}
+            />
+
+            <PanHint />
         </div>
     );
 }
@@ -329,11 +467,23 @@ function GridLines({ width, height, step }) {
     return <>{lines}</>;
 }
 
-function ZoomIndicator({ zoom, onReset }) {
+function ZoomIndicator({ zoom, fitScale, onReset, onZoomIn, onZoomOut }) {
+    const displayPercent = fitScale > 0 ? Math.round((zoom / fitScale) * 100) : 100;
+
     return (
         <div style={styles.zoomIndicator}>
-            <span style={styles.zoomText}>{Math.round(zoom * 100)}%</span>
-            <button onClick={onReset} style={styles.zoomReset} title="Reset (100%)">⟲</button>
+            <button onClick={onZoomOut} style={styles.zoomBtn} title="Zoom out">−</button>
+            <span style={styles.zoomText}>{displayPercent}%</span>
+            <button onClick={onZoomIn} style={styles.zoomBtn} title="Zoom in">+</button>
+            <button onClick={onReset} style={styles.zoomReset} title="Fit to screen">⟲</button>
+        </div>
+    );
+}
+
+function PanHint() {
+    return (
+        <div style={styles.panHint}>
+            Ține <kbd style={styles.kbd}>Space</kbd> + drag pentru a muta vizualizarea
         </div>
     );
 }
@@ -341,23 +491,15 @@ function ZoomIndicator({ zoom, onReset }) {
 const styles = {
     canvasContainer: {
         flex: 1,
-        overflow: 'auto',
+        minHeight: 0,
+        overflow: 'hidden',
         background: '#f0f2f5',
-        padding: 30,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-start',
         position: 'relative',
     },
-    canvasWrapper: {
-        boxShadow: '0 8px 40px rgba(0,0,0,0.1)',
-        borderRadius: 8,
-        overflow: 'hidden',
-    },
     zoomIndicator: {
-        position: 'fixed',
-        bottom: 310,
-        right: 30,
+        position: 'absolute',
+        bottom: 16,
+        right: 16,
         background: 'white',
         border: '1px solid #e5e7eb',
         borderRadius: 10,
@@ -384,5 +526,39 @@ const styles = {
         cursor: 'pointer',
         color: '#1a1d23',
         lineHeight: 1,
+    },
+    zoomBtn: {
+        background: '#f3f4f6',
+        border: 'none',
+        borderRadius: 6,
+        padding: '4px 10px',
+        fontSize: '1rem',
+        cursor: 'pointer',
+        color: '#1a1d23',
+        lineHeight: 1,
+        fontWeight: 700,
+    },
+    panHint: {
+        position: 'absolute',
+        bottom: 16,
+        left: 16,
+        background: 'rgba(255,255,255,0.9)',
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        padding: '5px 10px',
+        fontSize: '0.72rem',
+        color: '#6b7280',
+        fontWeight: 600,
+        zIndex: 5,
+    },
+    kbd: {
+        background: '#f3f4f6',
+        border: '1px solid #d1d5db',
+        borderRadius: 4,
+        padding: '1px 5px',
+        fontFamily: 'monospace',
+        fontSize: '0.7rem',
+        fontWeight: 700,
+        color: '#1a1d23',
     },
 };

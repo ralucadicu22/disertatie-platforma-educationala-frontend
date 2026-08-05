@@ -1,150 +1,182 @@
 import { ELEMENT_TYPES } from '../constants/elementTypes';
 import { DEFAULT_CANVAS } from '../constants/canvas';
 
-/**
- * Genereaza layout-ul initial pentru un tip de exercitiu.
- * Returneaza array de elemente conform structurii din editorStore.
- */
-
 const generateId = (prefix) => `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+function makeBox({ id, x, y, width, height, role, bgFill = '#ffffff', bgStroke = '#e5e7eb', bgStrokeWidth = 2, bgCornerRadius = 16 }) {
+    return {
+        id, type: ELEMENT_TYPES.BOX,
+        x, y, width, height, rotation: 0,
+        bgFill, bgStroke, bgStrokeWidth, bgCornerRadius, padding: 16,
+        shadowEnabled: false, shadowColor: '#000000', shadowBlur: 8, shadowOpacity: 0.15,
+        parentId: null,
+        role,
+        locked: false, hidden: false,
+    };
+}
+
+function makeText({ id, x, y, width, height, text, fontSize = 24, fontStyle = 'normal', fill = '#1a1d23', align = 'center', parentId = null }) {
+    return {
+        id, type: ELEMENT_TYPES.TEXT,
+        x, y, width, height, rotation: 0,
+        text, fontFamily: 'Nunito', fontSize, fontStyle, textDecoration: '',
+        fill, align, verticalAlign: 'middle',
+        letterSpacing: 0, lineHeight: 1.2, padding: 12,
+        bgFill: 'transparent', bgStroke: 'transparent', bgStrokeWidth: 0, bgCornerRadius: 0,
+        shadowEnabled: false, shadowColor: '#000000', shadowBlur: 4, shadowOpacity: 0.3,
+        listStyle: 'none',
+        parentId,
+        locked: false, hidden: false,
+    };
+}
 
 function findAndSelectLayout() {
     const W = DEFAULT_CANVAS.width;
     const H = DEFAULT_CANVAS.height;
 
+    // Proportii clare: text 12%, imagine 68%, solutii 20%, cu 3% margini/gap
+    const marginX = W * 0.03;
+    const marginY = H * 0.03;
+    const gap = H * 0.02;
+
+    const textZoneH = H * 0.12;
+    const solutionsZoneH = H * 0.18;
+    const imageZoneH = H - textZoneH - solutionsZoneH - marginY * 2 - gap * 2;
+
+    const zoneW = W - marginX * 2;
+
+    const textZoneY = marginY;
+    const imageZoneY = textZoneY + textZoneH + gap;
+    const solutionsZoneY = imageZoneY + imageZoneH + gap;
+
+    const textZoneId = generateId('box_text_zone');
+    const imageZoneId = generateId('box_image_zone');
+    const solutionsZoneId = generateId('box_solutions_zone');
+
     return [
-        // Zona 1: Text enunt (sus)
-        {
-            id: generateId('el_zone_text'),
-            type: ELEMENT_TYPES.TEXT,
-            x: 60,
-            y: 40,
-            width: W - 120,
-            height: 80,
-            rotation: 0,
+        makeBox({
+            id: textZoneId,
+            x: marginX, y: textZoneY,
+            width: zoneW, height: textZoneH,
+            role: 'text-zone',
+            bgFill: 'transparent',
+            bgStroke: '#d1d9f6', bgStrokeWidth: 2, bgCornerRadius: 16,
+        }),
+        makeText({
+            id: generateId('el_title'),
+            x: 0, y: 0,
+            width: zoneW, height: textZoneH,
             text: 'Găsește și selectează [obiectele indicate]',
-            fontFamily: 'Nunito',
-            fontSize: 32,
-            fontStyle: 'bold',
-            textDecoration: '',
-            fill: '#1a1d23',
-            align: 'center',
-            verticalAlign: 'middle',
-            letterSpacing: 0,
-            lineHeight: 1.2,
-            padding: 12,
-            bgFill: 'transparent',
-            bgStroke: 'transparent',
-            bgStrokeWidth: 0,
-            bgCornerRadius: 0,
-            shadowEnabled: false,
-            shadowColor: '#000000',
-            shadowBlur: 4,
-            shadowOpacity: 0.3,
-            listStyle: 'none',
-            locked: false,
-            hidden: false,
-        },
-        // Zona 2: Marker vizual pentru zona de imagine (chenar reper editabil / stergibil)
-        {
-            id: generateId('el_zone_image'),
-            type: ELEMENT_TYPES.SHAPE,
-            x: 60,
-            y: 150,
-            width: W - 120,
-            height: H - 320,
-            rotation: 0,
-            shapeType: 'rect',
-            fill: 'transparent',
-            stroke: '#d1d9f6',
-            strokeWidth: 2,
-            cornerRadius: 16,
-            opacity: 1,
-            shadowEnabled: false,
-            shadowColor: '#000000',
-            shadowBlur: 8,
-            shadowOpacity: 0.3,
-            behavior: 'static',
-            locked: false,
-            hidden: false,
-        },
-        // Text guide in zona de imagine (dispare cand editorul adauga primul element)
-        {
-            id: generateId('el_zone_image_hint'),
-            type: ELEMENT_TYPES.TEXT,
-            x: 60,
-            y: H / 2 - 40,
-            width: W - 120,
-            height: 80,
-            rotation: 0,
-            text: 'Zona de imagine — adauga aici obiectele de gasit',
-            fontFamily: 'Nunito',
-            fontSize: 18,
-            fontStyle: 'italic',
-            textDecoration: '',
-            fill: '#9ca3af',
-            align: 'center',
-            verticalAlign: 'middle',
-            letterSpacing: 0,
-            lineHeight: 1.2,
-            padding: 4,
-            bgFill: 'transparent',
-            bgStroke: 'transparent',
-            bgStrokeWidth: 0,
-            bgCornerRadius: 0,
-            shadowEnabled: false,
-            shadowColor: '#000000',
-            shadowBlur: 4,
-            shadowOpacity: 0.3,
-            listStyle: 'none',
-            locked: false,
-            hidden: false,
-        },
-        // Zona 3: Text info despre zona de solutii (jos)
-        {
-            id: generateId('el_zone_solutions'),
-            type: ELEMENT_TYPES.TEXT,
-            x: 60,
-            y: H - 130,
-            width: W - 120,
-            height: 60,
-            rotation: 0,
-            text: 'Zona de soluții — progresul elevului va apărea automat aici',
-            fontFamily: 'Nunito',
-            fontSize: 16,
-            fontStyle: 'italic',
-            textDecoration: '',
-            fill: '#9ca3af',
-            align: 'center',
-            verticalAlign: 'middle',
-            letterSpacing: 0,
-            lineHeight: 1.2,
-            padding: 8,
+            fontSize: 32, fontStyle: 'bold',
+            parentId: textZoneId,
+        }),
+
+        makeBox({
+            id: imageZoneId,
+            x: marginX, y: imageZoneY,
+            width: zoneW, height: imageZoneH,
+            role: 'image-zone',
+            bgFill: '#ffffff',
+            bgStroke: '#d1d9f6', bgStrokeWidth: 2, bgCornerRadius: 16,
+        }),
+
+        makeBox({
+            id: solutionsZoneId,
+            x: marginX, y: solutionsZoneY,
+            width: zoneW, height: solutionsZoneH,
+            role: 'solutions-zone',
             bgFill: '#f9fafb',
-            bgStroke: '#e5e7eb',
-            bgStrokeWidth: 1,
-            bgCornerRadius: 10,
-            shadowEnabled: false,
-            shadowColor: '#000000',
-            shadowBlur: 4,
-            shadowOpacity: 0.3,
-            listStyle: 'none',
-            locked: false,
-            hidden: false,
-        },
+            bgStroke: '#e5e7eb', bgStrokeWidth: 1, bgCornerRadius: 10,
+        }),
+        makeText({
+            id: generateId('el_solutions_hint'),
+            x: 0, y: 0,
+            width: zoneW, height: solutionsZoneH,
+            text: 'Zonă de soluții — progresul elevului va apărea aici',
+            fontSize: 16, fontStyle: 'italic', fill: '#9ca3af',
+            parentId: solutionsZoneId,
+        }),
     ];
 }
 
-// Registry: tip -> functie generator
+function dragAndDropLayout() {
+    const W = DEFAULT_CANVAS.width;
+    const H = DEFAULT_CANVAS.height;
+
+    const marginX = W * 0.03;
+    const marginY = H * 0.03;
+    const gap = W * 0.02;
+
+    const textZoneH = H * 0.12;
+    const zonesH = H - textZoneH - marginY * 2 - H * 0.02;
+    const zoneW = (W - marginX * 2 - gap) / 2;
+
+    const textZoneY = marginY;
+    const zonesY = textZoneY + textZoneH + H * 0.02;
+
+    const textZoneId = generateId('box_text_zone');
+    const sourceZoneId = generateId('box_source_zone');
+    const targetZoneId = generateId('box_target_zone');
+
+    return [
+        makeBox({
+            id: textZoneId,
+            x: marginX, y: textZoneY,
+            width: W - marginX * 2, height: textZoneH,
+            role: 'text-zone',
+            bgFill: 'transparent',
+            bgStroke: '#d1d9f6', bgStrokeWidth: 2,
+        }),
+        makeText({
+            id: generateId('el_title'),
+            x: 0, y: 0,
+            width: W - marginX * 2, height: textZoneH,
+            text: 'Trage fiecare obiect în zona corectă',
+            fontSize: 32, fontStyle: 'bold',
+            parentId: textZoneId,
+        }),
+
+        makeBox({
+            id: sourceZoneId,
+            x: marginX, y: zonesY,
+            width: zoneW, height: zonesH,
+            role: 'source-zone',
+            bgFill: '#ffffff',
+            bgStroke: '#d1d9f6', bgStrokeWidth: 2,
+        }),
+        makeText({
+            id: generateId('el_source_hint'),
+            x: 0, y: 0,
+            width: zoneW, height: 40,
+            text: 'Obiecte de tras',
+            fontSize: 16, fontStyle: 'italic', fill: '#9ca3af',
+            parentId: sourceZoneId,
+        }),
+
+        makeBox({
+            id: targetZoneId,
+            x: marginX + zoneW + gap, y: zonesY,
+            width: zoneW, height: zonesH,
+            role: 'target-zone',
+            bgFill: '#ffffff',
+            bgStroke: '#d1fae5', bgStrokeWidth: 2,
+        }),
+        makeText({
+            id: generateId('el_target_hint'),
+            x: 0, y: 0,
+            width: zoneW, height: 40,
+            text: 'Zone destinație',
+            fontSize: 16, fontStyle: 'italic', fill: '#9ca3af',
+            parentId: targetZoneId,
+        }),
+    ];
+}
+
 const LAYOUT_GENERATORS = {
     FIND_AND_SELECT: findAndSelectLayout,
-    // Viitor: DRAG_AND_DROP: dragAndDropLayout, etc.
+    DRAG_AND_DROP: dragAndDropLayout,
 };
 
-/**
- * Returneaza layout-ul initial pentru un tip.
- * Daca tipul nu are generator (ex. CUSTOM), returneaza array gol.
- */
 export function getInitialLayoutForType(type) {
     const generator = LAYOUT_GENERATORS[type];
     return generator ? generator() : [];

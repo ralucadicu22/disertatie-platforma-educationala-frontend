@@ -1,35 +1,169 @@
+import { useState } from 'react';
 import { useEditor } from '../../store/editorStore.jsx';
 
 export default function LayersPanel() {
     const {
         elements, selectedIds, selectOne, toggleSelection,
         layersPanelOpen, setLayersPanelOpen,
-        reorderElement, bringToFront, sendToBack, bringForward, sendBackward,
-        toggleLock, toggleHidden, deleteElement,
+        bringToFront, sendToBack, bringForward, sendBackward,
+        toggleLock, toggleHidden,
+        reparentElement,
     } = useEditor();
+
+    const [dragOverId, setDragOverId] = useState(null);
+    const [dragOverZone, setDragOverZone] = useState(null); // 'before' | 'inside' | 'after'
 
     if (!layersPanelOpen) return null;
 
-    const orderedElements = [...elements].reverse();
+    const getChildrenReversed = (parentId) =>
+        elements
+            .filter(el => (el.parentId || null) === parentId)
+            .reverse();
 
-    const handleDragStart = (e, index) => {
-        e.dataTransfer.setData('fromIndex', index.toString());
+    const handleDragStart = (e, elementId) => {
+        e.dataTransfer.setData('elementId', elementId);
         e.dataTransfer.effectAllowed = 'move';
     };
 
-    const handleDragOver = (e) => {
+    const handleDragOverRow = (e, targetEl) => {
         e.preventDefault();
+        e.stopPropagation();
         e.dataTransfer.dropEffect = 'move';
+
+        const rect = e.currentTarget.getBoundingClientRect();
+        const relY = e.clientY - rect.top;
+        const height = rect.height;
+
+        setDragOverId(targetEl.id);
+
+        const isBox = targetEl.type === 'BOX';
+        if (isBox) {
+            // Impartim in 3 zone: sus (before), mijloc (inside), jos (after)
+            if (relY < height * 0.3) setDragOverZone('before');
+            else if (relY > height * 0.7) setDragOverZone('after');
+            else setDragOverZone('inside');
+        } else {
+            // Non-Box: doar sus (before) sau jos (after)
+            if (relY < height * 0.5) setDragOverZone('before');
+            else setDragOverZone('after');
+        }
     };
 
-    const handleDrop = (e, toIndex) => {
+    const handleDragLeaveRow = () => {
+        setDragOverId(null);
+        setDragOverZone(null);
+    };
+
+    const handleDropRow = (e, targetEl) => {
         e.preventDefault();
-        const fromIndex = parseInt(e.dataTransfer.getData('fromIndex'));
-        if (isNaN(fromIndex) || fromIndex === toIndex) return;
-        // Convertim înapoi din ordine inversă
-        const realFromIndex = elements.length - 1 - fromIndex;
-        const realToIndex = elements.length - 1 - toIndex;
-        reorderElement(realFromIndex, realToIndex);
+        e.stopPropagation();
+        const draggedId = e.dataTransfer.getData('elementId');
+        if (!draggedId || draggedId === targetEl.id) {
+            setDragOverId(null);
+            setDragOverZone(null);
+            return;
+        }
+
+        const zone = dragOverZone;
+        setDragOverId(null);
+        setDragOverZone(null);
+
+        if (zone === 'inside' && targetEl.type === 'BOX') {
+            // Bagam ca ultim copil al Box-ului
+            reparentElement(draggedId, targetEl.id);
+        } else {
+            // Facem sora — acelasi parent ca targetEl — inserat inainte/dupa
+            reparentElement(draggedId, targetEl.parentId || null, targetEl.id);
+        }
+    };
+
+    const handleDropTopLevel = (e) => {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('elementId');
+        setDragOverId(null);
+        setDragOverZone(null);
+        if (!draggedId) return;
+        reparentElement(draggedId, null);
+    };
+
+    const renderRows = (parentId, depth) => {
+        const children = getChildrenReversed(parentId);
+        return children.map(el => {
+            const isSelected = selectedIds.includes(el.id);
+            const isBox = el.type === 'BOX';
+            const isDragOver = dragOverId === el.id;
+
+            let dropIndicator = null;
+            if (isDragOver) {
+                if (dragOverZone === 'before') {
+                    dropIndicator = { top: 0 };
+                } else if (dragOverZone === 'after') {
+                    dropIndicator = { bottom: 0 };
+                }
+            }
+
+            return (
+                <div key={el.id} style={{ position: 'relative' }}>
+                    {dropIndicator && (
+                        <div style={{
+                            position: 'absolute',
+                            left: 10 + depth * 16,
+                            right: 10,
+                            height: 2,
+                            background: '#4F6BF6',
+                            borderRadius: 2,
+                            zIndex: 2,
+                            ...dropIndicator,
+                        }} />
+                    )}
+
+                    <div
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, el.id)}
+                        onDragOver={(e) => handleDragOverRow(e, el)}
+                        onDragLeave={handleDragLeaveRow}
+                        onDrop={(e) => handleDropRow(e, el)}
+                        onClick={(e) => {
+                            if (e.shiftKey) {
+                                toggleSelection(el.id);
+                            } else {
+                                selectOne(el.id);
+                            }
+                        }}
+                        style={{
+                            ...styles.row,
+                            paddingLeft: 10 + depth * 16,
+                            ...(isSelected ? styles.rowSelected : {}),
+                            ...(el.hidden ? styles.rowHidden : {}),
+                            ...(isDragOver && dragOverZone === 'inside' ? styles.rowDropInside : {}),
+                        }}
+                    >
+                        <span style={styles.dragHandle}>⋮⋮</span>
+                        <span style={styles.icon}>{getIcon(el)}</span>
+                        <span style={styles.name}>{getName(el)}</span>
+
+                        <div style={styles.actions}>
+                            <IconBtn
+                                onClick={(e) => { e.stopPropagation(); toggleHidden(el.id); }}
+                                title={el.hidden ? 'Afișează' : 'Ascunde'}
+                                active={el.hidden}
+                            >
+                                {el.hidden ? '⊘' : '◉'}
+                            </IconBtn>
+                            <IconBtn
+                                onClick={(e) => { e.stopPropagation(); toggleLock(el.id); }}
+                                title={el.locked ? 'Deblochează' : 'Blochează'}
+                                active={el.locked}
+                            >
+                                {el.locked ? '🔒' : '🔓'}
+                            </IconBtn>
+                        </div>
+                    </div>
+
+                    {isBox && renderRows(el.id, depth + 1)}
+                </div>
+            );
+        });
     };
 
     return (
@@ -45,58 +179,22 @@ export default function LayersPanel() {
                 </button>
             </div>
 
-            {orderedElements.length === 0 && (
+            {elements.length === 0 && (
                 <p style={styles.empty}>
                     Niciun element pe canvas.
                 </p>
             )}
 
-            <div style={styles.list}>
-                {orderedElements.map((el, index) => {
-                    const isSelected = selectedIds.includes(el.id);
-                    return (
-                        <div
-                            key={el.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, index)}
-                            onDragOver={handleDragOver}
-                            onDrop={(e) => handleDrop(e, index)}
-                            onClick={(e) => {
-                                if (e.shiftKey) {
-                                    toggleSelection(el.id);
-                                } else {
-                                    selectOne(el.id);
-                                }
-                            }}
-                            style={{
-                                ...styles.row,
-                                ...(isSelected ? styles.rowSelected : {}),
-                                ...(el.hidden ? styles.rowHidden : {}),
-                            }}
-                        >
-                            <span style={styles.dragHandle}>⋮⋮</span>
-                            <span style={styles.icon}>{getIcon(el)}</span>
-                            <span style={styles.name}>{getName(el)}</span>
-
-                            <div style={styles.actions}>
-                                <IconBtn
-                                    onClick={(e) => { e.stopPropagation(); toggleHidden(el.id); }}
-                                    title={el.hidden ? 'Afișează' : 'Ascunde'}
-                                    active={el.hidden}
-                                >
-                                    {el.hidden ? '⊘' : '◉'}
-                                </IconBtn>
-                                <IconBtn
-                                    onClick={(e) => { e.stopPropagation(); toggleLock(el.id); }}
-                                    title={el.locked ? 'Deblochează' : 'Blochează'}
-                                    active={el.locked}
-                                >
-                                    {el.locked ? '🔒' : '🔓'}
-                                </IconBtn>
-                            </div>
-                        </div>
-                    );
-                })}
+            <div
+                style={styles.list}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDropTopLevel}
+            >
+                {renderRows(null, 0)}
+                {/* Spatiu jos in care poti da drop ca sa scoti un element din Box */}
+                <div style={styles.dropZoneBottom}>
+                    Trage aici ca să scoți din container
+                </div>
             </div>
 
             {selectedIds.length === 1 && (
@@ -154,6 +252,7 @@ function getIcon(el) {
                 case 'polygon': return '⬢';
                 default: return '▭';
             }
+        case 'BOX': return '▢';
         default: return '?';
     }
 }
@@ -162,6 +261,7 @@ function getName(el) {
     if (el.type === 'TEXT') return el.text?.slice(0, 24) || 'Text gol';
     if (el.type === 'IMAGE') return el.src ? 'Imagine' : 'Placeholder imagine';
     if (el.type === 'SHAPE') return `Formă (${el.shapeType})`;
+    if (el.type === 'BOX') return el.role ? `Zonă: ${el.role}` : 'Container';
     return el.type;
 }
 
@@ -231,6 +331,11 @@ const styles = {
     rowHidden: {
         opacity: 0.4,
     },
+    rowDropInside: {
+        background: '#dbeafe',
+        outline: '2px dashed #4F6BF6',
+        outlineOffset: -2,
+    },
     dragHandle: {
         color: '#d1d5db',
         cursor: 'grab',
@@ -259,6 +364,17 @@ const styles = {
     actions: {
         display: 'flex',
         gap: 2,
+    },
+    dropZoneBottom: {
+        marginTop: 12,
+        padding: '14px 10px',
+        border: '1.5px dashed #e5e7eb',
+        borderRadius: 8,
+        textAlign: 'center',
+        fontSize: '0.72rem',
+        color: '#9ca3af',
+        fontWeight: 600,
+        fontStyle: 'italic',
     },
     footer: {
         borderTop: '1px solid #f3f4f6',

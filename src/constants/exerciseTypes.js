@@ -41,13 +41,7 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         icon: '🔢',
         implemented: false,
     },
-    {
-        type: EXERCISE_TYPES.DRAG_AND_DROP,
-        label: 'Drag & drop',
-        description: 'Elevul trage elementele în zonele corecte',
-        icon: '✥',
-        implemented: false,
-    },
+
     {
         type: EXERCISE_TYPES.MULTIPLE_CHOICE,
         label: 'Selecție multiplă',
@@ -138,6 +132,14 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Probleme rezolvabile prin raționament textual',
         icon: '📝',
         implemented: false,
+    },
+
+    {
+        type: EXERCISE_TYPES.DRAG_AND_DROP,
+        label: 'Drag & drop',
+        description: 'Elevul trage elementele în zonele corecte',
+        icon: '✥',
+        implemented: true,
     },
 ];
 

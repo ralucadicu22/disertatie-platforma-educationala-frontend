@@ -33,6 +33,7 @@ export function EditorProvider({ children }) {
     const GRID_SIZE = 20;
 
     const [layersPanelOpen, setLayersPanelOpen] = useState(false);
+    const [fullscreenMode, setFullscreenMode] = useState(false);
 
     const [exerciseId, setExerciseId] = useState(null);
     const [saveStatus, setSaveStatus] = useState('idle');
@@ -42,6 +43,9 @@ export function EditorProvider({ children }) {
 
     const [draftVersionId, setDraftVersionId] = useState(null);
     const [draftStatus, setDraftStatus] = useState(null);
+
+    const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+    const lastSavedRef = useRef(null);
 
     const generateId = () => `el_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
@@ -63,12 +67,47 @@ export function EditorProvider({ children }) {
     const addElement = useCallback((type, x = 100, y = 100) => {
         const id = generateId();
         const defaults = getDefaultElementProps(type);
-        const newElement = { id, type, x, y, ...defaults };
+
+        let parentId = null;
+        let finalX = x;
+        let finalY = y;
+        let slotIndex = undefined;
+
+        if (type !== ELEMENT_TYPES.BOX && type !== ELEMENT_TYPES.GRID && selectedIds.length === 1) {
+            const selected = elements.find(el => el.id === selectedIds[0]);
+            if (selected) {
+                if (selected.type === ELEMENT_TYPES.BOX) {
+                    parentId = selected.id;
+                    finalX = 20;
+                    finalY = 20;
+                } else if (selected.type === ELEMENT_TYPES.GRID) {
+                    parentId = selected.id;
+                    // Gaseste primul slot liber
+                    const usedSlots = new Set(
+                        elements.filter(el => el.parentId === selected.id).map(el => el.slotIndex)
+                    );
+                    const totalSlots = selected.rows * selected.cols;
+                    for (let i = 0; i < totalSlots; i++) {
+                        if (!usedSlots.has(i)) { slotIndex = i; break; }
+                    }
+                    if (slotIndex === undefined) {
+                        // Grid plin - nu adaugam
+                        return null;
+                    }
+                    finalX = 0;
+                    finalY = 0;
+                }
+            }
+        }
+
+        const newElement = { id, type, x: finalX, y: finalY, ...defaults, parentId };
+        if (slotIndex !== undefined) newElement.slotIndex = slotIndex;
+
         const newElements = [...elements, newElement];
         commitElements(newElements);
         setSelectedIds([id]);
         return id;
-    }, [elements, commitElements]);
+    }, [elements, commitElements, selectedIds]);
 
     const updateElement = useCallback((id, updates) => {
         const newElements = elements.map(el =>
@@ -294,6 +333,68 @@ export function EditorProvider({ children }) {
         updateElement(id, { hidden: !el.hidden });
     }, [elements, updateElement]);
 
+    const reparentElement = useCallback((elementId, newParentId, dropRelativeToId = null) => {
+        const element = elements.find(el => el.id === elementId);
+        if (!element) return;
+
+        if (element.type === ELEMENT_TYPES.BOX && newParentId) {
+            let ancestor = elements.find(el => el.id === newParentId);
+            while (ancestor) {
+                if (ancestor.id === elementId) return;
+                ancestor = ancestor.parentId
+                    ? elements.find(el => el.id === ancestor.parentId)
+                    : null;
+            }
+        }
+
+        const oldParent = element.parentId
+            ? elements.find(el => el.id === element.parentId)
+            : null;
+        const newParent = newParentId
+            ? elements.find(el => el.id === newParentId)
+            : null;
+
+        let absX = element.x;
+        let absY = element.y;
+        let cursor = oldParent;
+        while (cursor) {
+            absX += cursor.x;
+            absY += cursor.y;
+            cursor = cursor.parentId
+                ? elements.find(el => el.id === cursor.parentId)
+                : null;
+        }
+
+        let newX = absX;
+        let newY = absY;
+        cursor = newParent;
+        while (cursor) {
+            newX -= cursor.x;
+            newY -= cursor.y;
+            cursor = cursor.parentId
+                ? elements.find(el => el.id === cursor.parentId)
+                : null;
+        }
+
+        let newElements = elements.map(el =>
+            el.id === elementId
+                ? { ...el, parentId: newParentId, x: newX, y: newY }
+                : el
+        );
+
+        if (dropRelativeToId) {
+            const moved = newElements.find(el => el.id === elementId);
+            const withoutMoved = newElements.filter(el => el.id !== elementId);
+            const targetIndex = withoutMoved.findIndex(el => el.id === dropRelativeToId);
+            if (targetIndex !== -1) {
+                withoutMoved.splice(targetIndex, 0, moved);
+                newElements = withoutMoved;
+            }
+        }
+
+        commitElements(newElements);
+    }, [elements, commitElements]);
+
     const updateCanvas = useCallback((updates) => {
         setCanvas(prev => ({ ...prev, ...updates }));
     }, []);
@@ -373,12 +474,12 @@ export function EditorProvider({ children }) {
                 changeNote: 'Exercitiu creat din editor',
             });
             setExerciseId(res.data.exerciseId);
-            setElements([]);
+            setElements(emptyCanvas.elements);
             setCanvas(emptyCanvas.canvas || { ...DEFAULT_CANVAS });
             setMeta(emptyCanvas.meta);
             setSettings(emptyCanvas.settings);
             setSolution(emptyCanvas.solution);
-            setHistory([[]]);
+            setHistory([JSON.parse(JSON.stringify(emptyCanvas.elements))]);
             setHistoryIndex(0);
             setDraftVersionId(res.data.id);
             setDraftStatus(res.data.status);
@@ -448,18 +549,40 @@ export function EditorProvider({ children }) {
                 setSelectedIds(elements.map(el => el.id));
                 return;
             }
+            if (e.key === 'F11' || (isCtrlOrCmd && e.shiftKey && (e.key === 'f' || e.key === 'F'))) {
+                e.preventDefault();
+                setFullscreenMode(prev => !prev);
+                return;
+            }
             if (e.key === 'Escape') {
-                clearSelection();
+                if (fullscreenMode) setFullscreenMode(false);
+                else clearSelection();
                 return;
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [undo, redo, copy, paste, duplicate, deleteSelected, selectedIds, elements, clearSelection]);
+    }, [undo, redo, copy, paste, duplicate, deleteSelected, selectedIds, elements, clearSelection, fullscreenMode]);
+
+    // Auto-save: la fiecare 30s, daca s-a schimbat ceva de la ultima salvare
+    useEffect(() => {
+        if (!autoSaveEnabled || !exerciseId || draftStatus !== 'DRAFT') return;
+
+        const interval = setInterval(() => {
+            const snapshot = JSON.stringify({ elements, canvas, meta, settings, solution });
+            if (snapshot === lastSavedRef.current) return;
+            if (saveStatus === 'saving') return;
+            lastSavedRef.current = snapshot;
+            saveDraft();
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [autoSaveEnabled, exerciseId, draftStatus, elements, canvas, meta, settings, solution, saveDraft, saveStatus]);
 
     const canUndo = historyIndex > 0;
     const canRedo = historyIndex < history.length - 1;
+
     const updateSettings = useCallback((updates) => {
         setSettings(prev => ({ ...prev, ...updates }));
     }, []);
@@ -472,7 +595,6 @@ export function EditorProvider({ children }) {
         setMeta(prev => ({ ...prev, ...updates }));
     }, []);
 
-
     const toggleCorrect = useCallback((elementId) => {
         setSolution(prev => {
             const isCorrect = prev.correctElementIds.includes(elementId);
@@ -484,6 +606,7 @@ export function EditorProvider({ children }) {
             };
         });
     }, []);
+
     const value = {
         elements, setElements,
         selectedIds, setSelectedIds,
@@ -502,7 +625,9 @@ export function EditorProvider({ children }) {
         snapToGrid,
         GRID_SIZE,
         layersPanelOpen, setLayersPanelOpen,
+        fullscreenMode, setFullscreenMode,
         reorderElement, bringToFront, sendToBack, bringForward, sendBackward,
+        reparentElement,
         toggleLock, toggleHidden,
         exerciseId, setExerciseId,
         saveDraft, saveStatus, saveMessage,
@@ -512,6 +637,7 @@ export function EditorProvider({ children }) {
         solution, updateSolution,
         toggleCorrect, isCorrect: (id) => solution.correctElementIds.includes(id),
         draftVersionId, draftStatus, submitForReview,
+        autoSaveEnabled, setAutoSaveEnabled,
     };
 
     return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;
@@ -551,6 +677,31 @@ function getDefaultElementProps(type) {
                 width: 150, height: 100, cornerRadius: 8, rotation: 0, opacity: 1,
                 shadowEnabled: false, shadowColor: '#000000', shadowBlur: 8, shadowOpacity: 0.3,
                 behavior: 'static',
+                locked: false, hidden: false,
+            };
+        case ELEMENT_TYPES.BOX:
+            return {
+                width: 300, height: 200, rotation: 0,
+                bgFill: '#ffffff', bgStroke: '#e5e7eb', bgStrokeWidth: 2,
+                bgCornerRadius: 12, padding: 12,
+                shadowEnabled: false, shadowColor: '#000000',
+                shadowBlur: 8, shadowOpacity: 0.15,
+                parentId: null,
+                role: null,
+                locked: false, hidden: false,
+            };
+        case ELEMENT_TYPES.GRID:
+            return {
+                width: 400, height: 400, rotation: 0,
+                rows: 3, cols: 3, gap: 10, cellPadding: 8,
+                bgFill: '#ffffff', bgStroke: '#e5e7eb', bgStrokeWidth: 2,
+                bgCornerRadius: 12,
+                cellFill: '#f9fafb', cellStroke: '#e5e7eb', cellStrokeWidth: 1,
+                cellCornerRadius: 8,
+                shadowEnabled: false, shadowColor: '#000000',
+                shadowBlur: 8, shadowOpacity: 0.15,
+                parentId: null,
+                role: null,
                 locked: false, hidden: false,
             };
         default:

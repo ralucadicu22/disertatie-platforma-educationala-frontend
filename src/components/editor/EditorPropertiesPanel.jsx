@@ -106,9 +106,11 @@ export default function EditorPropertiesPanel() {
         <div style={styles.panel}>
             <div style={styles.header}>
                 <span style={styles.elementType}>{el.type}</span>
-                <button onClick={() => deleteElement(el.id)} style={styles.deleteBtn}>
-                    Șterge
-                </button>
+                {!((el.type === 'BOX' || el.type === 'GRID') && el.role) && (
+                    <button onClick={() => deleteElement(el.id)} style={styles.deleteBtn}>
+                        Șterge
+                    </button>
+                )}
             </div>
 
             <div style={styles.tabs}>
@@ -124,8 +126,9 @@ export default function EditorPropertiesPanel() {
                 {el.type === 'IMAGE' && (
                     <ImagePropertyTabs el={el} update={update} fileInputRef={fileInputRef} />
                 )}
-
                 {el.type === 'SHAPE' && <ShapePropertyTabs el={el} update={update} />}
+                {el.type === 'BOX' && <BoxPropertyTabs el={el} update={update} />}
+                {el.type === 'GRID' && <GridPropertyTabs el={el} update={update} />}
             </div>
         </div>
     );
@@ -333,7 +336,125 @@ function ImagePropertyTabs({ el, update, fileInputRef }) {
         </>
     );
 }
+function GridPropertyTabs({ el, update }) {
+    return (
+        <>
+            <Tab title="Grid">
+                <NumField label="Rânduri" value={el.rows} onChange={v => update('rows', Math.max(1, Math.round(v)))} />
+                <NumField label="Coloane" value={el.cols} onChange={v => update('cols', Math.max(1, Math.round(v)))} />
+                <NumField label="Gap" value={el.gap} onChange={v => update('gap', Math.max(0, v))} />
+                <NumField label="Padding" value={el.cellPadding} onChange={v => update('cellPadding', Math.max(0, v))} />
+            </Tab>
 
+            <Tab title="Fundal Grid">
+                <ColorField
+                    label="Fundal"
+                    value={el.bgFill === 'transparent' ? '#ffffff' : el.bgFill}
+                    onChange={v => update('bgFill', v)}
+                    allowTransparent
+                    isTransparent={el.bgFill === 'transparent'}
+                    onTransparent={() => update('bgFill', 'transparent')}
+                />
+                <ColorField
+                    label="Chenar"
+                    value={el.bgStroke === 'transparent' ? '#000000' : el.bgStroke}
+                    onChange={v => update('bgStroke', v)}
+                    allowTransparent
+                    isTransparent={el.bgStroke === 'transparent'}
+                    onTransparent={() => update('bgStroke', 'transparent')}
+                />
+                <NumField label="Border w." value={el.bgStrokeWidth} onChange={v => update('bgStrokeWidth', v)} />
+                <NumField label="Radius" value={el.bgCornerRadius} onChange={v => update('bgCornerRadius', v)} />
+            </Tab>
+
+            <Tab title="Celule">
+                <ColorField
+                    label="Fundal celulă"
+                    value={el.cellFill === 'transparent' ? '#ffffff' : el.cellFill}
+                    onChange={v => update('cellFill', v)}
+                    allowTransparent
+                    isTransparent={el.cellFill === 'transparent'}
+                    onTransparent={() => update('cellFill', 'transparent')}
+                />
+                <ColorField
+                    label="Chenar celulă"
+                    value={el.cellStroke === 'transparent' ? '#000000' : el.cellStroke}
+                    onChange={v => update('cellStroke', v)}
+                    allowTransparent
+                    isTransparent={el.cellStroke === 'transparent'}
+                    onTransparent={() => update('cellStroke', 'transparent')}
+                />
+                <NumField label="Border w." value={el.cellStrokeWidth} onChange={v => update('cellStrokeWidth', v)} />
+                <NumField label="Radius" value={el.cellCornerRadius} onChange={v => update('cellCornerRadius', v)} />
+            </Tab>
+
+            <Tab title="Umbră">
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Activ</label>
+                    <ToggleBtn active={el.shadowEnabled} onClick={() => update('shadowEnabled', !el.shadowEnabled)}>
+                        {el.shadowEnabled ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+                <ColorField label="Culoare" value={el.shadowColor} onChange={v => update('shadowColor', v)} />
+                <NumField label="Blur" value={el.shadowBlur} onChange={v => update('shadowBlur', v)} />
+                <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
+            </Tab>
+        </>
+    );
+}
+function BoxPropertyTabs({ el, update }) {
+    return (
+        <>
+            <Tab title="Container">
+                <ColorField
+                    label="Fundal"
+                    value={el.bgFill === 'transparent' ? '#ffffff' : el.bgFill}
+                    onChange={v => update('bgFill', v)}
+                    allowTransparent
+                    isTransparent={el.bgFill === 'transparent'}
+                    onTransparent={() => update('bgFill', 'transparent')}
+                />
+                <ColorField
+                    label="Chenar"
+                    value={el.bgStroke === 'transparent' ? '#000000' : el.bgStroke}
+                    onChange={v => update('bgStroke', v)}
+                    allowTransparent
+                    isTransparent={el.bgStroke === 'transparent'}
+                    onTransparent={() => update('bgStroke', 'transparent')}
+                />
+                <NumField label="Border w." value={el.bgStrokeWidth} onChange={v => update('bgStrokeWidth', v)} />
+                <NumField label="Radius" value={el.bgCornerRadius} onChange={v => update('bgCornerRadius', v)} />
+                <NumField label="Padding" value={el.padding} onChange={v => update('padding', v)} />
+            </Tab>
+
+            <Tab title="Umbră">
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Activ</label>
+                    <ToggleBtn active={el.shadowEnabled} onClick={() => update('shadowEnabled', !el.shadowEnabled)}>
+                        {el.shadowEnabled ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+                <ColorField label="Culoare" value={el.shadowColor} onChange={v => update('shadowColor', v)} />
+                <NumField label="Blur" value={el.shadowBlur} onChange={v => update('shadowBlur', v)} />
+                <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
+            </Tab>
+
+            {el.role && (
+                <Tab title="Rol semantic">
+                    <div style={styles.field}>
+                        <label style={styles.fieldLabel}>Zonă</label>
+                        <div style={{
+                            fontSize: '0.75rem', fontWeight: 700, color: '#4F6BF6',
+                            padding: '6px 10px', background: '#eef2ff', borderRadius: 6,
+                        }}>
+                            {el.role}
+                        </div>
+                    </div>
+                </Tab>
+            )}
+        </>
+    );
+}
 function ShapePropertyTabs({ el, update }) {
     return (
         <>
@@ -379,8 +500,9 @@ function ShapePropertyTabs({ el, update }) {
                 <SelectField label="Tip" value={el.behavior} onChange={v => update('behavior', v)}
                              options={[
                                  { value: 'static', label: 'Static (decorativ)' },
-                                 { value: 'clickZone', label: 'Zonă de click' },
+                                 { value: 'draggable', label: 'Drag source' },
                                  { value: 'dropTarget', label: 'Drop target' },
+                                 { value: 'clickZone', label: 'Zonă de click' },
                                  { value: 'hotspot', label: 'Hotspot' },
                                  { value: 'colorZone', label: 'Zonă de colorat' },
                              ]} width={180} />

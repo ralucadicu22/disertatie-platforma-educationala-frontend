@@ -1,13 +1,25 @@
 import { useEditor } from '../../store/editorStore.jsx';
 import { ELEMENT_DEFINITIONS } from '../../constants/elementTypes';
+import { useState } from 'react';
+import AssetLibrary from './AssetLibrary';
 
 export default function EditorToolbar() {
-    const { addElement } = useEditor();
+    const { addElement, updateElement } = useEditor();
+    const [showLibrary, setShowLibrary] = useState(false);
+
+    const handleInsertAsset = (asset) => {
+        addElement('IMAGE', undefined, undefined, {
+            src: `http://localhost:8080${asset.url}`
+        });
+        setShowLibrary(false);
+    };
 
     return (
         <div style={styles.toolbar}>
             <div style={styles.section}>
                 <p style={styles.sectionTitle}>Elemente</p>
+
+                {/* Text, Formă, Container — generate direct pe canvas */}
                 {ELEMENT_DEFINITIONS.map(tool => (
                     <button
                         key={tool.type}
@@ -18,7 +30,23 @@ export default function EditorToolbar() {
                         <span style={styles.toolLabel}>{tool.label}</span>
                     </button>
                 ))}
+
+                {/* Imagine — singurul flux pentru fișiere media, prin Asset Library */}
+                <button
+                    onClick={() => setShowLibrary(true)}
+                    style={styles.tool}
+                >
+                    <span style={styles.toolIcon}>🖼️</span>
+                    <span style={styles.toolLabel}>Imagine</span>
+                </button>
             </div>
+
+            {showLibrary && (
+                <AssetLibrary
+                    onInsert={handleInsertAsset}
+                    onClose={() => setShowLibrary(false)}
+                />
+            )}
         </div>
     );
 }

@@ -4,10 +4,12 @@ import api from '../../api/axios';
 import { migrateConfig } from '../../utils/configFactory';
 import { EXERCISE_TYPES } from '../../constants/exerciseTypes';
 import FindAndSelectPlayer from './FindAndSelectPlayer';
+import DragAndDropPlayer from './DragAndDropPlayer';
 
 // Adaugi aici o linie noua pentru fiecare tip nou implementat.
 const PLAYERS_BY_TYPE = {
     [EXERCISE_TYPES.FIND_AND_SELECT]: FindAndSelectPlayer,
+    [EXERCISE_TYPES.DRAG_AND_DROP]: DragAndDropPlayer,
 };
 
 export default function ExercisePlayer() {
@@ -29,8 +31,14 @@ export default function ExercisePlayer() {
                     setErrorMessage('Acest exercițiu nu are o versiune publicată.');
                     return;
                 }
+
+
+
                 const parsed = migrateConfig(JSON.parse(res.data.config));
-                setExercise(res.data);
+
+
+
+                setExercise(res.data); // pe asta o poti sterge daca nu o folosesti
                 setConfig(parsed);
                 setStatus('ready');
             })

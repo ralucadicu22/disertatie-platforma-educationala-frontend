@@ -9,6 +9,8 @@ export default function EditorTopBar({ exerciseName = 'Exercițiu nou', onSave }
         layersPanelOpen, setLayersPanelOpen,
         saveDraft, saveStatus, saveMessage,
         submitForReview, draftStatus,
+        autoSaveEnabled, setAutoSaveEnabled,
+        setFullscreenMode,
     } = useEditor();
 
     const canSubmitForReview = draftStatus === 'DRAFT';
@@ -45,6 +47,22 @@ export default function EditorTopBar({ exerciseName = 'Exercițiu nou', onSave }
                     }}
                 >
                     ⊞
+                </IconBtn>
+                <IconBtn
+                    onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
+                    title={`Auto-save: ${autoSaveEnabled ? 'ON (la 30s)' : 'OFF'}`}
+                    style={{
+                        background: autoSaveEnabled ? '#4F6BF6' : 'transparent',
+                        color: autoSaveEnabled ? 'white' : '#1a1d23',
+                    }}
+                >
+                    ⟳
+                </IconBtn>
+                <IconBtn
+                    onClick={() => setFullscreenMode(true)}
+                    title="Fullscreen (F11 sau Ctrl+Shift+F)"
+                >
+                    ⛶
                 </IconBtn>
                 <Divider />
                 <IconBtn
