@@ -47,7 +47,6 @@ export default function CanvasGrid({
                 });
             }}
         >
-            {/* Fundal Grid */}
             <Rect
                 width={element.width}
                 height={element.height}
@@ -70,7 +69,7 @@ export default function CanvasGrid({
                 shadowOpacity={element.shadowOpacity}
             />
 
-            {/* Celule vizuale (sloți) */}
+
             {cells.map((cell, i) => (
                 <Rect
                     key={`cell_${i}`}

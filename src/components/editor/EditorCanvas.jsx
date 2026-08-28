@@ -9,6 +9,7 @@ import CanvasBox from './elements/CanvasBox';
 import { ELEMENT_TYPES } from '../../constants/elementTypes';
 import CanvasGrid from './elements/CanvasGrid';
 import { getAbsolutePosition, clampChildInsideParent, getGridCellRect } from '../../utils/elementPosition';
+import CanvasVideo from "./elements/CanvasVideo.jsx";
 
 export default function EditorCanvas() {
     const {
@@ -46,7 +47,6 @@ export default function EditorCanvas() {
         };
     };
 
-    // Observ marimea containerului; recalculez fit doar cand se schimba
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -65,7 +65,6 @@ export default function EditorCanvas() {
         return () => observer.disconnect();
     }, [containerSize.w, containerSize.h]);
 
-    // Cand se schimba marimea container-ului sau a canvasului, recalculez fit
     useEffect(() => {
         if (!containerSize.w || !containerSize.h) return;
         const fit = fitToContainer(containerSize.w, containerSize.h);
@@ -108,7 +107,6 @@ export default function EditorCanvas() {
         };
     }, [isSpacePressed]);
 
-    // Zoom cu Ctrl+scroll — pivotam pe pointer (nu pe origine)
     const handleWheel = (e) => {
         if (!e.evt.ctrlKey && !e.evt.metaKey) return;
         e.evt.preventDefault();
@@ -119,7 +117,6 @@ export default function EditorCanvas() {
         const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
         const clampedScale = Math.max(fitScale * 0.25, Math.min(fitScale * 5, newScale));
 
-        // Pivot pe pointer: pastram acelasi punct al canvasului sub cursor
         const mousePointTo = {
             x: (pointer.x - stage.x()) / oldScale,
             y: (pointer.y - stage.y()) / oldScale,
@@ -131,7 +128,6 @@ export default function EditorCanvas() {
         });
     };
 
-    // Pan cu butoanele +/- — pivot pe centrul containerului
     const zoomByStep = (direction) => {
         if (!containerSize.w || !containerSize.h) return;
         const oldScale = zoom;
@@ -247,7 +243,7 @@ export default function EditorCanvas() {
         const parent = el.parentId ? elements.find(p => p.id === el.parentId) : null;
 
         if (parent && parent.type === 'GRID') {
-            // Copiii Grid-ului nu pot fi mutati liber — reintorcem la pozitia celulei
+
             const cellRect = getGridCellRect(parent, el.slotIndex);
             e.target.x(cellRect.x);
             e.target.y(cellRect.y);
@@ -261,7 +257,7 @@ export default function EditorCanvas() {
             e.target.y(clamped.y);
             return;
         }
-        // ... restul functiei ramane neschimbat
+
 
         const g = computeGuides(id, localX, localY, el.width, el.height);
         setGuides({ vertical: g.vertical, horizontal: g.horizontal });
@@ -345,7 +341,7 @@ export default function EditorCanvas() {
                 </CanvasGrid>
             );
         }
-
+        if (el.type === ELEMENT_TYPES.VIDEO) elementNode = <CanvasVideo key={el.id} {...common} />;
         if (!elementNode) return null;
 
         if (isMarkedCorrect) {

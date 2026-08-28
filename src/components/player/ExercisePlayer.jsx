@@ -6,7 +6,7 @@ import { EXERCISE_TYPES } from '../../constants/exerciseTypes';
 import FindAndSelectPlayer from './FindAndSelectPlayer';
 import DragAndDropPlayer from './DragAndDropPlayer';
 
-// Adaugi aici o linie noua pentru fiecare tip nou implementat.
+
 const PLAYERS_BY_TYPE = {
     [EXERCISE_TYPES.FIND_AND_SELECT]: FindAndSelectPlayer,
     [EXERCISE_TYPES.DRAG_AND_DROP]: DragAndDropPlayer,

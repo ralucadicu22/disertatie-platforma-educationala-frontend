@@ -1,37 +1,58 @@
 import { useEffect, useState, useRef } from 'react';
 import { assetApi } from '../../api/assetApi';
 
-export default function AssetLibrary({ onInsert, onClose }) {
+const TYPE_FILTERS = [
+    { value: '', label: 'Toate' },
+    { value: 'image', label: 'Imagini' },
+    { value: 'video', label: 'Video' },
+];
+
+export default function AssetLibrary({ onInsert, onClose, acceptTypes = 'image,video' }) {
     const [assets, setAssets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
-    const [dragOver, setDragOver] = useState(false);
+    const [typeFilter, setTypeFilter] = useState('');
     const fileInputRef = useRef(null);
+
+    const acceptList = acceptTypes.split(',');
+    const availableFilters = acceptList.length === 1
+        ? []
+        : TYPE_FILTERS.filter(f =>
+            f.value === '' || acceptList.includes(f.value)
+        );
+
+    const inputAccept = [
+        acceptList.includes('image') && 'image/jpeg,image/png,image/gif,image/webp,image/svg+xml',
+        acceptList.includes('video') && 'video/mp4,video/webm,video/ogg',
+    ].filter(Boolean).join(',');
 
     useEffect(() => {
         loadAssets();
-    }, []);
+    }, [typeFilter]);
 
     const loadAssets = async () => {
         setLoading(true);
         try {
-            const res = await assetApi.list('image');
+            const res = await assetApi.list(typeFilter);
             setAssets(res.data);
         } catch (err) {
-            setError('Eroare la încărcarea imaginilor');
+            setError('Eroare la încărcarea asset-urilor');
         } finally {
             setLoading(false);
         }
     };
 
-    const uploadFile = async (file) => {
+    const handleFileSelect = async (e) => {
+        const file = e.target.files?.[0];
         if (!file) return;
+
         setUploading(true);
         setError('');
         setUploadProgress(0);
+
         try {
             const res = await assetApi.upload(file, (progress) => {
                 setUploadProgress(progress);
@@ -46,22 +67,9 @@ export default function AssetLibrary({ onInsert, onClose }) {
         }
     };
 
-    const handleFileSelect = (e) => uploadFile(e.target.files?.[0]);
-
-    const handleDrop = (e) => {
-        e.preventDefault();
-        setDragOver(false);
-        const file = e.dataTransfer.files?.[0];
-        if (file && file.type.startsWith('image/')) {
-            uploadFile(file);
-        } else {
-            setError('Doar fișiere imagine sunt acceptate (PNG, JPG, SVG, WebP, GIF)');
-        }
-    };
-
     const handleDelete = async (asset, e) => {
         e.stopPropagation();
-        if (!confirm(`Ștergi "${asset.originalName}"? Exercițiile care o folosesc vor pierde imaginea.`)) return;
+        if (!confirm(`Ștergi "${asset.originalName}"? Exercițiile care o folosesc vor pierde asset-ul.`)) return;
         try {
             await assetApi.delete(asset.id);
             setAssets(prev => prev.filter(a => a.id !== asset.id));
@@ -77,65 +85,25 @@ export default function AssetLibrary({ onInsert, onClose }) {
         return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
 
-    const filtered = assets.filter(a =>
-        a.originalName?.toLowerCase().includes(search.toLowerCase())
-    );
+
+    const filtered = assets.filter(a => {
+        const matchesSearch = a.originalName?.toLowerCase().includes(search.toLowerCase());
+        const isImage = a.mimeType?.startsWith('image/');
+        const isVideo = a.mimeType?.startsWith('video/');
+        const isAccepted = (isImage && acceptList.includes('image')) ||
+            (isVideo && acceptList.includes('video'));
+        return matchesSearch && isAccepted;
+    });
 
     return (
         <div style={styles.overlay} onClick={onClose}>
             <div style={styles.panel} onClick={e => e.stopPropagation()}>
-
-                {/* Header */}
                 <div style={styles.header}>
-                    <span style={styles.title}>🖼️ Imagini</span>
+                    <span style={styles.title}>📁 Asset Library</span>
                     <button onClick={onClose} style={styles.closeBtn}>✕</button>
                 </div>
 
-                {/* Zona drag-and-drop upload */}
-                <div
-                    style={{
-                        ...styles.dropZone,
-                        ...(dragOver ? styles.dropZoneActive : {}),
-                        ...(uploading ? styles.dropZoneUploading : {}),
-                    }}
-                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={handleDrop}
-                    onClick={() => !uploading && fileInputRef.current?.click()}
-                >
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-                        onChange={handleFileSelect}
-                        style={{ display: 'none' }}
-                    />
-                    {uploading ? (
-                        <>
-                            <span style={styles.dropIcon}>⏳</span>
-                            <span style={styles.dropText}>Se încarcă... {uploadProgress}%</span>
-                            <div style={styles.progressBar}>
-                                <div style={{ ...styles.progressFill, width: `${uploadProgress}%` }} />
-                            </div>
-                        </>
-                    ) : dragOver ? (
-                        <>
-                            <span style={styles.dropIcon}>⬇️</span>
-                            <span style={styles.dropText}>Lasă imaginea aici</span>
-                        </>
-                    ) : (
-                        <>
-                            <span style={styles.dropIcon}>+</span>
-                            <span style={styles.dropText}>Trage o imagine aici sau <u>alege fișier</u></span>
-                            <span style={styles.dropHint}>PNG, JPG, SVG, WebP, GIF</span>
-                        </>
-                    )}
-                </div>
-
-                {error && <p style={styles.errorText}>{error}</p>}
-
-                {/* Search */}
-                <div style={styles.searchRow}>
+                <div style={styles.toolbar}>
                     <input
                         type="text"
                         placeholder="Caută după nume..."
@@ -143,12 +111,47 @@ export default function AssetLibrary({ onInsert, onClose }) {
                         onChange={e => setSearch(e.target.value)}
                         style={styles.searchInput}
                     />
-                    <span style={styles.count}>
-                        {filtered.length} {filtered.length === 1 ? 'imagine' : 'imagini'}
-                    </span>
+                    {availableFilters.length > 1 && (
+                        <div style={styles.filterGroup}>
+                            {availableFilters.map(f => (
+                                <button
+                                    key={f.value}
+                                    onClick={() => setTypeFilter(f.value)}
+                                    style={{
+                                        ...styles.filterBtn,
+                                        background: typeFilter === f.value ? '#4F6BF6' : '#f9fafb',
+                                        color: typeFilter === f.value ? 'white' : '#374151',
+                                    }}
+                                >
+                                    {f.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={inputAccept}
+                        onChange={handleFileSelect}
+                        style={{ display: 'none' }}
+                    />
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        style={styles.uploadBtn}
+                    >
+                        {uploading ? `${uploadProgress}%` : '+ Adaugă'}
+                    </button>
                 </div>
 
-                {/* Grid imagini */}
+                {uploading && (
+                    <div style={styles.progressBar}>
+                        <div style={{ ...styles.progressFill, width: `${uploadProgress}%` }} />
+                    </div>
+                )}
+
+                {error && <p style={styles.errorText}>{error}</p>}
+
                 {loading ? (
                     <div style={styles.centered}>
                         <div style={styles.spinner} />
@@ -157,44 +160,88 @@ export default function AssetLibrary({ onInsert, onClose }) {
                 ) : filtered.length === 0 ? (
                     <div style={styles.centered}>
                         <p style={styles.emptyText}>
-                            {search ? 'Niciun rezultat găsit.' : 'Nu există imagini uploadate încă.'}
+                            {search ? 'Niciun rezultat găsit.' : 'Nu există asset-uri disponibile încă.'}
                         </p>
                     </div>
                 ) : (
                     <div style={styles.grid}>
                         {filtered.map(asset => (
-                            <div
+                            <AssetCard
                                 key={asset.id}
-                                style={styles.card}
+                                asset={asset}
                                 onClick={() => onInsert(asset)}
-                                title={`${asset.originalName} (${formatSize(asset.sizeBytes)})`}
-                            >
-                                <div style={styles.thumb}>
-                                    <img
-                                        src={`http://localhost:8080${asset.url}`}
-                                        alt={asset.originalName}
-                                        style={styles.thumbImg}
-                                        onError={e => { e.target.style.display = 'none'; }}
-                                    />
-                                </div>
-                                <div style={styles.cardFooter}>
-                                    <span style={styles.assetName}>
-                                        {asset.originalName?.length > 18
-                                            ? asset.originalName.substring(0, 16) + '...'
-                                            : asset.originalName}
-                                    </span>
-                                    <button
-                                        onClick={(e) => handleDelete(asset, e)}
-                                        style={styles.deleteBtn}
-                                        title="Șterge"
-                                    >
-                                        🗑
-                                    </button>
-                                </div>
-                            </div>
+                                onDelete={(e) => handleDelete(asset, e)}
+                                formatSize={formatSize}
+                            />
                         ))}
                     </div>
                 )}
+            </div>
+        </div>
+    );
+}
+
+function AssetCard({ asset, onClick, onDelete, formatSize }) {
+    const [hovered, setHovered] = useState(false);
+    const videoRef = useRef(null);
+    const isVideo = asset.mimeType?.startsWith('video/');
+    const isImage = asset.mimeType?.startsWith('image/');
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        if (hovered) {
+            video.play().catch(() => {});
+        } else {
+            video.pause();
+            video.currentTime = 0;
+        }
+    }, [hovered]);
+
+    return (
+        <div
+            style={styles.card}
+            onClick={onClick}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            title={`${asset.originalName} (${formatSize(asset.sizeBytes)})`}
+        >
+            <div style={styles.thumb}>
+                {isImage && (
+                    <img
+                        src={`http://localhost:8080${asset.url}`}
+                        alt={asset.originalName}
+                        style={styles.thumbImg}
+                        onError={e => { e.target.style.display = 'none'; }}
+                    />
+                )}
+                {isVideo && (
+                    <>
+                        <video
+                            ref={videoRef}
+                            src={`http://localhost:8080${asset.url}`}
+                            style={styles.thumbImg}
+                            muted
+                            playsInline
+                            preload="metadata"
+                        />
+                        <div style={styles.videoBadge}>▶ VIDEO</div>
+                    </>
+                )}
+            </div>
+            <div style={styles.cardFooter}>
+                <span style={styles.assetName}>
+                    {asset.originalName?.length > 18
+                        ? asset.originalName.substring(0, 16) + '...'
+                        : asset.originalName}
+                </span>
+                <button
+                    onClick={onDelete}
+                    style={styles.deleteBtn}
+                    title="Șterge"
+                >
+                    🗑
+                </button>
             </div>
         </div>
     );
@@ -213,13 +260,12 @@ const styles = {
     panel: {
         background: 'white',
         borderRadius: 16,
-        width: 720,
+        width: 780,
         maxWidth: '95vw',
         maxHeight: '85vh',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-        overflow: 'hidden',
     },
     header: {
         padding: '16px 20px',
@@ -227,7 +273,6 @@ const styles = {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        flexShrink: 0,
     },
     title: {
         fontSize: '1rem',
@@ -243,48 +288,55 @@ const styles = {
         padding: 4,
         borderRadius: 4,
     },
-    dropZone: {
-        margin: '16px 20px 0',
-        border: '2px dashed #d1d5db',
-        borderRadius: 12,
-        padding: '20px 16px',
+    toolbar: {
+        padding: '12px 20px',
         display: 'flex',
-        flexDirection: 'column',
+        gap: 10,
+        borderBottom: '1px solid #f3f4f6',
+        flexWrap: 'wrap',
         alignItems: 'center',
-        gap: 6,
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-        background: '#fafafa',
-        flexShrink: 0,
     },
-    dropZoneActive: {
-        borderColor: '#4F6BF6',
-        background: '#eef1fe',
+    searchInput: {
+        flex: 1,
+        minWidth: 180,
+        padding: '8px 12px',
+        border: '1.5px solid #e5e7eb',
+        borderRadius: 8,
+        fontSize: '0.85rem',
+        outline: 'none',
+        color: '#1a1d23',
     },
-    dropZoneUploading: {
-        cursor: 'default',
+    filterGroup: {
+        display: 'flex',
+        gap: 4,
         background: '#f3f4f6',
+        padding: 3,
+        borderRadius: 8,
     },
-    dropIcon: {
-        fontSize: '1.6rem',
-        lineHeight: 1,
+    filterBtn: {
+        border: 'none',
+        borderRadius: 6,
+        padding: '6px 12px',
+        fontSize: '0.78rem',
+        fontWeight: 700,
+        cursor: 'pointer',
     },
-    dropText: {
+    uploadBtn: {
+        background: '#4F6BF6',
+        color: 'white',
+        border: 'none',
+        borderRadius: 8,
+        padding: '8px 16px',
         fontSize: '0.85rem',
         fontWeight: 700,
-        color: '#374151',
-    },
-    dropHint: {
-        fontSize: '0.75rem',
-        color: '#9ca3af',
-        fontWeight: 600,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        minWidth: 100,
     },
     progressBar: {
-        width: '100%',
-        height: 4,
+        height: 3,
         background: '#e5e7eb',
-        borderRadius: 2,
-        marginTop: 4,
+        margin: '0 20px',
     },
     progressFill: {
         height: '100%',
@@ -298,36 +350,13 @@ const styles = {
         fontWeight: 700,
         padding: '8px 20px 0',
         margin: 0,
-        flexShrink: 0,
-    },
-    searchRow: {
-        padding: '12px 20px 8px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        flexShrink: 0,
-    },
-    searchInput: {
-        flex: 1,
-        padding: '8px 12px',
-        border: '1.5px solid #e5e7eb',
-        borderRadius: 8,
-        fontSize: '0.85rem',
-        outline: 'none',
-        color: '#1a1d23',
-    },
-    count: {
-        fontSize: '0.75rem',
-        fontWeight: 700,
-        color: '#9ca3af',
-        whiteSpace: 'nowrap',
     },
     grid: {
         flex: 1,
         overflowY: 'auto',
-        padding: '8px 20px 20px',
+        padding: 20,
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
         gap: 12,
         alignContent: 'start',
     },
@@ -347,11 +376,24 @@ const styles = {
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
+        position: 'relative',
     },
     thumbImg: {
         width: '100%',
         height: '100%',
         objectFit: 'cover',
+    },
+    videoBadge: {
+        position: 'absolute',
+        bottom: 6,
+        left: 6,
+        background: 'rgba(0,0,0,0.7)',
+        color: 'white',
+        fontSize: '0.65rem',
+        fontWeight: 800,
+        padding: '2px 6px',
+        borderRadius: 4,
+        letterSpacing: '0.5px',
     },
     cardFooter: {
         padding: '6px 8px',

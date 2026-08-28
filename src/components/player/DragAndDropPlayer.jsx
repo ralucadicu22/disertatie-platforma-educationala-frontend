@@ -3,7 +3,7 @@ import { Stage, Layer, Rect, Circle, RegularPolygon, Line, Image as KonvaImage, 
 import useImage from 'use-image';
 import Matter from 'matter-js';
 import Konva from 'konva';
-import api from '../../api/axios';
+import { apiWithOverride as api } from '../../api/axios';
 import PlayerText from './PlayerText';
 import PlayerImage from './PlayerImage';
 import PlayerShape from './PlayerShape';
@@ -17,7 +17,6 @@ const SNAP_RADIUS = 70;
 
 const noop = () => {};
 
-// Sunete minimale via Web Audio (fara dependinte)
 const audioCtxRef = { current: null };
 const getAudioCtx = () => {
     if (!audioCtxRef.current) {
@@ -114,7 +113,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
         return () => observer.disconnect();
     }, [canvasWidth]);
 
-    // Pulse la zona activa (magnet)
+
     useEffect(() => {
         if (!activeTargetId) return;
         const node = targetNodeRefs.current[activeTargetId];
@@ -239,7 +238,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
             Matter.World.clear(world, false);
             Matter.Engine.clear(engine);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, [scale, draggableElements, targetElements]);
 
     const handleDragEnd = async (body) => {
@@ -276,7 +275,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                 setBursts(prev => [...prev, { id: `${draggableId}_${Date.now()}`, x: cx, y: cy }]);
                 soundCorrect();
             } else {
-                // Bounce spectaculos: impuls in directie aleatorie + rotatie
+
                 const angle = Math.random() * Math.PI * 2;
                 const force = 0.03;
                 Matter.Body.applyForce(body, body.position, {

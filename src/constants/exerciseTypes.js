@@ -18,7 +18,6 @@ export const EXERCISE_TYPES = {
     TEXT_PROBLEMS: 'TEXT_PROBLEMS',
 };
 
-// Definiții declarative pentru fiecare tip
 export const EXERCISE_TYPE_DEFINITIONS = [
     {
         type: EXERCISE_TYPES.CUSTOM,

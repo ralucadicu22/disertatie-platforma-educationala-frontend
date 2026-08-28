@@ -9,7 +9,6 @@ export function getAbsolutePosition(element, allElements) {
     }
     const parentAbs = getAbsolutePosition(parent, allElements);
 
-    // Daca parintele e Grid, pozitia copilului e determinata de slotIndex
     if (parent.type === 'GRID' && element.slotIndex !== undefined) {
         const cellRect = getGridCellRect(parent, element.slotIndex);
         return {
@@ -41,11 +40,7 @@ export function clampChildInsideParent(x, y, w, h, parent, padding = 0) {
     };
 
 }
-/**
- * Calculeaza pozitia si dimensiunea unei celule dintr-un Grid,
- * pe baza slotIndex-ului si a configuratiei grid-ului.
- * Coordonatele returnate sunt LOCALE (fata de originea Grid-ului).
- */
+
 export function getGridCellRect(grid, slotIndex) {
     const rows = grid.rows || 1;
     const cols = grid.cols || 1;

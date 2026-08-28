@@ -1,5 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useEditor } from '../../store/editorStore.jsx';
+import AssetLibrary from './AssetLibrary';
 
 const FONT_FAMILIES = ['Nunito', 'Arial', 'Times New Roman', 'Courier New', 'Georgia', 'Verdana', 'Comic Sans MS'];
 
@@ -12,6 +13,17 @@ export default function EditorPropertiesPanel() {
     const fileInputRef = useRef(null);
     const bgFileInputRef = useRef(null);
 
+    const [libraryConfig, setLibraryConfig] = useState(null); // { accept, onPick }
+
+    const openLibrary = (accept, onPick) => {
+        setLibraryConfig({ accept, onPick });
+    };
+
+    const handleLibraryInsert = (asset) => {
+        if (libraryConfig?.onPick) libraryConfig.onPick(asset);
+        setLibraryConfig(null);
+    };
+
     const handleBgFileSelect = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -19,6 +31,7 @@ export default function EditorPropertiesPanel() {
         reader.onload = (evt) => updateCanvas({ backgroundImage: evt.target.result });
         reader.readAsDataURL(file);
     };
+
 
     if (selectedIds.length > 1) {
         return (
@@ -50,6 +63,7 @@ export default function EditorPropertiesPanel() {
             </div>
         );
     }
+
 
     if (!selectedElement) {
         return (
@@ -99,6 +113,7 @@ export default function EditorPropertiesPanel() {
         );
     }
 
+
     const el = selectedElement;
     const update = (key, value) => updateElement(el.id, { [key]: value });
 
@@ -124,12 +139,21 @@ export default function EditorPropertiesPanel() {
 
                 {el.type === 'TEXT' && <TextPropertyTabs el={el} update={update} />}
                 {el.type === 'IMAGE' && (
-                    <ImagePropertyTabs el={el} update={update} fileInputRef={fileInputRef} />
+                    <ImagePropertyTabs el={el} update={update} fileInputRef={fileInputRef} onOpenLibrary={openLibrary} />
                 )}
                 {el.type === 'SHAPE' && <ShapePropertyTabs el={el} update={update} />}
                 {el.type === 'BOX' && <BoxPropertyTabs el={el} update={update} />}
                 {el.type === 'GRID' && <GridPropertyTabs el={el} update={update} />}
+                {el.type === 'VIDEO' && <VideoPropertyTabs el={el} update={update} onOpenLibrary={openLibrary} />}
             </div>
+
+            {libraryConfig && (
+                <AssetLibrary
+                    acceptTypes={libraryConfig.accept}
+                    onInsert={handleLibraryInsert}
+                    onClose={() => setLibraryConfig(null)}
+                />
+            )}
         </div>
     );
 }
@@ -237,7 +261,8 @@ function TextPropertyTabs({ el, update }) {
     );
 }
 
-function ImagePropertyTabs({ el, update, fileInputRef }) {
+
+function ImagePropertyTabs({ el, update, fileInputRef, onOpenLibrary }) {
     const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -251,19 +276,27 @@ function ImagePropertyTabs({ el, update, fileInputRef }) {
             <Tab title="Imagine">
                 <div style={styles.field}>
                     <label style={styles.fieldLabel}>Sursă</label>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileSelect}
-                        style={{ display: 'none' }}
-                    />
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        style={styles.uploadBtn}
-                    >
-                        {el.src ? 'Schimbă...' : 'Încarcă imagine'}
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <button
+                            onClick={() => onOpenLibrary('image', (asset) => update('src', `http://localhost:8080${asset.url}`))}
+                            style={styles.uploadBtn}
+                        >
+                            📁 Din Library
+                        </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileSelect}
+                            style={{ display: 'none' }}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{ ...styles.uploadBtn, background: '#e5e7eb', color: '#374151' }}
+                        >
+                            {el.src ? 'Fișier local...' : 'Fișier local'}
+                        </button>
+                    </div>
                 </div>
 
                 <div style={styles.field}>
@@ -336,6 +369,191 @@ function ImagePropertyTabs({ el, update, fileInputRef }) {
         </>
     );
 }
+
+
+function VideoPropertyTabs({ el, update, onOpenLibrary }) {
+    return (
+        <>
+            <Tab title="Video">
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Sursă</label>
+                    <button
+                        onClick={() => onOpenLibrary('video', (asset) => update('src', `http://localhost:8080${asset.url}`))}
+                        style={styles.uploadBtn}
+                    >
+                        {el.src ? '📁 Schimbă video' : '📁 Alege din Library'}
+                    </button>
+                </div>
+
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Poster (thumbnail)</label>
+                    <button
+                        onClick={() => onOpenLibrary('image', (asset) => update('posterSrc', `http://localhost:8080${asset.url}`))}
+                        style={styles.uploadBtn}
+                    >
+                        {el.posterSrc ? '📁 Schimbă poster' : '📁 Alege imagine'}
+                    </button>
+                </div>
+
+                <NumField label="Opacitate" value={el.opacity} onChange={v => update('opacity', parseFloat(v) || 0)} step={0.1} />
+                <NumField label="Radius" value={el.cornerRadius} onChange={v => update('cornerRadius', v)} />
+            </Tab>
+
+            <Tab title="Playback">
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Autoplay</label>
+                    <ToggleBtn active={el.autoplay} onClick={() => update('autoplay', !el.autoplay)}>
+                        {el.autoplay ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Loop</label>
+                    <ToggleBtn active={el.loop} onClick={() => update('loop', !el.loop)}>
+                        {el.loop ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Muted</label>
+                    <ToggleBtn active={el.muted} onClick={() => update('muted', !el.muted)}>
+                        {el.muted ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Controls</label>
+                    <ToggleBtn active={el.controls} onClick={() => update('controls', !el.controls)}>
+                        {el.controls ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+            </Tab>
+
+            <Tab title="Umbră">
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Activ</label>
+                    <ToggleBtn active={el.shadowEnabled} onClick={() => update('shadowEnabled', !el.shadowEnabled)}>
+                        {el.shadowEnabled ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+                <ColorField label="Culoare" value={el.shadowColor} onChange={v => update('shadowColor', v)} />
+                <NumField label="Blur" value={el.shadowBlur} onChange={v => update('shadowBlur', v)} />
+                <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
+            </Tab>
+        </>
+    );
+}
+
+
+function ShapePropertyTabs({ el, update }) {
+    return (
+        <>
+            <Tab title="Formă">
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Tip</label>
+                    <div style={styles.btnGroup}>
+                        {[
+                            { val: 'rect', label: '▭' },
+                            { val: 'circle', label: '◯' },
+                            { val: 'line', label: '─' },
+                            { val: 'polygon', label: '⬢' },
+                        ].map(opt => (
+                            <ToggleBtn key={opt.val} active={el.shapeType === opt.val} onClick={() => update('shapeType', opt.val)}>
+                                {opt.label}
+                            </ToggleBtn>
+                        ))}
+                    </div>
+                </div>
+
+                <ColorField label="Fill" value={el.fill} onChange={v => update('fill', v)} />
+                <ColorField label="Chenar" value={el.stroke} onChange={v => update('stroke', v)} />
+                <NumField label="Border w." value={el.strokeWidth} onChange={v => update('strokeWidth', v)} />
+                {el.shapeType === 'rect' && (
+                    <NumField label="Radius" value={el.cornerRadius} onChange={v => update('cornerRadius', v)} />
+                )}
+                <NumField label="Opacitate" value={el.opacity} onChange={v => update('opacity', parseFloat(v) || 0)} step={0.1} />
+            </Tab>
+
+            <Tab title="Umbră">
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Activ</label>
+                    <ToggleBtn active={el.shadowEnabled} onClick={() => update('shadowEnabled', !el.shadowEnabled)}>
+                        {el.shadowEnabled ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+                <ColorField label="Culoare" value={el.shadowColor} onChange={v => update('shadowColor', v)} />
+                <NumField label="Blur" value={el.shadowBlur} onChange={v => update('shadowBlur', v)} />
+                <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
+            </Tab>
+
+            <Tab title="Comportament">
+                <SelectField label="Tip" value={el.behavior} onChange={v => update('behavior', v)}
+                             options={[
+                                 { value: 'static', label: 'Static (decorativ)' },
+                                 { value: 'draggable', label: 'Drag source' },
+                                 { value: 'dropTarget', label: 'Drop target' },
+                                 { value: 'clickZone', label: 'Zonă de click' },
+                                 { value: 'hotspot', label: 'Hotspot' },
+                                 { value: 'colorZone', label: 'Zonă de colorat' },
+                             ]} width={180} />
+            </Tab>
+        </>
+    );
+}
+
+
+function BoxPropertyTabs({ el, update }) {
+    return (
+        <>
+            <Tab title="Container">
+                <ColorField
+                    label="Fundal"
+                    value={el.bgFill === 'transparent' ? '#ffffff' : el.bgFill}
+                    onChange={v => update('bgFill', v)}
+                    allowTransparent
+                    isTransparent={el.bgFill === 'transparent'}
+                    onTransparent={() => update('bgFill', 'transparent')}
+                />
+                <ColorField
+                    label="Chenar"
+                    value={el.bgStroke === 'transparent' ? '#000000' : el.bgStroke}
+                    onChange={v => update('bgStroke', v)}
+                    allowTransparent
+                    isTransparent={el.bgStroke === 'transparent'}
+                    onTransparent={() => update('bgStroke', 'transparent')}
+                />
+                <NumField label="Border w." value={el.bgStrokeWidth} onChange={v => update('bgStrokeWidth', v)} />
+                <NumField label="Radius" value={el.bgCornerRadius} onChange={v => update('bgCornerRadius', v)} />
+                <NumField label="Padding" value={el.padding} onChange={v => update('padding', v)} />
+            </Tab>
+
+            <Tab title="Umbră">
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Activ</label>
+                    <ToggleBtn active={el.shadowEnabled} onClick={() => update('shadowEnabled', !el.shadowEnabled)}>
+                        {el.shadowEnabled ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+                <ColorField label="Culoare" value={el.shadowColor} onChange={v => update('shadowColor', v)} />
+                <NumField label="Blur" value={el.shadowBlur} onChange={v => update('shadowBlur', v)} />
+                <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
+            </Tab>
+
+            {el.role && (
+                <Tab title="Rol semantic">
+                    <div style={styles.field}>
+                        <label style={styles.fieldLabel}>Zonă</label>
+                        <div style={{
+                            fontSize: '0.75rem', fontWeight: 700, color: '#4F6BF6',
+                            padding: '6px 10px', background: '#eef2ff', borderRadius: 6,
+                        }}>
+                            {el.role}
+                        </div>
+                    </div>
+                </Tab>
+            )}
+        </>
+    );
+}
+
+
 function GridPropertyTabs({ el, update }) {
     return (
         <>
@@ -402,114 +620,7 @@ function GridPropertyTabs({ el, update }) {
         </>
     );
 }
-function BoxPropertyTabs({ el, update }) {
-    return (
-        <>
-            <Tab title="Container">
-                <ColorField
-                    label="Fundal"
-                    value={el.bgFill === 'transparent' ? '#ffffff' : el.bgFill}
-                    onChange={v => update('bgFill', v)}
-                    allowTransparent
-                    isTransparent={el.bgFill === 'transparent'}
-                    onTransparent={() => update('bgFill', 'transparent')}
-                />
-                <ColorField
-                    label="Chenar"
-                    value={el.bgStroke === 'transparent' ? '#000000' : el.bgStroke}
-                    onChange={v => update('bgStroke', v)}
-                    allowTransparent
-                    isTransparent={el.bgStroke === 'transparent'}
-                    onTransparent={() => update('bgStroke', 'transparent')}
-                />
-                <NumField label="Border w." value={el.bgStrokeWidth} onChange={v => update('bgStrokeWidth', v)} />
-                <NumField label="Radius" value={el.bgCornerRadius} onChange={v => update('bgCornerRadius', v)} />
-                <NumField label="Padding" value={el.padding} onChange={v => update('padding', v)} />
-            </Tab>
 
-            <Tab title="Umbră">
-                <div style={styles.field}>
-                    <label style={styles.fieldLabel}>Activ</label>
-                    <ToggleBtn active={el.shadowEnabled} onClick={() => update('shadowEnabled', !el.shadowEnabled)}>
-                        {el.shadowEnabled ? 'ON' : 'OFF'}
-                    </ToggleBtn>
-                </div>
-                <ColorField label="Culoare" value={el.shadowColor} onChange={v => update('shadowColor', v)} />
-                <NumField label="Blur" value={el.shadowBlur} onChange={v => update('shadowBlur', v)} />
-                <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
-            </Tab>
-
-            {el.role && (
-                <Tab title="Rol semantic">
-                    <div style={styles.field}>
-                        <label style={styles.fieldLabel}>Zonă</label>
-                        <div style={{
-                            fontSize: '0.75rem', fontWeight: 700, color: '#4F6BF6',
-                            padding: '6px 10px', background: '#eef2ff', borderRadius: 6,
-                        }}>
-                            {el.role}
-                        </div>
-                    </div>
-                </Tab>
-            )}
-        </>
-    );
-}
-function ShapePropertyTabs({ el, update }) {
-    return (
-        <>
-            <Tab title="Formă">
-                <div style={styles.field}>
-                    <label style={styles.fieldLabel}>Tip</label>
-                    <div style={styles.btnGroup}>
-                        {[
-                            { val: 'rect', label: '▭' },
-                            { val: 'circle', label: '◯' },
-                            { val: 'line', label: '─' },
-                            { val: 'polygon', label: '⬢' },
-                        ].map(opt => (
-                            <ToggleBtn key={opt.val} active={el.shapeType === opt.val} onClick={() => update('shapeType', opt.val)}>
-                                {opt.label}
-                            </ToggleBtn>
-                        ))}
-                    </div>
-                </div>
-
-                <ColorField label="Fill" value={el.fill} onChange={v => update('fill', v)} />
-                <ColorField label="Chenar" value={el.stroke} onChange={v => update('stroke', v)} />
-                <NumField label="Border w." value={el.strokeWidth} onChange={v => update('strokeWidth', v)} />
-                {el.shapeType === 'rect' && (
-                    <NumField label="Radius" value={el.cornerRadius} onChange={v => update('cornerRadius', v)} />
-                )}
-                <NumField label="Opacitate" value={el.opacity} onChange={v => update('opacity', parseFloat(v) || 0)} step={0.1} />
-            </Tab>
-
-            <Tab title="Umbră">
-                <div style={styles.field}>
-                    <label style={styles.fieldLabel}>Activ</label>
-                    <ToggleBtn active={el.shadowEnabled} onClick={() => update('shadowEnabled', !el.shadowEnabled)}>
-                        {el.shadowEnabled ? 'ON' : 'OFF'}
-                    </ToggleBtn>
-                </div>
-                <ColorField label="Culoare" value={el.shadowColor} onChange={v => update('shadowColor', v)} />
-                <NumField label="Blur" value={el.shadowBlur} onChange={v => update('shadowBlur', v)} />
-                <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
-            </Tab>
-
-            <Tab title="Comportament">
-                <SelectField label="Tip" value={el.behavior} onChange={v => update('behavior', v)}
-                             options={[
-                                 { value: 'static', label: 'Static (decorativ)' },
-                                 { value: 'draggable', label: 'Drag source' },
-                                 { value: 'dropTarget', label: 'Drop target' },
-                                 { value: 'clickZone', label: 'Zonă de click' },
-                                 { value: 'hotspot', label: 'Hotspot' },
-                                 { value: 'colorZone', label: 'Zonă de colorat' },
-                             ]} width={180} />
-            </Tab>
-        </>
-    );
-}
 
 function Tab({ title, children }) {
     return (
@@ -578,6 +689,7 @@ function ToggleBtn({ active, onClick, children }) {
         </button>
     );
 }
+
 function AlignBtn({ children, onClick }) {
     return (
         <button onClick={onClick} style={{
@@ -589,6 +701,8 @@ function AlignBtn({ children, onClick }) {
         </button>
     );
 }
+
+
 const styles = {
     panel: {
         background: 'white',

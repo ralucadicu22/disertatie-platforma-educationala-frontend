@@ -103,7 +103,7 @@ export default function ModulesPage() {
             </div>
 
             <div style={styles.container}>
-                {/* ELEV — vede modulele si rezolva exercitii */}
+
                 {role === 'ELEV' && (
                     <>
                         <div style={styles.welcome}>
@@ -115,7 +115,7 @@ export default function ModulesPage() {
                     </>
                 )}
 
-                {/* PROFESOR — vede modulele + dashboard profesor */}
+
                 {role === 'PROFESOR' && (
                     <>
                         <div style={styles.welcome}>
@@ -188,7 +188,6 @@ export default function ModulesPage() {
                     </>
                 )}
 
-                {/* EDITOR — vede modulele si acceseaza editorul prin quiz-uri */}
                 {role === 'EDITOR' && (
                     <>
                         <div style={styles.welcome}>
@@ -242,7 +241,6 @@ export default function ModulesPage() {
                     </>
                 )}
 
-                {/* ADMIN — vede statistici + modulele pentru acces la editor */}
                 {role === 'ADMIN' && (
                     <>
                         <div style={styles.welcome}>

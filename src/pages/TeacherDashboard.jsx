@@ -20,20 +20,19 @@ export default function TeacherDashboard() {
         </div>
     )
 
-    // Statistici agregate pe toata grupa
     const totalStudents = students.length
     const totalCompleted = students.reduce((sum, s) => sum + (s.completedExercises || 0), 0)
     const totalPoints = students.reduce((sum, s) => sum + (s.totalPoints || 0), 0)
     const avgPoints = totalStudents > 0 ? Math.round(totalPoints / totalStudents) : 0
 
-    // Sorteaza elevii dupa puncte (descrescator) pentru clasament
+
     const sorted = [...students].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0))
 
     return (
         <div style={styles.container}>
             <h2 style={styles.sectionTitle}>Privire de ansamblu</h2>
 
-            {/* Statistici agregate */}
+
             <div style={styles.statsGrid}>
                 <div style={styles.statCard}>
                     <div style={{ ...styles.statIconWrap, background: '#dbeafe' }}>
@@ -66,7 +65,7 @@ export default function TeacherDashboard() {
                 </div>
             </div>
 
-            {/* Tabel elevi */}
+
             <h2 style={{ ...styles.sectionTitle, marginTop: 32 }}>Progresul elevilor</h2>
 
             {students.length === 0 ? (

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Stage, Layer, Rect, Image as KonvaImage } from 'react-konva';
+import { Stage, Layer, Rect, Image as KonvaImage, Group } from 'react-konva';
 import useImage from 'use-image';
-import api from '../../api/axios';
+import { apiWithOverride as api } from '../../api/axios';
 import PlayerText from './PlayerText';
 import PlayerImage from './PlayerImage';
 import PlayerShape from './PlayerShape';
+import PlayerVideo from './PlayerVideo';
 import ParticleBurst from './ParticleBurst';
 import { ELEMENT_TYPES } from '../../constants/elementTypes';
 
@@ -21,9 +22,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
     const behaviorOnFail = config.settings?.behaviorOnFail || 'retry';
     const isInstant = feedbackType === 'instant';
 
-    // In modul instant: foundIds = elemente confirmate corecte de server, in timp real.
-    // In modul final: selectedIds = alegerile elevului, necunoscute ca fiind corecte/gresite
-    // pana la submit.
     const [foundIds, setFoundIds] = useState(() => new Set());
     const [selectedIds, setSelectedIds] = useState(() => new Set());
     const [shakingId, setShakingId] = useState(null);
@@ -31,9 +29,8 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
     const [checkingId, setCheckingId] = useState(null);
     const [mistakeCount, setMistakeCount] = useState(0);
     const [hintVisible, setHintVisible] = useState(false);
-    const [hadIncorrectAttempt, setHadIncorrectAttempt] = useState(false);
     const [showSolutionRequested, setShowSolutionRequested] = useState(false);
-    const [phase, setPhase] = useState('playing'); // playing | submitting | result
+    const [phase, setPhase] = useState('playing');
     const [result, setResult] = useState(null);
     const [submitError, setSubmitError] = useState('');
 
@@ -62,7 +59,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
 
     const shakeTimeoutRef = useRef(null);
 
-    // --- Click handling: instant (verificare pe loc) ---
     const handleInstantClick = async (element) => {
         if (foundIds.has(element.id)) return;
         if (checkingId) return;
@@ -102,7 +98,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
         }
     };
 
-    // --- Click handling: final (doar selectie locala, fara verificare) ---
     const handleFinalClick = (element) => {
         setSelectedIds(prev => {
             const next = new Set(prev);
@@ -130,10 +125,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
             const res = await api.post('/exercises/submit', { exerciseId, answer });
             setResult(res.data);
             setPhase('result');
-            if (!res.data.correct) {
-                setHadIncorrectAttempt(true);
-                if (hintText) setHintVisible(true);
-            }
+            if (!res.data.correct && hintText) setHintVisible(true);
         } catch (err) {
             console.error('Eroare la trimiterea raspunsului:', err);
             setSubmitError(err.response?.data?.message || 'Eroare la trimiterea răspunsului');
@@ -152,7 +144,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
 
     const attemptsExhausted = result && !result.correct && result.attemptsRemaining === 0;
 
-    // Determina starea vizuala a fiecarui element, in functie de faza si mod
     const getInteractionState = (elementId) => {
         if (phase === 'result' && result) {
             const details = result.details || {};
@@ -173,6 +164,69 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
         }
 
         return selectedIds.has(elementId) ? 'selected' : undefined;
+    };
+
+
+    const topLevelElements = config.elements.filter(el => !el.parentId);
+    const getChildren = (parentId) => config.elements.filter(el => el.parentId === parentId);
+
+    const renderElement = (element) => {
+        if (element.hidden) return null;
+
+        const interactionState = getInteractionState(element.id);
+
+        switch (element.type) {
+            case ELEMENT_TYPES.TEXT:
+                return <PlayerText key={element.id} element={element} />;
+
+            case ELEMENT_TYPES.IMAGE:
+                return (
+                    <PlayerImage
+                        key={element.id}
+                        element={element}
+                        interactionState={interactionState}
+                        onElementClick={handleElementClick}
+                    />
+                );
+
+            case ELEMENT_TYPES.SHAPE:
+                return (
+                    <PlayerShape
+                        key={element.id}
+                        element={element}
+                        interactionState={interactionState}
+                        onElementClick={handleElementClick}
+                    />
+                );
+
+            case ELEMENT_TYPES.VIDEO:
+                return <PlayerVideo key={element.id} element={element} />;
+
+            case ELEMENT_TYPES.BOX: {
+                const children = getChildren(element.id).map(child => renderElement(child));
+                return (
+                    <Group key={element.id} x={element.x} y={element.y} rotation={element.rotation || 0}>
+                        <Rect
+                            width={element.width}
+                            height={element.height}
+                            fill={element.bgFill !== 'transparent' ? element.bgFill : undefined}
+                            stroke={element.bgStroke !== 'transparent' ? element.bgStroke : undefined}
+                            strokeWidth={element.bgStrokeWidth}
+                            cornerRadius={element.bgCornerRadius}
+                            shadowEnabled={element.shadowEnabled}
+                            shadowColor={element.shadowColor}
+                            shadowBlur={element.shadowBlur}
+                            shadowOpacity={element.shadowOpacity}
+                            listening={false}
+                        />
+                        {children}
+                    </Group>
+                );
+            }
+
+            default:
+                return null;
+        }
     };
 
     return (
@@ -221,34 +275,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                                     listening={false}
                                 />
                             )}
-                            {config.elements.map(element => {
-                                const interactionState = getInteractionState(element.id);
-
-                                switch (element.type) {
-                                    case ELEMENT_TYPES.TEXT:
-                                        return <PlayerText key={element.id} element={element} />;
-                                    case ELEMENT_TYPES.IMAGE:
-                                        return (
-                                            <PlayerImage
-                                                key={element.id}
-                                                element={element}
-                                                interactionState={interactionState}
-                                                onElementClick={handleElementClick}
-                                            />
-                                        );
-                                    case ELEMENT_TYPES.SHAPE:
-                                        return (
-                                            <PlayerShape
-                                                key={element.id}
-                                                element={element}
-                                                interactionState={interactionState}
-                                                onElementClick={handleElementClick}
-                                            />
-                                        );
-                                    default:
-                                        return null;
-                                }
-                            })}
+                            {topLevelElements.map(el => renderElement(el))}
                             {isInstant && bursts.map(burst => (
                                 <ParticleBurst
                                     key={burst.id}

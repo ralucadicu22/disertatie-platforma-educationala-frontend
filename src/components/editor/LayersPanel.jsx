@@ -38,12 +38,10 @@ export default function LayersPanel() {
 
         const isBox = targetEl.type === 'BOX';
         if (isBox) {
-            // Impartim in 3 zone: sus (before), mijloc (inside), jos (after)
             if (relY < height * 0.3) setDragOverZone('before');
             else if (relY > height * 0.7) setDragOverZone('after');
             else setDragOverZone('inside');
         } else {
-            // Non-Box: doar sus (before) sau jos (after)
             if (relY < height * 0.5) setDragOverZone('before');
             else setDragOverZone('after');
         }
@@ -69,10 +67,10 @@ export default function LayersPanel() {
         setDragOverZone(null);
 
         if (zone === 'inside' && targetEl.type === 'BOX') {
-            // Bagam ca ultim copil al Box-ului
+
             reparentElement(draggedId, targetEl.id);
         } else {
-            // Facem sora — acelasi parent ca targetEl — inserat inainte/dupa
+
             reparentElement(draggedId, targetEl.parentId || null, targetEl.id);
         }
     };

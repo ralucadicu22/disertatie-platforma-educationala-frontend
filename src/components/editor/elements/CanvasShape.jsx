@@ -1,17 +1,27 @@
 import { useRef, useEffect } from 'react';
-import { Group, Rect, Circle, Line, RegularPolygon, Text } from 'react-konva';
+import { Group, Rect, Circle, Line, RegularPolygon } from 'react-konva';
 
-export default function CanvasShape({ element, isSelected, onSelect, onChange, onDragMove, onDragEnd,isLocked }) {
-    const shapeRef = useRef(null);
+export default function CanvasShape({ element, isSelected, onSelect, onChange, onDragMove, onDragEnd, isLocked }) {
+    const groupRef = useRef(null);
 
     useEffect(() => {
-        if (shapeRef.current) {
-            shapeRef.current.getLayer()?.batchDraw();
+        if (groupRef.current) {
+            groupRef.current.getLayer()?.batchDraw();
         }
     }, [element]);
 
+    const handleSelect = (e) => {
+        e.cancelBubble = true;
+        if (e.evt) e.evt.stopPropagation();
+        onSelect(e);
+    };
+
+    const handleMouseDown = (e) => {
+        e.cancelBubble = true;
+        if (e.evt) e.evt.stopPropagation();
+    };
+
     const commonProps = {
-        ref: shapeRef,
         fill: element.fill,
         stroke: element.stroke,
         strokeWidth: element.strokeWidth,
@@ -19,66 +29,36 @@ export default function CanvasShape({ element, isSelected, onSelect, onChange, o
         shadowColor: element.shadowColor,
         shadowBlur: element.shadowBlur,
         shadowOpacity: element.shadowOpacity,
-        opacity: element.opacity,
+        opacity: element.opacity ?? 1,
         listening: false,
     };
 
     const renderShape = () => {
         switch (element.shapeType) {
             case 'circle':
-                return (
-                    <Circle
-                        {...commonProps}
-                        x={element.width / 2}
-                        y={element.height / 2}
-                        radius={Math.min(element.width, element.height) / 2}
-                    />
-                );
-
+                return <Circle {...commonProps} x={element.width / 2} y={element.height / 2} radius={Math.min(element.width, element.height) / 2} />;
             case 'line':
-                return (
-                    <Line
-                        {...commonProps}
-                        points={[0, element.height / 2, element.width, element.height / 2]}
-                        fill={undefined}
-                        stroke={element.fill}
-                        strokeWidth={Math.max(element.strokeWidth, 4)}
-                    />
-                );
-
+                return <Line {...commonProps} points={[0, element.height / 2, element.width, element.height / 2]} fill={undefined} stroke={element.fill} strokeWidth={Math.max(element.strokeWidth, 4)} />;
             case 'polygon':
-                return (
-                    <RegularPolygon
-                        {...commonProps}
-                        x={element.width / 2}
-                        y={element.height / 2}
-                        sides={6}
-                        radius={Math.min(element.width, element.height) / 2}
-                    />
-                );
-
+                return <RegularPolygon {...commonProps} x={element.width / 2} y={element.height / 2} sides={6} radius={Math.min(element.width, element.height) / 2} />;
             case 'rect':
             default:
-                return (
-                    <Rect
-                        {...commonProps}
-                        width={element.width}
-                        height={element.height}
-                        cornerRadius={element.cornerRadius}
-                    />
-                );
+                return <Rect {...commonProps} width={element.width} height={element.height} cornerRadius={element.cornerRadius} />;
         }
     };
 
     return (
         <Group
+            ref={groupRef}
             id={element.id}
             x={element.x}
             y={element.y}
             rotation={element.rotation || 0}
             draggable={!isLocked}
-            onClick={onSelect}
-            onTap={onSelect}
+            onClick={handleSelect}
+            onTap={handleSelect}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleMouseDown}
             onDragMove={onDragMove}
             onDragEnd={onDragEnd}
             onTransformEnd={(e) => {
@@ -96,50 +76,14 @@ export default function CanvasShape({ element, isSelected, onSelect, onChange, o
                 });
             }}
         >
+            {renderShape()}
 
             <Rect
                 width={element.width}
                 height={element.height}
                 fill="rgba(0,0,0,0.001)"
+                listening={true}
             />
-
-
-            {isSelected && element.strokeWidth === 0 && (
-                <Rect
-                    width={element.width}
-                    height={element.height}
-                    stroke="#4F6BF6"
-                    strokeWidth={1}
-                    dash={[4, 4]}
-                    listening={false}
-                />
-            )}
-
-            {renderShape()}
-
-            {/* Indicator vizual pentru comportament special */}
-            {element.behavior !== 'static' && (
-                <Text
-                    text={getBehaviorIcon(element.behavior)}
-                    x={4}
-                    y={4}
-                    fontSize={12}
-                    fontFamily="Nunito"
-                    fontStyle="bold"
-                    fill="#1a1d23"
-                    listening={false}
-                />
-            )}
         </Group>
     );
-}
-
-function getBehaviorIcon(behavior) {
-    switch (behavior) {
-        case 'clickZone': return '👆';
-        case 'dropTarget': return '⊕';
-        case 'hotspot': return '⊙';
-        case 'colorZone': return '🎨';
-        default: return '';
-    }
 }

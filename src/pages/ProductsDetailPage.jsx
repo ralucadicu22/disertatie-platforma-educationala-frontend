@@ -37,7 +37,6 @@ export default function ProductDetailPage() {
                 ← Inapoi la produse
             </button>
 
-            {/* Hero produs */}
             <div style={styles.hero}>
                 {product.coverImageUrl ? (
                     <div style={styles.heroCover}>
@@ -67,7 +66,6 @@ export default function ProductDetailPage() {
                 </div>
             </div>
 
-            {/* Lista module */}
             <h2 style={styles.sectionTitle}>Module disponibile</h2>
 
             {modules.length === 0 ? (

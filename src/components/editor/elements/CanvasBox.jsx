@@ -20,7 +20,7 @@ export default function CanvasBox({
             x={element.x}
             y={element.y}
             rotation={element.rotation || 0}
-            draggable={!isLocked}
+            draggable={!isLocked && !element.role}
             onClick={onSelect}
             onTap={onSelect}
             onDragMove={onDragMove}

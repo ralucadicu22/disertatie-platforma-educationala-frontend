@@ -1,62 +1,43 @@
-import { useRef, useEffect, useState } from 'react';
-import { Group, Rect, Image as KonvaImage, Text } from 'react-konva';
+import { useRef, useEffect } from 'react';
+import { Group, Rect, Image as KonvaImage } from 'react-konva';
 import useImage from 'use-image';
 
-export default function CanvasImage({ element, isSelected, onSelect, onChange, onDragMove, onDragEnd,isLocked }) {
-    const groupRef = useRef(null);
-    const imageRef = useRef(null);
+export default function CanvasImage({ element, isSelected, onSelect, onChange, onDragMove, onDragEnd, isLocked }) {
     const [image, status] = useImage(element.src || '', 'anonymous');
+    const groupRef = useRef(null);
 
     useEffect(() => {
-        if (imageRef.current) {
-            imageRef.current.getLayer()?.batchDraw();
+        if (groupRef.current) {
+            groupRef.current.getLayer()?.batchDraw();
         }
     }, [element]);
 
+    const handleSelect = (e) => {
+        e.cancelBubble = true;
+        if (e.evt) e.evt.stopPropagation();
+        onSelect(e);
+    };
+
+    const handleMouseDown = (e) => {
+        e.cancelBubble = true;
+        if (e.evt) e.evt.stopPropagation();
+    };
 
     const getImageDimensions = () => {
         if (!image) return { width: element.width, height: element.height, x: 0, y: 0 };
-
         const naturalRatio = image.width / image.height;
         const boxRatio = element.width / element.height;
-
-        if (element.fitMode === 'stretch') {
-            return { width: element.width, height: element.height, x: 0, y: 0 };
-        }
-
+        if (element.fitMode === 'stretch') return { width: element.width, height: element.height, x: 0, y: 0 };
         if (element.fitMode === 'fill') {
-
             let w, h;
-            if (naturalRatio > boxRatio) {
-                h = element.height;
-                w = h * naturalRatio;
-            } else {
-                w = element.width;
-                h = w / naturalRatio;
-            }
-            return {
-                width: w,
-                height: h,
-                x: (element.width - w) / 2,
-                y: (element.height - h) / 2,
-            };
+            if (naturalRatio > boxRatio) { h = element.height; w = h * naturalRatio; }
+            else { w = element.width; h = w / naturalRatio; }
+            return { width: w, height: h, x: (element.width - w) / 2, y: (element.height - h) / 2 };
         }
-
-
         let w, h;
-        if (naturalRatio > boxRatio) {
-            w = element.width;
-            h = w / naturalRatio;
-        } else {
-            h = element.height;
-            w = h * naturalRatio;
-        }
-        return {
-            width: w,
-            height: h,
-            x: (element.width - w) / 2,
-            y: (element.height - h) / 2,
-        };
+        if (naturalRatio > boxRatio) { w = element.width; h = w / naturalRatio; }
+        else { h = element.height; w = h / naturalRatio; }
+        return { width: w, height: h, x: (element.width - w) / 2, y: (element.height - h) / 2 };
     };
 
     const imgDims = getImageDimensions();
@@ -68,13 +49,15 @@ export default function CanvasImage({ element, isSelected, onSelect, onChange, o
             x={element.x}
             y={element.y}
             rotation={element.rotation || 0}
-            opacity={element.opacity}
             draggable={!isLocked}
-            onClick={onSelect}
-            onTap={onSelect}
+            opacity={element.opacity ?? 1}
+            onClick={handleSelect}
+            onTap={handleSelect}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleMouseDown}
             onDragMove={onDragMove}
             onDragEnd={onDragEnd}
-            onTransformEnd={(e) =>{
+            onTransformEnd={(e) => {
                 const node = e.target;
                 const scaleX = node.scaleX();
                 const scaleY = node.scaleY();
@@ -89,34 +72,29 @@ export default function CanvasImage({ element, isSelected, onSelect, onChange, o
                 });
             }}
         >
-
-            <Rect
-                width={element.width}
-                height={element.height}
-                fill={image ? undefined : '#e5e7eb'}
-                stroke={
-                    element.borderColor !== 'transparent'
-                        ? element.borderColor
-                        : (isSelected ? '#4F6BF6' : '#9ca3af')
-                }
-                strokeWidth={element.borderWidth || (isSelected ? 1 : 2)}
-                dash={!image || (isSelected && element.borderColor === 'transparent') ? [8, 4] : undefined}
-                cornerRadius={element.cornerRadius}
-                shadowEnabled={element.shadowEnabled}
-                shadowColor={element.shadowColor}
-                shadowBlur={element.shadowBlur}
-                shadowOpacity={element.shadowOpacity}
-            />
-
+            {(element.borderColor !== 'transparent' && element.borderWidth > 0) && (
+                <Rect
+                    width={element.width}
+                    height={element.height}
+                    stroke={element.borderColor}
+                    strokeWidth={element.borderWidth}
+                    cornerRadius={element.cornerRadius}
+                    shadowEnabled={element.shadowEnabled}
+                    shadowColor={element.shadowColor}
+                    shadowBlur={element.shadowBlur}
+                    shadowOpacity={element.shadowOpacity}
+                    listening={false}
+                />
+            )}
 
             {image && status === 'loaded' && (
                 <KonvaImage
-                    ref={imageRef}
                     image={image}
                     x={imgDims.x}
                     y={imgDims.y}
                     width={imgDims.width}
                     height={imgDims.height}
+                    cornerRadius={element.cornerRadius}
                     listening={false}
                     crop={
                         element.cropWidth < 1 || element.cropHeight < 1
@@ -131,44 +109,25 @@ export default function CanvasImage({ element, isSelected, onSelect, onChange, o
                 />
             )}
 
-
-            {!image && (
-                <Text
-                    text="Imagine"
+            {(!image || status !== 'loaded') && (
+                <Rect
                     width={element.width}
                     height={element.height}
-                    align="center"
-                    verticalAlign="middle"
-                    fontSize={14}
-                    fontFamily="Nunito"
-                    fontStyle="bold"
-                    fill="#9ca3af"
+                    fill={isSelected ? '#eef2ff' : '#f3f4f6'}
+                    stroke={isSelected ? '#4F6BF6' : '#d1d5db'}
+                    strokeWidth={2}
+                    dash={[6, 4]}
+                    cornerRadius={element.cornerRadius}
                     listening={false}
                 />
             )}
 
-
-            {element.behavior !== 'static' && (
-                <Text
-                    text={getBehaviorIcon(element.behavior)}
-                    x={4}
-                    y={4}
-                    fontSize={12}
-                    fontFamily="Nunito"
-                    fontStyle="bold"
-                    fill="#4F6BF6"
-                    listening={false}
-                />
-            )}
+            <Rect
+                width={element.width}
+                height={element.height}
+                fill="rgba(0,0,0,0.001)"
+                listening={true}
+            />
         </Group>
     );
-}
-
-function getBehaviorIcon(behavior) {
-    switch (behavior) {
-        case 'clickable': return '👆';
-        case 'draggable': return '✥';
-        case 'dropTarget': return '⊕';
-        default: return '';
-    }
 }

@@ -64,13 +64,12 @@ export function EditorProvider({ children }) {
         pushHistory(newElements);
     }, [pushHistory]);
 
-    const addElement = useCallback((type, x = 100, y = 100) => {
-        const id = generateId();
-        const defaults = getDefaultElementProps(type);
-
+    // Helper intern: calculeaza parentId, coordonate si slotIndex pentru un element nou
+    // pe baza selectiei curente
+    const resolveInsertContext = (type) => {
         let parentId = null;
-        let finalX = x;
-        let finalY = y;
+        let finalX = 100;
+        let finalY = 100;
         let slotIndex = undefined;
 
         if (type !== ELEMENT_TYPES.BOX && type !== ELEMENT_TYPES.GRID && selectedIds.length === 1) {
@@ -82,7 +81,6 @@ export function EditorProvider({ children }) {
                     finalY = 20;
                 } else if (selected.type === ELEMENT_TYPES.GRID) {
                     parentId = selected.id;
-                    // Gaseste primul slot liber
                     const usedSlots = new Set(
                         elements.filter(el => el.parentId === selected.id).map(el => el.slotIndex)
                     );
@@ -90,23 +88,56 @@ export function EditorProvider({ children }) {
                     for (let i = 0; i < totalSlots; i++) {
                         if (!usedSlots.has(i)) { slotIndex = i; break; }
                     }
-                    if (slotIndex === undefined) {
-                        // Grid plin - nu adaugam
-                        return null;
-                    }
+                    if (slotIndex === undefined) return null; // Grid plin
                     finalX = 0;
                     finalY = 0;
                 }
             }
         }
 
-        const newElement = { id, type, x: finalX, y: finalY, ...defaults, parentId };
-        if (slotIndex !== undefined) newElement.slotIndex = slotIndex;
+        return { parentId, finalX, finalY, slotIndex };
+    };
+
+    const addElement = useCallback((type, x = 100, y = 100) => {
+        const ctx = resolveInsertContext(type);
+        if (ctx === null) return null; // Grid plin
+
+        const id = generateId();
+        const defaults = getDefaultElementProps(type);
+        const useX = ctx.parentId ? ctx.finalX : x;
+        const useY = ctx.parentId ? ctx.finalY : y;
+
+        const newElement = { id, type, x: useX, y: useY, ...defaults, parentId: ctx.parentId };
+        if (ctx.slotIndex !== undefined) newElement.slotIndex = ctx.slotIndex;
 
         const newElements = [...elements, newElement];
         commitElements(newElements);
         setSelectedIds([id]);
         return id;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [elements, commitElements, selectedIds]);
+
+    const addElementWithProps = useCallback((type, extraProps = {}) => {
+        const ctx = resolveInsertContext(type);
+        if (ctx === null) return null;
+
+        const id = generateId();
+        const defaults = getDefaultElementProps(type);
+
+        const newElement = {
+            id, type,
+            x: ctx.finalX, y: ctx.finalY,
+            ...defaults,
+            parentId: ctx.parentId,
+            ...extraProps,
+        };
+        if (ctx.slotIndex !== undefined) newElement.slotIndex = ctx.slotIndex;
+
+        const newElements = [...elements, newElement];
+        commitElements(newElements);
+        setSelectedIds([id]);
+        return id;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [elements, commitElements, selectedIds]);
 
     const updateElement = useCallback((id, updates) => {
@@ -565,7 +596,6 @@ export function EditorProvider({ children }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [undo, redo, copy, paste, duplicate, deleteSelected, selectedIds, elements, clearSelection, fullscreenMode]);
 
-    // Auto-save: la fiecare 30s, daca s-a schimbat ceva de la ultima salvare
     useEffect(() => {
         if (!autoSaveEnabled || !exerciseId || draftStatus !== 'DRAFT') return;
 
@@ -614,7 +644,7 @@ export function EditorProvider({ children }) {
         selectOne, toggleSelection, clearSelection,
         mode, setMode,
         canvas, updateCanvas,
-        addElement, updateElement, updateMultipleElements,
+        addElement, addElementWithProps, updateElement, updateMultipleElements,
         deleteElement, deleteSelected,
         undo, redo, canUndo, canRedo,
         copy, paste, duplicate,
@@ -702,6 +732,17 @@ function getDefaultElementProps(type) {
                 shadowBlur: 8, shadowOpacity: 0.15,
                 parentId: null,
                 role: null,
+                locked: false, hidden: false,
+            };
+        case ELEMENT_TYPES.VIDEO:
+            return {
+                src: null, width: 320, height: 180, rotation: 0,
+                posterSrc: null,
+                autoplay: false, loop: false, muted: true,
+                controls: true, opacity: 1,
+                cornerRadius: 8,
+                shadowEnabled: false, shadowColor: '#000000', shadowBlur: 8, shadowOpacity: 0.3,
+                behavior: 'static',
                 locked: false, hidden: false,
             };
         default:
