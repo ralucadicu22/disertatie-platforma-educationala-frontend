@@ -10,6 +10,8 @@ import ParticleBurst from './ParticleBurst';
 import { ELEMENT_TYPES } from '../../constants/elementTypes';
 import PlayerPdf from "./PlayerPDF.jsx";
 import {getAbsolutePosition} from "../../utils/elementPosition.js";
+import { ThemeProvider } from '../../contexts/ThemeContext';
+import {getTheme} from "../../constants/themes.js";
 
 const CONTAINER_PADDING = 40;
 const HINT_AFTER_MISTAKES = 2;
@@ -230,119 +232,164 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                 return null;
         }
     };
+    const theme = getTheme(config.meta?.themeId || 'formal');
 
     return (
-        <div style={styles.page}>
-            <div style={styles.header}>
-                <button style={styles.backBtn} onClick={onExit}>← Înapoi la quiz</button>
-                <div style={styles.progress}>
-                    {isInstant && totalCorrect > 0 ? `${foundIds.size}/${totalCorrect} găsite` : ''}
-                    {!isInstant && phase === 'playing' ? `${selectedIds.size} selectate` : ''}
+        <ThemeProvider themeId={config.meta?.themeId}>
+            <div style={{
+                minHeight: '100vh',
+                background: theme.colors.surface,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                paddingBottom: 32,
+                fontFamily: theme.font.family,
+                color: theme.colors.text,
+            }}>
+                <div style={styles.header}>
+                    <button style={styles.backBtn} onClick={onExit}>← Înapoi la quiz</button>
+                    <div style={styles.progress}>
+                        {isInstant && totalCorrect > 0 ? `${foundIds.size}/${totalCorrect} găsite` : ''}
+                        {!isInstant && phase === 'playing' ? `${selectedIds.size} selectate` : ''}
+                    </div>
+                    <div style={{ width: 120 }} />
                 </div>
-                <div style={{ width: 120 }} />
-            </div>
 
-            {config.meta?.description && (
-                <p style={styles.description}>{config.meta.description}</p>
-            )}
+                {config.meta?.description && (
+                    <p style={styles.description}>{config.meta.description}</p>
+                )}
 
-            {!isInstant && phase === 'playing' && (
-                <p style={styles.modeHint}>Selectează toate elementele corecte, apoi apasă „Am terminat”.</p>
-            )}
+                {!isInstant && phase === 'playing' && (
+                    <p style={{ ...styles.modeHint, color: theme.colors.primary }}>
+                        Selectează toate elementele corecte, apoi apasă „Am terminat".
+                    </p>
+                )}
 
-            {hintVisible && hintText && (
-                <div style={styles.hintBanner}>
-                    <span style={styles.hintIcon}>💡</span>
-                    <span style={styles.hintText}>{hintText}</span>
-                </div>
-            )}
+                {hintVisible && hintText && (
+                    <div style={styles.hintBanner}>
+                        <span style={styles.hintIcon}>💡</span>
+                        <span style={styles.hintText}>{hintText}</span>
+                    </div>
+                )}
 
-            <div ref={containerRef} style={styles.canvasContainer}>
-                <div style={{ width: canvasWidth * scale, height: canvasHeight * scale }}>
-                    <Stage width={canvasWidth * scale} height={canvasHeight * scale} scaleX={scale} scaleY={scale}>
-                        <Layer>
-                            <Rect
-                                x={0} y={0}
-                                width={canvasWidth}
-                                height={canvasHeight}
-                                fill={config.canvas.background || '#ffffff'}
-                                listening={false}
-                            />
-                            {bgImage && (
-                                <KonvaImage
-                                    image={bgImage}
+                <div ref={containerRef} style={styles.canvasContainer}>
+                    <div style={{ width: canvasWidth * scale, height: canvasHeight * scale }}>
+                        <Stage width={canvasWidth * scale} height={canvasHeight * scale} scaleX={scale} scaleY={scale}>
+                            <Layer>
+                                <Rect
                                     x={0} y={0}
                                     width={canvasWidth}
                                     height={canvasHeight}
+                                    fill={config.canvas.background || '#ffffff'}
                                     listening={false}
                                 />
-                            )}
-                            {topLevelElements.map(el => renderElement(el))}
-                            {isInstant && bursts.map(burst => (
-                                <ParticleBurst
-                                    key={burst.id}
-                                    x={burst.x}
-                                    y={burst.y}
-                                    onComplete={() => removeBurst(burst.id)}
-                                />
-                            ))}
-                        </Layer>
-                    </Stage>
-                </div>
-                {config.elements
-                    .filter(el => el.type === ELEMENT_TYPES.PDF && !el.hidden)
-                    .map(el => {
-                        const abs = getAbsolutePosition(el, config.elements);
-                        return (
-                            <PlayerPdf
-                                key={el.id}
-                                element={{ ...el, x: abs.x * scale, y: abs.y * scale }}
-                            />
-                        );
-                    })}
-            </div>
-
-            {submitError && <p style={styles.errorText}>{submitError}</p>}
-
-            {phase !== 'result' && (
-                <button style={styles.finishBtn} onClick={handleFinish} disabled={phase === 'submitting'}>
-                    {phase === 'submitting' ? 'Se trimite...' : 'Am terminat'}
-                </button>
-            )}
-
-            {phase === 'result' && result && (
-                <div style={{ ...styles.resultPanel, borderColor: result.correct ? '#22c55e' : '#ef4444' }}>
-                    <p style={styles.resultTitle}>
-                        {result.correct ? '🎉 Corect!' : '❌ Nu e chiar corect'}
-                    </p>
-                    <p style={styles.resultDetail}>
-                        Scor: {Math.round(result.score * 100)}%
-                        {!result.correct && result.attemptsRemaining !== null &&
-                            ` · Încercări rămase: ${result.attemptsRemaining}`}
-                    </p>
-
-                    {result.correct && config.settings?.explanation && (
-                        <p style={styles.explanationText}>{config.settings.explanation}</p>
-                    )}
-
-                    <div style={styles.resultActions}>
-                        {!result.correct && !attemptsExhausted && (
-                            <button style={styles.retryBtn} onClick={handleRetry}>Încearcă din nou</button>
-                        )}
-                        {!result.correct && behaviorOnFail === 'showSolution' && !showSolutionRequested && (
-                            <button style={styles.solutionBtn} onClick={() => setShowSolutionRequested(true)}>
-                                Arată soluția
-                            </button>
-                        )}
-                        <button style={styles.quizBtn} onClick={onExit}>Înapoi la quiz</button>
+                                {bgImage && (
+                                    <KonvaImage
+                                        image={bgImage}
+                                        x={0} y={0}
+                                        width={canvasWidth}
+                                        height={canvasHeight}
+                                        listening={false}
+                                    />
+                                )}
+                                {topLevelElements.map(el => renderElement(el))}
+                                {isInstant && bursts.map(burst => (
+                                    <ParticleBurst
+                                        key={burst.id}
+                                        x={burst.x}
+                                        y={burst.y}
+                                        onComplete={() => removeBurst(burst.id)}
+                                    />
+                                ))}
+                            </Layer>
+                        </Stage>
                     </div>
-
-                    {attemptsExhausted && (
-                        <p style={styles.exhaustedText}>Ai epuizat numărul de încercări.</p>
-                    )}
+                    {config.elements
+                        .filter(el => el.type === ELEMENT_TYPES.PDF && !el.hidden)
+                        .map(el => {
+                            const abs = getAbsolutePosition(el, config.elements);
+                            return (
+                                <PlayerPdf
+                                    key={el.id}
+                                    element={{ ...el, x: abs.x * scale, y: abs.y * scale }}
+                                />
+                            );
+                        })}
                 </div>
-            )}
-        </div>
+
+                {submitError && <p style={styles.errorText}>{submitError}</p>}
+
+                {phase !== 'result' && (
+                    <button
+                        style={{
+                            ...styles.finishBtn,
+                            background: theme.colors.primary,
+                            borderRadius: theme.borderRadius,
+                        }}
+                        onClick={handleFinish}
+                        disabled={phase === 'submitting'}
+                    >
+                        {phase === 'submitting' ? 'Se trimite...' : 'Am terminat'}
+                    </button>
+                )}
+
+                {phase === 'result' && result && (
+                    <div style={{
+                        ...styles.resultPanel,
+                        borderColor: result.correct ? '#22c55e' : '#ef4444',
+                        borderRadius: theme.borderRadius,
+                        background: theme.colors.surface,
+                        color: theme.colors.text,
+                    }}>
+                        <p style={styles.resultTitle}>
+                            {result.correct ? '🎉 Corect!' : '❌ Nu e chiar corect'}
+                        </p>
+                        <p style={{ ...styles.resultDetail, color: theme.colors.text + 'aa' }}>
+                            Scor: {Math.round(result.score * 100)}%
+                            {!result.correct && result.attemptsRemaining !== null &&
+                                ` · Încercări rămase: ${result.attemptsRemaining}`}
+                        </p>
+
+                        {result.correct && config.settings?.explanation && (
+                            <p style={styles.explanationText}>{config.settings.explanation}</p>
+                        )}
+
+                        <div style={styles.resultActions}>
+                            {!result.correct && !attemptsExhausted && (
+                                <button
+                                    style={{ ...styles.retryBtn, borderRadius: theme.borderRadius }}
+                                    onClick={handleRetry}
+                                >
+                                    Încearcă din nou
+                                </button>
+                            )}
+                            {!result.correct && behaviorOnFail === 'showSolution' && !showSolutionRequested && (
+                                <button
+                                    style={{ ...styles.solutionBtn, borderRadius: theme.borderRadius }}
+                                    onClick={() => setShowSolutionRequested(true)}
+                                >
+                                    Arată soluția
+                                </button>
+                            )}
+                            <button
+                                style={{
+                                    ...styles.quizBtn,
+                                    background: theme.colors.primary,
+                                    borderRadius: theme.borderRadius,
+                                }}
+                                onClick={onExit}
+                            >
+                                Înapoi la quiz
+                            </button>
+                        </div>
+
+                        {attemptsExhausted && (
+                            <p style={styles.exhaustedText}>Ai epuizat numărul de încercări.</p>
+                        )}
+                    </div>
+                )}
+            </div>
+        </ThemeProvider>
     );
 }
 

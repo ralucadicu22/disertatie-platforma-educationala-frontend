@@ -10,6 +10,8 @@ import PlayerShape from './PlayerShape';
 import ParticleBurst from './ParticleBurst';
 import { ELEMENT_TYPES } from '../../constants/elementTypes';
 import { getAbsolutePosition } from '../../utils/elementPosition';
+import { ThemeProvider } from '../../contexts/ThemeContext';
+import {getTheme} from "../../constants/themes.js";
 
 const CONTAINER_PADDING = 40;
 const MAGNET_RADIUS = 110;
@@ -386,110 +388,146 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
         return null;
     };
 
+    const theme = getTheme(config.meta?.themeId || 'formal');
+
     return (
-        <div style={styles.page}>
-            <div style={styles.header}>
-                <button style={styles.backBtn} onClick={onExit}>← Înapoi la quiz</button>
-                <div style={styles.progress}>
-                    {totalCorrect > 0 ? `${placedCount}/${totalCorrect} plasate` : ''}
-                </div>
-                <div style={{ width: 120 }} />
-            </div>
-
-            {config.meta?.description && (
-                <p style={styles.description}>{config.meta.description}</p>
-            )}
-
-            <div ref={containerRef} style={styles.canvasContainer}>
-                <div style={{ width: canvasWidth * scale, height: canvasHeight * scale }}>
-                    <Stage
-                        ref={stageRef}
-                        width={canvasWidth * scale}
-                        height={canvasHeight * scale}
-                        scaleX={scale}
-                        scaleY={scale}
-                    >
-                        <Layer ref={layerRef}>
-                            <Rect
-                                x={0} y={0} width={canvasWidth} height={canvasHeight}
-                                fill={config.canvas.background || '#ffffff'}
-                                listening={false}
-                            />
-                            {bgImage && (
-                                <KonvaImage image={bgImage} x={0} y={0} width={canvasWidth} height={canvasHeight} listening={false} />
-                            )}
-
-                            {topLevelStatic.map(el => renderStaticElement(el))}
-
-                            {/* Target zones — cu highlight puternic cand sunt active */}
-                            {targetElements.map(target => (
-                                <TargetSlot
-                                    key={target.id}
-                                    element={target}
-                                    isActive={activeTargetId === target.id}
-                                    registerRef={(node) => { targetNodeRefs.current[target.id] = node; }}
-                                />
-                            ))}
-
-                            {/* Draggable — respecta forma originala */}
-                            {draggableElements.map(element => (
-                                <DraggableItem
-                                    key={element.id}
-                                    element={element}
-                                    isPlaced={placedCorrectlyRef.current.has(element.id)}
-                                    isHovered={hoveredId === element.id}
-                                    onHover={() => setHoveredId(element.id)}
-                                    onUnhover={() => setHoveredId(prev => prev === element.id ? null : prev)}
-                                    registerRef={(node) => { konvaNodeRefs.current[element.id] = node; }}
-                                />
-                            ))}
-
-                            {bursts.map(burst => (
-                                <ParticleBurst
-                                    key={burst.id}
-                                    x={burst.x}
-                                    y={burst.y}
-                                    onComplete={() => removeBurst(burst.id)}
-                                />
-                            ))}
-                        </Layer>
-                    </Stage>
-                </div>
-            </div>
-
-            {submitError && <p style={styles.errorText}>{submitError}</p>}
-
-            {phase !== 'result' && (
-                <button style={styles.finishBtn} onClick={handleFinish} disabled={phase === 'submitting'}>
-                    {phase === 'submitting' ? 'Se trimite...' : 'Am terminat'}
-                </button>
-            )}
-
-            {phase === 'result' && result && (
-                <div style={{ ...styles.resultPanel, borderColor: result.correct ? '#22c55e' : '#ef4444' }}>
-                    <p style={styles.resultTitle}>
-                        {result.correct ? '🎉 Corect!' : '❌ Nu e chiar corect'}
-                    </p>
-                    <p style={styles.resultDetail}>
-                        Scor: {Math.round(result.score * 100)}%
-                        {!result.correct && result.attemptsRemaining !== null &&
-                            ` · Încercări rămase: ${result.attemptsRemaining}`}
-                    </p>
-                    {result.correct && config.settings?.explanation && (
-                        <p style={styles.explanationText}>{config.settings.explanation}</p>
-                    )}
-                    <div style={styles.resultActions}>
-                        {!result.correct && !attemptsExhausted && (
-                            <button style={styles.retryBtn} onClick={handleRetry}>Încearcă din nou</button>
-                        )}
-                        <button style={styles.quizBtn} onClick={onExit}>Înapoi la quiz</button>
+        <ThemeProvider themeId={config.meta?.themeId}>
+            <div style={{
+                minHeight: '100vh',
+                background: theme.colors.surface,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                paddingBottom: 32,
+                fontFamily: theme.font.family,
+                color: theme.colors.text,
+            }}>
+                <div style={styles.header}>
+                    <button style={styles.backBtn} onClick={onExit}>← Înapoi la quiz</button>
+                    <div style={styles.progress}>
+                        {totalCorrect > 0 ? `${placedCount}/${totalCorrect} plasate` : ''}
                     </div>
-                    {attemptsExhausted && (
-                        <p style={styles.exhaustedText}>Ai epuizat numărul de încercări.</p>
-                    )}
+                    <div style={{ width: 120 }} />
                 </div>
-            )}
-        </div>
+
+                {config.meta?.description && (
+                    <p style={styles.description}>{config.meta.description}</p>
+                )}
+
+                <div ref={containerRef} style={styles.canvasContainer}>
+                    <div style={{ width: canvasWidth * scale, height: canvasHeight * scale }}>
+                        <Stage
+                            ref={stageRef}
+                            width={canvasWidth * scale}
+                            height={canvasHeight * scale}
+                            scaleX={scale}
+                            scaleY={scale}
+                        >
+                            <Layer ref={layerRef}>
+                                <Rect
+                                    x={0} y={0} width={canvasWidth} height={canvasHeight}
+                                    fill={config.canvas.background || '#ffffff'}
+                                    listening={false}
+                                />
+                                {bgImage && (
+                                    <KonvaImage image={bgImage} x={0} y={0} width={canvasWidth} height={canvasHeight} listening={false} />
+                                )}
+                                {topLevelStatic.map(el => renderStaticElement(el))}
+                                {targetElements.map(target => (
+                                    <TargetSlot
+                                        key={target.id}
+                                        element={target}
+                                        isActive={activeTargetId === target.id}
+                                        registerRef={(node) => { targetNodeRefs.current[target.id] = node; }}
+                                    />
+                                ))}
+                                {draggableElements.map(element => (
+                                    <DraggableItem
+                                        key={element.id}
+                                        element={element}
+                                        isPlaced={placedCorrectlyRef.current.has(element.id)}
+                                        isHovered={hoveredId === element.id}
+                                        onHover={() => setHoveredId(element.id)}
+                                        onUnhover={() => setHoveredId(prev => prev === element.id ? null : prev)}
+                                        registerRef={(node) => { konvaNodeRefs.current[element.id] = node; }}
+                                    />
+                                ))}
+                                {bursts.map(burst => (
+                                    <ParticleBurst
+                                        key={burst.id}
+                                        x={burst.x}
+                                        y={burst.y}
+                                        onComplete={() => removeBurst(burst.id)}
+                                    />
+                                ))}
+                            </Layer>
+                        </Stage>
+                    </div>
+                </div>
+
+                {submitError && <p style={styles.errorText}>{submitError}</p>}
+
+                {phase !== 'result' && (
+                    <button
+                        style={{
+                            ...styles.finishBtn,
+                            background: theme.colors.primary,
+                            borderRadius: theme.borderRadius,
+                            boxShadow: `0 4px 0 ${theme.colors.primary}aa`,
+                        }}
+                        onClick={handleFinish}
+                        disabled={phase === 'submitting'}
+                    >
+                        {phase === 'submitting' ? 'Se trimite...' : 'Am terminat'}
+                    </button>
+                )}
+
+                {phase === 'result' && result && (
+                    <div style={{
+                        ...styles.resultPanel,
+                        borderColor: result.correct ? '#22c55e' : '#ef4444',
+                        borderRadius: theme.borderRadius,
+                        background: theme.colors.surface,
+                        color: theme.colors.text,
+                    }}>
+                        <p style={styles.resultTitle}>
+                            {result.correct ? '🎉 Corect!' : '❌ Nu e chiar corect'}
+                        </p>
+                        <p style={{ ...styles.resultDetail, color: theme.colors.text + 'aa' }}>
+                            Scor: {Math.round(result.score * 100)}%
+                            {!result.correct && result.attemptsRemaining !== null &&
+                                ` · Încercări rămase: ${result.attemptsRemaining}`}
+                        </p>
+                        {result.correct && config.settings?.explanation && (
+                            <p style={styles.explanationText}>{config.settings.explanation}</p>
+                        )}
+                        <div style={styles.resultActions}>
+                            {!result.correct && !attemptsExhausted && (
+                                <button
+                                    style={{ ...styles.retryBtn, borderRadius: theme.borderRadius }}
+                                    onClick={handleRetry}
+                                >
+                                    Încearcă din nou
+                                </button>
+                            )}
+                            <button
+                                style={{
+                                    ...styles.quizBtn,
+                                    background: theme.colors.primary,
+                                    borderRadius: theme.borderRadius,
+                                }}
+                                onClick={onExit}
+                            >
+                                Înapoi la quiz
+                            </button>
+                        </div>
+                        {attemptsExhausted && (
+                            <p style={styles.exhaustedText}>Ai epuizat numărul de încercări.</p>
+                        )}
+                    </div>
+                )}
+            </div>
+        </ThemeProvider>
     );
 }
 

@@ -1,5 +1,5 @@
 import { useEditor } from '../../store/editorStore.jsx';
-
+import ThemePicker from './ThemePicker';
 
 export default function EditorTopBar({ exerciseName = 'Exercițiu nou', onSave }) {
     const {
@@ -27,12 +27,8 @@ export default function EditorTopBar({ exerciseName = 'Exercițiu nou', onSave }
             </div>
 
             <div style={styles.actionGroup}>
-                <IconBtn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
-                    ↶
-                </IconBtn>
-                <IconBtn onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)">
-                    ↷
-                </IconBtn>
+                <IconBtn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">↶</IconBtn>
+                <IconBtn onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)">↷</IconBtn>
                 <Divider />
                 <IconBtn onClick={copy} disabled={selectedIds.length === 0} title="Copiază (Ctrl+C)">⧉</IconBtn>
                 <IconBtn onClick={paste} title="Lipește (Ctrl+V)">⎘</IconBtn>
@@ -76,6 +72,9 @@ export default function EditorTopBar({ exerciseName = 'Exercițiu nou', onSave }
                     ☰
                 </IconBtn>
             </div>
+
+            {/* ThemePicker separat, intre actionGroup si modeSwitcher */}
+            <ThemePicker />
 
             <div style={styles.modeSwitcher}>
                 {['editor', 'solution', 'preview'].map(m => (

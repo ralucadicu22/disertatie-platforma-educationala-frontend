@@ -20,6 +20,7 @@ export function EditorProvider({ children }) {
         type: 'CUSTOM',
         name: 'Exercitiu nou',
         description: '',
+        themeId: 'formal',
     });
     const [mode, setMode] = useState('editor');
     const [history, setHistory] = useState([[]]);
