@@ -5,6 +5,7 @@ const TYPE_FILTERS = [
     { value: '', label: 'Toate' },
     { value: 'image', label: 'Imagini' },
     { value: 'video', label: 'Video' },
+    { value: 'pdf', label: 'PDF' },
 ];
 
 export default function AssetLibrary({ onInsert, onClose, acceptTypes = 'image,video' }) {
@@ -27,6 +28,7 @@ export default function AssetLibrary({ onInsert, onClose, acceptTypes = 'image,v
     const inputAccept = [
         acceptList.includes('image') && 'image/jpeg,image/png,image/gif,image/webp,image/svg+xml',
         acceptList.includes('video') && 'video/mp4,video/webm,video/ogg',
+        acceptList.includes('pdf') && 'application/pdf',
     ].filter(Boolean).join(',');
 
     useEffect(() => {
@@ -90,8 +92,11 @@ export default function AssetLibrary({ onInsert, onClose, acceptTypes = 'image,v
         const matchesSearch = a.originalName?.toLowerCase().includes(search.toLowerCase());
         const isImage = a.mimeType?.startsWith('image/');
         const isVideo = a.mimeType?.startsWith('video/');
-        const isAccepted = (isImage && acceptList.includes('image')) ||
-            (isVideo && acceptList.includes('video'));
+        const isPdf = a.mimeType === 'application/pdf';
+        const isAccepted =
+            (isImage && acceptList.includes('image')) ||
+            (isVideo && acceptList.includes('video')) ||
+            (isPdf && acceptList.includes('pdf'));
         return matchesSearch && isAccepted;
     });
 
@@ -186,6 +191,7 @@ function AssetCard({ asset, onClick, onDelete, formatSize }) {
     const videoRef = useRef(null);
     const isVideo = asset.mimeType?.startsWith('video/');
     const isImage = asset.mimeType?.startsWith('image/');
+    const isPdf = asset.mimeType === 'application/pdf';
 
     useEffect(() => {
         const video = videoRef.current;
@@ -227,6 +233,20 @@ function AssetCard({ asset, onClick, onDelete, formatSize }) {
                         />
                         <div style={styles.videoBadge}>▶ VIDEO</div>
                     </>
+                )}
+                {isPdf && (
+                    <div style={{
+                        width: '100%', height: '100%',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        background: '#f9fafb', gap: 6,
+                    }}>
+                        <span style={{ fontSize: '2.5rem' }}>📄</span>
+                        <span style={{
+                            fontSize: '0.65rem', fontWeight: 800,
+                            color: '#4F6BF6', letterSpacing: '0.5px',
+                        }}>PDF</span>
+                    </div>
                 )}
             </div>
             <div style={styles.cardFooter}>

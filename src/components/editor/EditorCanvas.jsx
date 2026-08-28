@@ -10,6 +10,7 @@ import { ELEMENT_TYPES } from '../../constants/elementTypes';
 import CanvasGrid from './elements/CanvasGrid';
 import { getAbsolutePosition, clampChildInsideParent, getGridCellRect } from '../../utils/elementPosition';
 import CanvasVideo from "./elements/CanvasVideo.jsx";
+import CanvasPdf from './elements/CanvasPdf';
 
 export default function EditorCanvas() {
     const {
@@ -327,11 +328,10 @@ export default function EditorCanvas() {
         if (el.type === ELEMENT_TYPES.GRID) {
             const gridChildren = getChildren(el.id);
             const renderedChildren = gridChildren.map(child => {
-                // Copiii Grid-ului sunt randati la pozitia celulei determinata de slotIndex
+
                 if (child.slotIndex === undefined) return renderElement(child);
                 const cellRect = getGridCellRect(el, child.slotIndex);
-                // Suprascriem temporar x/y ca sa randam la pozitia celulei;
-                // pastram size original pentru continut in interiorul celulei
+
                 const positioned = { ...child, x: cellRect.x, y: cellRect.y };
                 return renderElement(positioned);
             });
@@ -342,6 +342,7 @@ export default function EditorCanvas() {
             );
         }
         if (el.type === ELEMENT_TYPES.VIDEO) elementNode = <CanvasVideo key={el.id} {...common} />;
+        if (el.type === ELEMENT_TYPES.PDF) elementNode = <CanvasPdf key={el.id} {...common} />;
         if (!elementNode) return null;
 
         if (isMarkedCorrect) {

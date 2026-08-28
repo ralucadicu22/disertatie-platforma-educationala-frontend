@@ -145,6 +145,7 @@ export default function EditorPropertiesPanel() {
                 {el.type === 'BOX' && <BoxPropertyTabs el={el} update={update} />}
                 {el.type === 'GRID' && <GridPropertyTabs el={el} update={update} />}
                 {el.type === 'VIDEO' && <VideoPropertyTabs el={el} update={update} onOpenLibrary={openLibrary} />}
+                {el.type === 'PDF' && <PdfPropertyTabs el={el} update={update} onOpenLibrary={openLibrary} />}
             </div>
 
             {libraryConfig && (
@@ -620,7 +621,78 @@ function GridPropertyTabs({ el, update }) {
         </>
     );
 }
+function PdfPropertyTabs({ el, update, onOpenLibrary }) {
+    return (
+        <>
+            <Tab title="Document">
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Fișier PDF</label>
+                    <button
+                        onClick={() => onOpenLibrary('pdf', (asset) => {
+                            update('src', `http://localhost:8080${asset.url}`);
+                            update('originalName', asset.originalName);
+                        })}
+                        style={styles.uploadBtn}
+                    >
+                        {el.src ? '📄 Schimbă PDF' : '📄 Alege PDF'}
+                    </button>
+                </div>
 
+                {el.src && (
+                    <div style={styles.field}>
+                        <label style={styles.fieldLabel}>Fișier curent</label>
+                        <span style={{ fontSize: '0.75rem', color: '#4F6BF6', fontWeight: 700 }}>
+                            {el.originalName || 'document.pdf'}
+                        </span>
+                    </div>
+                )}
+
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Label buton</label>
+                    <input
+                        type="text"
+                        value={el.label || ''}
+                        onChange={(e) => update('label', e.target.value)}
+                        placeholder="Deschide documentul"
+                        style={{ ...styles.fieldInput, width: 160 }}
+                    />
+                </div>
+            </Tab>
+
+            <Tab title="Aspect">
+                <ColorField
+                    label="Fundal"
+                    value={el.bgFill === 'transparent' ? '#ffffff' : el.bgFill}
+                    onChange={v => update('bgFill', v)}
+                    allowTransparent
+                    isTransparent={el.bgFill === 'transparent'}
+                    onTransparent={() => update('bgFill', 'transparent')}
+                />
+                <ColorField
+                    label="Chenar"
+                    value={el.bgStroke === 'transparent' ? '#000000' : el.bgStroke}
+                    onChange={v => update('bgStroke', v)}
+                    allowTransparent
+                    isTransparent={el.bgStroke === 'transparent'}
+                    onTransparent={() => update('bgStroke', 'transparent')}
+                />
+                <NumField label="Radius" value={el.bgCornerRadius} onChange={v => update('bgCornerRadius', v)} />
+            </Tab>
+
+            <Tab title="Umbră">
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Activ</label>
+                    <ToggleBtn active={el.shadowEnabled} onClick={() => update('shadowEnabled', !el.shadowEnabled)}>
+                        {el.shadowEnabled ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+                <ColorField label="Culoare" value={el.shadowColor} onChange={v => update('shadowColor', v)} />
+                <NumField label="Blur" value={el.shadowBlur} onChange={v => update('shadowBlur', v)} />
+                <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
+            </Tab>
+        </>
+    );
+}
 
 function Tab({ title, children }) {
     return (

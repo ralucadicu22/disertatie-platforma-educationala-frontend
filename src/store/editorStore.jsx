@@ -745,6 +745,18 @@ function getDefaultElementProps(type) {
                 behavior: 'static',
                 locked: false, hidden: false,
             };
+        case ELEMENT_TYPES.PDF:
+            return {
+                src: null,
+                originalName: null,
+                width: 280, height: 80, rotation: 0,
+                bgFill: '#ffffff', bgStroke: '#e5e7eb', bgStrokeWidth: 2,
+                bgCornerRadius: 12, padding: 12,
+                label: 'Deschide documentul',
+                shadowEnabled: false, shadowColor: '#000000',
+                shadowBlur: 8, shadowOpacity: 0.15,
+                locked: false, hidden: false,
+            };
         default:
             return {};
     }

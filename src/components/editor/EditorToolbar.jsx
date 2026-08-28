@@ -8,7 +8,11 @@ export default function EditorToolbar() {
     const [libraryConfig, setLibraryConfig] = useState(null);
 
     const openLibraryFor = (targetType) => {
-        const accept = targetType === ELEMENT_TYPES.VIDEO ? 'video' : 'image';
+        const accept = targetType === ELEMENT_TYPES.VIDEO
+            ? 'video'
+            : targetType === ELEMENT_TYPES.PDF
+                ? 'pdf'
+                : 'image';
         setLibraryConfig({ accept, targetType });
     };
 
@@ -53,6 +57,11 @@ export default function EditorToolbar() {
                 <button onClick={() => addElement(ELEMENT_TYPES.GRID)} style={styles.tool}>
                     <span style={styles.toolIcon}>⊞</span>
                     <span style={styles.toolLabel}>Grid</span>
+                </button>
+
+                <button onClick={() => openLibraryFor(ELEMENT_TYPES.PDF)} style={styles.tool}>
+                    <span style={styles.toolIcon}>📄</span>
+                    <span style={styles.toolLabel}>PDF</span>
                 </button>
             </div>
 

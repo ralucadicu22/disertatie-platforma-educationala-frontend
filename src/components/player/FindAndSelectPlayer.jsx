@@ -8,6 +8,8 @@ import PlayerShape from './PlayerShape';
 import PlayerVideo from './PlayerVideo';
 import ParticleBurst from './ParticleBurst';
 import { ELEMENT_TYPES } from '../../constants/elementTypes';
+import PlayerPdf from "./PlayerPDF.jsx";
+import {getAbsolutePosition} from "../../utils/elementPosition.js";
 
 const CONTAINER_PADDING = 40;
 const HINT_AFTER_MISTAKES = 2;
@@ -287,6 +289,17 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                         </Layer>
                     </Stage>
                 </div>
+                {config.elements
+                    .filter(el => el.type === ELEMENT_TYPES.PDF && !el.hidden)
+                    .map(el => {
+                        const abs = getAbsolutePosition(el, config.elements);
+                        return (
+                            <PlayerPdf
+                                key={el.id}
+                                element={{ ...el, x: abs.x * scale, y: abs.y * scale }}
+                            />
+                        );
+                    })}
             </div>
 
             {submitError && <p style={styles.errorText}>{submitError}</p>}
@@ -364,6 +377,7 @@ const styles = {
     canvasContainer: {
         width: '100%', maxWidth: 1240, display: 'flex', justifyContent: 'center',
         padding: '20px', boxSizing: 'border-box',
+        position:'relative'
     },
     errorText: { color: '#dc2626', fontWeight: 700, fontSize: '0.85rem' },
     finishBtn: {
