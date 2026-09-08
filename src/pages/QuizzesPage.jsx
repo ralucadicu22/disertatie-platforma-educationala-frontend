@@ -1,217 +1,113 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import api from '../api/axios'
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import api from '../api/axios';
+import { Badge } from '../design-system/components';
+import { cn } from '../design-system/cn';
+
+const COLORS = [
+    'from-success-500 to-success-400',
+    'from-primary-500 to-primary-400',
+    'from-warm-500 to-warm-400',
+    'from-danger-400 to-warm-400',
+    'from-accent-500 to-accent-400',
+];
 
 export default function QuizzesPage() {
-    const { moduleId } = useParams()
-    const [quizzes, setQuizzes] = useState([])
-    const [loading, setLoading] = useState(true)
-    const navigate = useNavigate()
-
-    const user = JSON.parse(localStorage.getItem('user') || '{}')
-    const isEditorOrAdmin = user.role === 'EDITOR' || user.role === 'ADMIN'
+    const { moduleId } = useParams();
+    const [quizzes, setQuizzes] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isEditorOrAdmin = user.role === 'EDITOR' || user.role === 'ADMIN';
 
     useEffect(() => {
         api.get(`/quizzes/module/${moduleId}`)
             .then(res => setQuizzes(res.data))
-            .catch(err => console.error(err))
-            .finally(() => setLoading(false))
-    }, [moduleId])
+            .catch(console.error)
+            .finally(() => setLoading(false));
+    }, [moduleId]);
+
+    if (loading) return (
+        <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
 
     return (
-        <div style={styles.page}>
-            <div style={styles.topBar}>
-                <button onClick={() => navigate('/')} style={styles.backBtn}>
-                    ← Inapoi
-                </button>
-                <span style={styles.topBarTitle}>Alege un quiz</span>
-                <div style={{ width: 80 }} />
-            </div>
+        <div className="max-w-2xl mx-auto animate-fade-in">
+            <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-1.5 text-body font-semibold text-neutral-500 hover:text-neutral-800 transition-colors mb-6"
+            >
+                ← Înapoi
+            </button>
 
-            <div style={styles.container}>
-                {loading ? (
-                    <div style={styles.loadingWrap}>
-                        <div style={styles.spinner} />
-                    </div>
-                ) : (
-                    <>
-                        <h2 style={styles.sectionTitle}>Quiz-uri disponibile</h2>
-                        <div style={styles.grid}>
-                            {quizzes.map((q, i) => (
+            <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
+                Quiz-uri disponibile
+            </p>
+
+            {quizzes.length === 0 ? (
+                <div className="bg-white rounded-xl border-2 border-dashed border-neutral-200 p-12 text-center">
+                    <div className="text-4xl mb-3">📭</div>
+                    <p className="text-body text-neutral-500">Nu există quiz-uri în acest modul.</p>
+                </div>
+            ) : (
+                <div className="flex flex-col gap-3">
+                    {quizzes.map((q, i) => (
+                        <div
+                            key={q.id}
+                            className="group bg-white rounded-xl border border-neutral-200 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                            <div className="flex items-center gap-4">
+                                {/* Number badge */}
+                                <div className={cn(
+                                    'w-11 h-11 rounded-xl flex items-center justify-center text-body-lg font-bold text-white flex-shrink-0 bg-gradient-to-br shadow-sm',
+                                    COLORS[i % COLORS.length]
+                                )}>
+                                    {i + 1}
+                                </div>
+
                                 <div
-                                    key={q.id}
+                                    className="flex-1 min-w-0 cursor-pointer"
                                     onClick={() => navigate(`/quiz/${q.id}`)}
-                                    style={styles.card}
-                                    onMouseEnter={e => {
-                                        e.currentTarget.style.transform = 'translateY(-3px)'
-                                        e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.1)'
-                                    }}
-                                    onMouseLeave={e => {
-                                        e.currentTarget.style.transform = 'translateY(0)'
-                                        e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'
-                                    }}
                                 >
-                                    <div style={styles.cardLeft}>
-                                        <div style={{ ...styles.quizNum, background: COLORS[i % COLORS.length] }}>
-                                            {i + 1}
-                                        </div>
-                                    </div>
-                                    <div style={styles.cardContent}>
-                                        <h3 style={styles.cardTitle}>{q.title}</h3>
-                                        <p style={styles.cardDesc}>{q.description}</p>
-                                        {q.maxAttempts > 0 && (
-                                            <span style={styles.badge}>
-                                                {q.maxAttempts} incercari
-                                            </span>
-                                        )}
-                                    </div>
+                                    <p className="text-body-lg font-bold text-neutral-900 mb-0.5">
+                                        {q.title}
+                                    </p>
+                                    <p className="text-caption text-neutral-500 truncate mb-1.5">
+                                        {q.description}
+                                    </p>
+                                    {q.maxAttempts > 0 && (
+                                        <Badge variant="neutral" size="sm">
+                                            {q.maxAttempts} încercări
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-2 flex-shrink-0">
                                     {isEditorOrAdmin && (
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 navigate(`/editor/create?quizId=${q.id}`);
                                             }}
-                                            style={styles.createExerciseBtn}
+                                            className="px-3 py-1.5 bg-primary-600 text-white rounded-lg text-caption font-bold hover:bg-primary-700 transition-colors whitespace-nowrap"
                                         >
-                                            + Creează exercițiu
+                                            + Exercițiu
                                         </button>
                                     )}
-                                    <span style={styles.arrow}>→</span>
+                                    <button
+                                        onClick={() => navigate(`/quiz/${q.id}`)}
+                                        className="text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-1 transition-all text-lg"
+                                    >
+                                        →
+                                    </button>
                                 </div>
-                            ))}
+                            </div>
                         </div>
-                    </>
-                )}
-            </div>
-
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                    ))}
+                </div>
+            )}
         </div>
-    )
-}
-
-const COLORS = ['#58CC02', '#1CB0F6', '#FF9600', '#FF4B4B', '#CE82FF']
-
-const styles = {
-    page: { minHeight: '100vh', background: '#f0f2f5' },
-    topBar: {
-        background: 'white',
-        borderBottom: '1px solid #e5e7eb',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    backBtn: {
-        background: 'none',
-        border: '1.5px solid #e5e7eb',
-        borderRadius: 10,
-        padding: '7px 14px',
-        cursor: 'pointer',
-        fontSize: '0.85rem',
-        fontWeight: 700,
-        color: '#6b7280',
-        transition: 'all 0.15s',
-    },
-    topBarTitle: {
-        fontWeight: 800,
-        fontSize: '1rem',
-        color: '#1a1d23',
-    },
-    container: {
-        maxWidth: 720,
-        margin: '0 auto',
-        padding: '32px 20px',
-    },
-    sectionTitle: {
-        fontSize: '1.1rem',
-        fontWeight: 800,
-        color: '#6b7280',
-        letterSpacing: '0.5px',
-        textTransform: 'uppercase',
-        marginBottom: 16,
-    },
-    grid: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-    },
-    card: {
-        background: 'white',
-        borderRadius: 16,
-        padding: '18px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        cursor: 'pointer',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        border: '1px solid #f3f4f6',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-    },
-    cardLeft: { flexShrink: 0 },
-    quizNum: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'white',
-        fontWeight: 900,
-        fontSize: '1.1rem',
-    },
-    cardContent: { flex: 1 },
-    cardTitle: {
-        fontSize: '1rem',
-        fontWeight: 800,
-        color: '#1a1d23',
-        marginBottom: 4,
-    },
-    cardDesc: {
-        fontSize: '0.85rem',
-        color: '#6b7280',
-        fontWeight: 600,
-        lineHeight: 1.4,
-        marginBottom: 6,
-    },
-    badge: {
-        display: 'inline-block',
-        background: '#f3f4f6',
-        color: '#6b7280',
-        fontSize: '0.75rem',
-        fontWeight: 700,
-        padding: '3px 10px',
-        borderRadius: 20,
-    },
-    arrow: {
-        fontSize: '1.1rem',
-        color: '#d1d5db',
-        fontWeight: 700,
-        flexShrink: 0,
-    },
-    loadingWrap: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 300,
-    },
-    spinner: {
-        width: 36, height: 36,
-        border: '3px solid #e5e7eb',
-        borderTop: '3px solid #58CC02',
-        borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite',
-    },
-    createExerciseBtn: {
-        background: '#4F6BF6',
-        color: 'white',
-        border: 'none',
-        padding: '8px 14px',
-        borderRadius: 8,
-        fontSize: '0.8rem',
-        fontWeight: 800,
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-        boxShadow: '0 2px 0 #3a52c4',
-        flexShrink: 0,
-    },
+    );
 }

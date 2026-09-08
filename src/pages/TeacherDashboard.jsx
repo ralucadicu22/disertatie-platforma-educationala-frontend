@@ -1,297 +1,114 @@
-import { useEffect, useState } from 'react'
-import api from '../api/axios'
+import { useEffect, useState } from 'react';
+import api from '../api/axios';
+import { StatCard } from '../design-system/components';
+import { cn } from '../design-system/cn';
 
 export default function TeacherDashboard() {
-    const [students, setStudents] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [selectedStudent, setSelectedStudent] = useState(null)
+    const [students, setStudents] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         api.get('/progress/teacher/all-students')
             .then(res => setStudents(res.data))
-            .catch(err => console.error(err))
-            .finally(() => setLoading(false))
-    }, [])
+            .catch(console.error)
+            .finally(() => setLoading(false));
+    }, []);
 
     if (loading) return (
-        <div style={styles.loadingWrap}>
-            <div style={styles.spinner} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
         </div>
-    )
+    );
 
-    const totalStudents = students.length
-    const totalCompleted = students.reduce((sum, s) => sum + (s.completedExercises || 0), 0)
-    const totalPoints = students.reduce((sum, s) => sum + (s.totalPoints || 0), 0)
-    const avgPoints = totalStudents > 0 ? Math.round(totalPoints / totalStudents) : 0
+    const sorted = [...students].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+    const totalCompleted = students.reduce((s, x) => s + (x.completedExercises || 0), 0);
+    const avgPoints = students.length
+        ? Math.round(students.reduce((s, x) => s + (x.totalPoints || 0), 0) / students.length)
+        : 0;
 
-
-    const sorted = [...students].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0))
+    const RANK_STYLES = [
+        'bg-warning-100 text-warning-700',
+        'bg-neutral-100 text-neutral-600',
+        'bg-warm-100 text-warm-700',
+    ];
 
     return (
-        <div style={styles.container}>
-            <h2 style={styles.sectionTitle}>Privire de ansamblu</h2>
-
-
-            <div style={styles.statsGrid}>
-                <div style={styles.statCard}>
-                    <div style={{ ...styles.statIconWrap, background: '#dbeafe' }}>
-                        <span style={styles.statIcon}>👥</span>
-                    </div>
-                    <div>
-                        <div style={styles.statNum}>{totalStudents}</div>
-                        <div style={styles.statLabel}>Elevi activi</div>
-                    </div>
-                </div>
-
-                <div style={styles.statCard}>
-                    <div style={{ ...styles.statIconWrap, background: '#dcfce7' }}>
-                        <span style={styles.statIcon}>✅</span>
-                    </div>
-                    <div>
-                        <div style={styles.statNum}>{totalCompleted}</div>
-                        <div style={styles.statLabel}>Exercitii rezolvate</div>
-                    </div>
-                </div>
-
-                <div style={styles.statCard}>
-                    <div style={{ ...styles.statIconWrap, background: '#fef9c3' }}>
-                        <span style={styles.statIcon}>📊</span>
-                    </div>
-                    <div>
-                        <div style={styles.statNum}>{avgPoints}</div>
-                        <div style={styles.statLabel}>Scor mediu / elev</div>
-                    </div>
-                </div>
+        <div className="max-w-3xl mx-auto animate-fade-in">
+            <div className="mb-6">
+                <h1 className="text-h2 font-bold text-neutral-900 mb-1">Dashboard Profesor</h1>
+                <p className="text-body text-neutral-500">Privire de ansamblu asupra activității elevilor.</p>
             </div>
 
+            <div className="grid grid-cols-3 gap-4 mb-8">
+                <StatCard title="Elevi activi" value={String(students.length)} icon="👥" />
+                <StatCard title="Exerciții rezolvate" value={String(totalCompleted)} icon="✅" />
+                <StatCard title="Scor mediu / elev" value={String(avgPoints)} icon="📊" />
+            </div>
 
-            <h2 style={{ ...styles.sectionTitle, marginTop: 32 }}>Progresul elevilor</h2>
+            <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
+                Progresul elevilor
+            </p>
 
             {students.length === 0 ? (
-                <div style={styles.empty}>
-                    <span style={{ fontSize: '2.5rem' }}>📭</span>
-                    <p style={styles.emptyText}>Inca nu exista elevi cu activitate inregistrata.</p>
+                <div className="bg-white rounded-xl border-2 border-dashed border-neutral-200 p-12 text-center">
+                    <div className="text-4xl mb-3">📭</div>
+                    <p className="text-body text-neutral-500">
+                        Nu există elevi cu activitate înregistrată.
+                    </p>
                 </div>
             ) : (
-                <div style={styles.tableWrap}>
-                    <div style={styles.tableHeader}>
-                        <div style={{ ...styles.thRank }}>#</div>
-                        <div style={{ ...styles.thName }}>Elev</div>
-                        <div style={{ ...styles.thStat }}>Rezolvate</div>
-                        <div style={{ ...styles.thStat }}>Incercari</div>
-                        <div style={{ ...styles.thStat }}>Puncte</div>
+                <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+                    {/* Header */}
+                    <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-neutral-50 border-b border-neutral-200">
+                        {['#', 'Elev', 'Rezolvate', 'Încercări', 'Puncte'].map((h, i) => (
+                            <div
+                                key={h}
+                                className={cn(
+                                    'text-micro text-neutral-400 font-bold uppercase tracking-wide',
+                                    i === 0 ? 'col-span-1' : i === 1 ? 'col-span-5' : 'col-span-2 text-center'
+                                )}
+                            >
+                                {h}
+                            </div>
+                        ))}
                     </div>
 
-                    {sorted.map((student, i) => (
+                    {sorted.map((s, i) => (
                         <div
-                            key={student.userId}
-                            style={styles.tableRow}
-                            onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                            key={s.userId}
+                            className="grid grid-cols-12 gap-2 items-center px-4 py-3.5 border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors"
                         >
-                            <div style={styles.tdRank}>
-                <span style={{
-                    ...styles.rankBadge,
-                    background: i === 0 ? '#fef9c3' : i === 1 ? '#f3f4f6' : i === 2 ? '#fed7aa' : 'transparent',
-                    color: i < 3 ? '#1a1d23' : '#9ca3af',
-                }}>
-                  {i + 1}
-                </span>
+                            <div className="col-span-1">
+                                <span className={cn(
+                                    'inline-flex w-7 h-7 rounded-lg items-center justify-center text-caption font-bold',
+                                    i < 3 ? RANK_STYLES[i] : 'text-neutral-400'
+                                )}>
+                                    {i + 1}
+                                </span>
                             </div>
-                            <div style={styles.tdName}>
-                                <div style={styles.avatar}>
-                                    {student.userName?.charAt(0).toUpperCase() || '?'}
+                            <div className="col-span-5 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full bg-hero-primary flex items-center justify-center text-white text-caption font-bold flex-shrink-0">
+                                    {s.userName?.charAt(0).toUpperCase() || '?'}
                                 </div>
-                                <span style={styles.studentName}>{student.userName}</span>
+                                <span className="text-body font-semibold text-neutral-900 truncate">
+                                    {s.userName}
+                                </span>
                             </div>
-                            <div style={styles.tdStat}>{student.completedExercises || 0}</div>
-                            <div style={styles.tdStat}>{student.totalSubmissions || 0}</div>
-                            <div style={styles.tdStat}>
-                                <span style={styles.pointsBadge}>{student.totalPoints || 0}</span>
+                            <div className="col-span-2 text-center text-body font-semibold text-neutral-700">
+                                {s.completedExercises || 0}
+                            </div>
+                            <div className="col-span-2 text-center text-body font-semibold text-neutral-700">
+                                {s.totalSubmissions || 0}
+                            </div>
+                            <div className="col-span-2 text-center">
+                                <span className="px-2.5 py-1 bg-warning-100 text-warning-700 rounded-full text-caption font-bold">
+                                    {s.totalPoints || 0}
+                                </span>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
         </div>
-    )
-}
-
-const styles = {
-    container: {
-        maxWidth: 900,
-        margin: '0 auto',
-        padding: '28px 20px',
-    },
-    sectionTitle: {
-        fontSize: '0.85rem',
-        fontWeight: 800,
-        color: '#9ca3af',
-        letterSpacing: '1px',
-        textTransform: 'uppercase',
-        marginBottom: 16,
-    },
-    statsGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: 14,
-    },
-    statCard: {
-        background: 'white',
-        borderRadius: 16,
-        padding: '20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        border: '1px solid #f3f4f6',
-    },
-    statIconWrap: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-    },
-    statIcon: { fontSize: '1.4rem' },
-    statNum: {
-        fontSize: '1.8rem',
-        fontWeight: 900,
-        color: '#1a1d23',
-        lineHeight: 1,
-    },
-    statLabel: {
-        fontSize: '0.78rem',
-        fontWeight: 700,
-        color: '#9ca3af',
-        marginTop: 4,
-    },
-    tableWrap: {
-        background: 'white',
-        borderRadius: 16,
-        overflow: 'hidden',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        border: '1px solid #f3f4f6',
-    },
-    tableHeader: {
-        display: 'flex',
-        alignItems: 'center',
-        padding: '12px 18px',
-        borderBottom: '1px solid #f3f4f6',
-        background: '#fafafa',
-    },
-    thRank: {
-        width: 40,
-        fontSize: '0.72rem',
-        fontWeight: 800,
-        color: '#9ca3af',
-        textTransform: 'uppercase',
-    },
-    thName: {
-        flex: 1,
-        fontSize: '0.72rem',
-        fontWeight: 800,
-        color: '#9ca3af',
-        textTransform: 'uppercase',
-    },
-    thStat: {
-        width: 90,
-        textAlign: 'center',
-        fontSize: '0.72rem',
-        fontWeight: 800,
-        color: '#9ca3af',
-        textTransform: 'uppercase',
-    },
-    tableRow: {
-        display: 'flex',
-        alignItems: 'center',
-        padding: '14px 18px',
-        borderBottom: '1px solid #f3f4f6',
-        transition: 'background 0.15s',
-    },
-    tdRank: {
-        width: 40,
-    },
-    rankBadge: {
-        width: 26,
-        height: 26,
-        borderRadius: 8,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '0.85rem',
-        fontWeight: 800,
-    },
-    tdName: {
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-    },
-    avatar: {
-        width: 34,
-        height: 34,
-        borderRadius: '50%',
-        background: 'linear-gradient(135deg, #4F6BF6, #8B5CF6)',
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '0.9rem',
-        fontWeight: 800,
-        flexShrink: 0,
-    },
-    studentName: {
-        fontSize: '0.92rem',
-        fontWeight: 700,
-        color: '#1a1d23',
-    },
-    tdStat: {
-        width: 90,
-        textAlign: 'center',
-        fontSize: '0.92rem',
-        fontWeight: 700,
-        color: '#6b7280',
-    },
-    pointsBadge: {
-        background: '#fef9c3',
-        color: '#854d0e',
-        padding: '4px 12px',
-        borderRadius: 20,
-        fontSize: '0.85rem',
-        fontWeight: 800,
-    },
-    empty: {
-        background: 'white',
-        borderRadius: 16,
-        padding: '40px 20px',
-        textAlign: 'center',
-        border: '1px solid #f3f4f6',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 12,
-    },
-    emptyText: {
-        color: '#9ca3af',
-        fontWeight: 600,
-        margin: 0,
-    },
-    loadingWrap: {
-        minHeight: '50vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    spinner: {
-        width: 36,
-        height: 36,
-        border: '3px solid #e5e7eb',
-        borderTop: '3px solid #4F6BF6',
-        borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite',
-    },
+    );
 }

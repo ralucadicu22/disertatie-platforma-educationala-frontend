@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import { cn } from '../design-system/cn';
 
 export default function AdminReviewPage() {
     const navigate = useNavigate();
     const [versions, setVersions] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [errorMessage, setErrorMessage] = useState('');
+    const [error, setError] = useState('');
     const [actioningId, setActioningId] = useState(null);
     const [rejectingId, setRejectingId] = useState(null);
     const [rejectNote, setRejectNote] = useState('');
@@ -15,244 +16,141 @@ export default function AdminReviewPage() {
         setLoading(true);
         api.get('/exercises/versions/pending-review')
             .then(res => setVersions(res.data))
-            .catch(err => {
-                console.error(err);
-                setErrorMessage(err.response?.data?.message || 'Eroare la încărcarea listei de review');
-            })
+            .catch(err => setError(err.response?.data?.message || 'Eroare la încărcare'))
             .finally(() => setLoading(false));
     };
 
-    useEffect(() => {
-        loadPending();
-    }, []);
+    useEffect(() => { loadPending(); }, []);
 
-    const parseMeta = (configString) => {
-        try {
-            const parsed = JSON.parse(configString);
-            return parsed.meta || {};
-        } catch {
-            return {};
-        }
-    };
+    const parseMeta = (cfg) => { try { return JSON.parse(cfg).meta || {}; } catch { return {}; } };
 
-    const handleApprove = async (versionId) => {
-        setActioningId(versionId);
+    const handleApprove = async (id) => {
+        setActioningId(id);
         try {
-            await api.post(`/exercises/versions/${versionId}/approve`, {});
-            setVersions(prev => prev.filter(v => v.id !== versionId));
+            await api.post(`/exercises/versions/${id}/approve`, {});
+            setVersions(prev => prev.filter(v => v.id !== id));
         } catch (err) {
-            console.error(err);
-            setErrorMessage(err.response?.data?.message || 'Eroare la aprobare');
-        } finally {
-            setActioningId(null);
-        }
+            setError(err.response?.data?.message || 'Eroare la aprobare');
+        } finally { setActioningId(null); }
     };
 
-    const startReject = (versionId) => {
-        setRejectingId(versionId);
-        setRejectNote('');
-    };
-
-    const cancelReject = () => {
-        setRejectingId(null);
-        setRejectNote('');
-    };
-
-    const confirmReject = async (versionId) => {
-        if (!rejectNote.trim()) {
-            setErrorMessage('Motivul respingerii este obligatoriu');
-            return;
-        }
-        setActioningId(versionId);
+    const confirmReject = async (id) => {
+        if (!rejectNote.trim()) { setError('Motivul respingerii este obligatoriu'); return; }
+        setActioningId(id);
         try {
-            await api.post(`/exercises/versions/${versionId}/reject`, { reviewNote: rejectNote.trim() });
-            setVersions(prev => prev.filter(v => v.id !== versionId));
+            await api.post(`/exercises/versions/${id}/reject`, { reviewNote: rejectNote.trim() });
+            setVersions(prev => prev.filter(v => v.id !== id));
             setRejectingId(null);
             setRejectNote('');
         } catch (err) {
-            console.error(err);
-            setErrorMessage(err.response?.data?.message || 'Eroare la respingere');
-        } finally {
-            setActioningId(null);
-        }
+            setError(err.response?.data?.message || 'Eroare la respingere');
+        } finally { setActioningId(null); }
     };
 
-    if (loading) {
-        return (
-            <div style={styles.centered}>
-                <div style={styles.spinner} />
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            </div>
-        );
-    }
+    if (loading) return (
+        <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
 
     return (
-        <div style={styles.page}>
-            <div style={styles.header}>
-                <button onClick={() => navigate('/')} style={styles.backBtn}>← Înapoi</button>
-                <span style={styles.title}>Exerciții în review</span>
-                <div style={{ width: 80 }} />
+        <div className="max-w-2xl mx-auto animate-fade-in">
+            <div className="flex items-center gap-3 mb-6">
+                <button onClick={() => navigate(-1)} className="text-body font-semibold text-neutral-500 hover:text-neutral-800 transition-colors">
+                    ← Înapoi
+                </button>
+                <h1 className="text-h2 font-bold text-neutral-900">Exerciții în review</h1>
             </div>
 
-            <div style={styles.container}>
-                {errorMessage && <p style={styles.errorText}>{errorMessage}</p>}
+            {error && (
+                <div className="flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-md px-4 py-3 text-body font-semibold mb-4">
+                    ⚠️ {error}
+                </div>
+            )}
 
-                {versions.length === 0 ? (
-                    <p style={styles.emptyText}>Nu există versiuni în așteptare la review.</p>
-                ) : (
-                    <div style={styles.list}>
-                        {versions.map(v => {
-                            const meta = parseMeta(v.config);
-                            const isActing = actioningId === v.id;
-                            const isRejecting = rejectingId === v.id;
+            {versions.length === 0 ? (
+                <div className="bg-white rounded-xl border-2 border-dashed border-neutral-200 p-12 text-center">
+                    <div className="text-4xl mb-3">✅</div>
+                    <p className="text-body text-neutral-500">Nu există versiuni în așteptare.</p>
+                </div>
+            ) : (
+                <div className="flex flex-col gap-3">
+                    {versions.map(v => {
+                        const meta = parseMeta(v.config);
+                        const acting = actioningId === v.id;
+                        const rejecting = rejectingId === v.id;
 
-                            return (
-                                <div key={v.id} style={styles.card}>
-                                    <div style={styles.cardHeader}>
-                                        <div>
-                                            <p style={styles.exerciseName}>
-                                                {meta.name || `Exercițiu #${v.exerciseId}`}
-                                            </p>
-                                            <p style={styles.exerciseMeta}>
-                                                {meta.type || 'CUSTOM'} · versiunea {v.versionNumber}
-                                            </p>
-                                        </div>
-                                        <span style={styles.statusBadge}>PENDING REVIEW</span>
-                                    </div>
-
-                                    <div style={styles.cardDetails}>
-                                        <p style={styles.detailLine}>
-                                            Creat de <strong>{v.createdByName || 'necunoscut'}</strong>
-                                            {v.createdAt && ` · ${new Date(v.createdAt).toLocaleString('ro-RO')}`}
+                        return (
+                            <div key={v.id} className="bg-white rounded-xl border border-neutral-200 p-5">
+                                <div className="flex items-start justify-between mb-3">
+                                    <div>
+                                        <p className="text-body-lg font-bold text-neutral-900 mb-0.5">
+                                            {meta.name || `Exercițiu #${v.exerciseId}`}
                                         </p>
-                                        {v.changeNote && (
-                                            <p style={styles.detailLine}>Notă: {v.changeNote}</p>
-                                        )}
+                                        <p className="text-caption text-neutral-400">
+                                            {meta.type || 'CUSTOM'} · versiunea {v.versionNumber}
+                                        </p>
                                     </div>
-
-                                    {!isRejecting ? (
-                                        <div style={styles.actions}>
-                                            <button
-                                                style={{ ...styles.approveBtn, opacity: isActing ? 0.6 : 1 }}
-                                                onClick={() => handleApprove(v.id)}
-                                                disabled={isActing}
-                                            >
-                                                {isActing ? 'Se procesează...' : '✓ Aprobă'}
-                                            </button>
-                                            <button
-                                                style={{ ...styles.rejectBtn, opacity: isActing ? 0.6 : 1 }}
-                                                onClick={() => startReject(v.id)}
-                                                disabled={isActing}
-                                            >
-                                                ✗ Respinge
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div style={styles.rejectForm}>
-                                            <textarea
-                                                autoFocus
-                                                value={rejectNote}
-                                                onChange={(e) => setRejectNote(e.target.value)}
-                                                placeholder="Motivul respingerii (obligatoriu)"
-                                                style={styles.rejectTextarea}
-                                            />
-                                            <div style={styles.actions}>
-                                                <button
-                                                    style={{ ...styles.rejectBtn, opacity: isActing ? 0.6 : 1 }}
-                                                    onClick={() => confirmReject(v.id)}
-                                                    disabled={isActing}
-                                                >
-                                                    {isActing ? 'Se trimite...' : 'Confirmă respingerea'}
-                                                </button>
-                                                <button style={styles.cancelBtn} onClick={cancelReject} disabled={isActing}>
-                                                    Anulează
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
+                                    <span className="px-2.5 py-1 bg-warning-100 text-warning-700 rounded-full text-micro font-bold flex-shrink-0">
+                                        PENDING REVIEW
+                                    </span>
                                 </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
+
+                                <p className="text-caption text-neutral-500 mb-4">
+                                    Creat de <strong>{v.createdByName || 'necunoscut'}</strong>
+                                    {v.createdAt && ` · ${new Date(v.createdAt).toLocaleString('ro-RO')}`}
+                                    {v.changeNote && ` · ${v.changeNote}`}
+                                </p>
+
+                                {!rejecting ? (
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleApprove(v.id)}
+                                            disabled={acting}
+                                            className="px-4 py-2 bg-success-600 text-white rounded-lg text-body font-bold hover:bg-success-700 transition-colors disabled:opacity-60"
+                                        >
+                                            {acting ? 'Se procesează...' : '✓ Aprobă'}
+                                        </button>
+                                        <button
+                                            onClick={() => { setRejectingId(v.id); setRejectNote(''); }}
+                                            disabled={acting}
+                                            className="px-4 py-2 bg-danger-600 text-white rounded-lg text-body font-bold hover:bg-danger-700 transition-colors disabled:opacity-60"
+                                        >
+                                            ✗ Respinge
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-3">
+                                        <textarea
+                                            autoFocus
+                                            value={rejectNote}
+                                            onChange={e => setRejectNote(e.target.value)}
+                                            placeholder="Motivul respingerii (obligatoriu)"
+                                            className="w-full px-4 py-3 border-2 border-neutral-200 rounded-lg text-body font-sans resize-none focus:outline-none focus:border-danger-400 transition-colors"
+                                            rows={3}
+                                        />
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => confirmReject(v.id)}
+                                                disabled={acting}
+                                                className="px-4 py-2 bg-danger-600 text-white rounded-lg text-body font-bold hover:bg-danger-700 transition-colors disabled:opacity-60"
+                                            >
+                                                {acting ? 'Se trimite...' : 'Confirmă respingerea'}
+                                            </button>
+                                            <button
+                                                onClick={() => setRejectingId(null)}
+                                                className="px-4 py-2 bg-white border border-neutral-200 text-neutral-600 rounded-lg text-body font-bold hover:bg-neutral-50 transition-colors"
+                                            >
+                                                Anulează
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }
-
-const styles = {
-    page: { minHeight: '100vh', background: '#f0f2f5' },
-    centered: {
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        minHeight: '100vh', flexDirection: 'column', gap: 16,
-    },
-    spinner: {
-        width: 40, height: 40,
-        border: '3px solid #e5e7eb',
-        borderTop: '3px solid #4F6BF6',
-        borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite',
-    },
-    header: {
-        background: 'white',
-        borderBottom: '1px solid #e5e7eb',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    backBtn: {
-        background: 'none',
-        border: '1.5px solid #e5e7eb',
-        borderRadius: 10,
-        padding: '7px 14px',
-        cursor: 'pointer',
-        fontSize: '0.85rem',
-        fontWeight: 700,
-        color: '#6b7280',
-    },
-    title: { fontWeight: 800, fontSize: '1rem', color: '#1a1d23' },
-    container: { maxWidth: 760, margin: '0 auto', padding: '32px 20px' },
-    errorText: {
-        color: '#dc2626', fontWeight: 700, fontSize: '0.85rem',
-        marginBottom: 16, background: '#fef2f2', padding: '10px 14px', borderRadius: 10,
-    },
-    list: { display: 'flex', flexDirection: 'column', gap: 14 },
-    card: {
-        background: 'white', borderRadius: 14, padding: '18px 20px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-    },
-    cardHeader: {
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10,
-    },
-    exerciseName: { fontSize: '1rem', fontWeight: 800, color: '#1a1d23', margin: '0 0 3px 0' },
-    exerciseMeta: { fontSize: '0.8rem', color: '#6b7280', fontWeight: 600, margin: 0 },
-    statusBadge: {
-        fontSize: '0.7rem', fontWeight: 800, color: '#b45309', background: '#fef3c7',
-        padding: '5px 10px', borderRadius: 8, whiteSpace: 'nowrap',
-    },
-    cardDetails: { marginBottom: 14 },
-    detailLine: { fontSize: '0.82rem', color: '#6b7280', fontWeight: 500, margin: '2px 0' },
-    actions: { display: 'flex', gap: 10 },
-    approveBtn: {
-        padding: '9px 18px', background: '#16a34a', color: 'white', border: 'none',
-        borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
-    },
-    rejectBtn: {
-        padding: '9px 18px', background: '#dc2626', color: 'white', border: 'none',
-        borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
-    },
-    cancelBtn: {
-        padding: '9px 18px', background: 'white', border: '1.5px solid #e5e7eb', color: '#6b7280',
-        borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
-    },
-    rejectForm: { display: 'flex', flexDirection: 'column', gap: 10 },
-    rejectTextarea: {
-        width: '100%', minHeight: 70, padding: '10px 12px', border: '1.5px solid #e5e7eb',
-        borderRadius: 10, fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box',
-    },
-    emptyText: {
-        fontSize: '0.9rem', color: '#9ca3af', fontStyle: 'italic',
-        textAlign: 'center', padding: '40px 20px',
-    },
-};

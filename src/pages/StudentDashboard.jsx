@@ -1,293 +1,98 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import api from '../api/axios'
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../api/axios';
+import { StatCard } from '../design-system/components';
+import { cn } from '../design-system/cn';
 
 export default function StudentDashboard() {
-    const [stats, setStats] = useState(null)
-    const [history, setHistory] = useState([])
-    const [loading, setLoading] = useState(true)
-    const navigate = useNavigate()
+    const [stats, setStats] = useState(null);
+    const [history, setHistory] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     useEffect(() => {
-        Promise.all([
-            api.get('/progress/me/stats'),
-            api.get('/progress/me')
-        ])
-            .then(([statsRes, historyRes]) => {
-                setStats(statsRes.data)
-                setHistory(historyRes.data)
-            })
-            .catch(err => console.error(err))
-            .finally(() => setLoading(false))
-    }, [])
+        Promise.all([api.get('/progress/me/stats'), api.get('/progress/me')])
+            .then(([s, h]) => { setStats(s.data); setHistory(h.data); })
+            .catch(console.error)
+            .finally(() => setLoading(false));
+    }, []);
+
+    const formatDate = (d) => new Date(d).toLocaleDateString('ro-RO', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+    });
 
     if (loading) return (
-        <div style={styles.loadingWrap}>
-            <div style={styles.spinner} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
         </div>
-    )
-
-    // Grupeaza istoricul pe exercitii pentru a arata cate incercari per exercitiu
-    const formatDate = (dateStr) => {
-        const d = new Date(dateStr)
-        return d.toLocaleDateString('ro-RO', {
-            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-        })
-    }
+    );
 
     return (
-        <div style={styles.container}>
-            <h2 style={styles.sectionTitle}>Progresul meu</h2>
-
-            {/* Statistici */}
-            <div style={styles.statsGrid}>
-                <div style={styles.statCard}>
-                    <div style={{ ...styles.statIconWrap, background: '#dbeafe' }}>
-                        <span style={styles.statIcon}>✅</span>
-                    </div>
-                    <div>
-                        <div style={styles.statNum}>{stats?.completedExercises || 0}</div>
-                        <div style={styles.statLabel}>Exercitii rezolvate</div>
-                    </div>
-                </div>
-
-                <div style={styles.statCard}>
-                    <div style={{ ...styles.statIconWrap, background: '#fef9c3' }}>
-                        <span style={styles.statIcon}>⭐</span>
-                    </div>
-                    <div>
-                        <div style={styles.statNum}>{stats?.totalPoints || 0}</div>
-                        <div style={styles.statLabel}>Puncte acumulate</div>
-                    </div>
-                </div>
-
-                <div style={styles.statCard}>
-                    <div style={{ ...styles.statIconWrap, background: '#dcfce7' }}>
-                        <span style={styles.statIcon}>🎯</span>
-                    </div>
-                    <div>
-                        <div style={styles.statNum}>{stats?.totalSubmissions || 0}</div>
-                        <div style={styles.statLabel}>Total incercari</div>
-                    </div>
-                </div>
+        <div className="max-w-3xl mx-auto animate-fade-in">
+            <div className="mb-6">
+                <h1 className="text-h2 font-bold text-neutral-900 mb-1">Progresul meu</h1>
+                <p className="text-body text-neutral-500">Urmărește activitatea și punctele acumulate.</p>
             </div>
 
-            {/* Istoric */}
-            <h2 style={{ ...styles.sectionTitle, marginTop: 32 }}>Istoric activitate</h2>
+            <div className="grid grid-cols-3 gap-4 mb-8">
+                <StatCard title="Exerciții rezolvate" value={String(stats?.completedExercises || 0)} icon="✅" />
+                <StatCard title="Puncte acumulate" value={String(stats?.totalPoints || 0)} icon="⭐" />
+                <StatCard title="Total încercări" value={String(stats?.totalSubmissions || 0)} icon="🎯" />
+            </div>
+
+            <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
+                Istoric activitate
+            </p>
 
             {history.length === 0 ? (
-                <div style={styles.empty}>
-                    <span style={{ fontSize: '2.5rem' }}>📭</span>
-                    <p style={styles.emptyText}>Inca nu ai rezolvat niciun exercitiu.</p>
-                    <button onClick={() => navigate('/')} style={styles.startBtn}>
-                        Incepe sa inveti
+                <div className="bg-white rounded-xl border-2 border-dashed border-neutral-200 p-12 text-center">
+                    <div className="text-4xl mb-3">📭</div>
+                    <p className="text-body text-neutral-500 mb-4">
+                        Nu ai rezolvat niciun exercițiu încă.
+                    </p>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="px-5 py-2.5 bg-primary-600 text-white rounded-lg text-body font-bold hover:bg-primary-700 transition-colors"
+                    >
+                        Începe să înveți
                     </button>
                 </div>
             ) : (
-                <div style={styles.historyList}>
+                <div className="flex flex-col gap-2">
                     {history.map(item => (
-                        <div key={item.id} style={styles.historyCard}>
-                            <div style={{
-                                ...styles.historyStatus,
-                                background: item.correct ? '#dcfce7' : '#fee2e2',
-                            }}>
+                        <div
+                            key={item.id}
+                            className="flex items-center gap-4 bg-white rounded-xl border border-neutral-200 p-4"
+                        >
+                            <div className={cn(
+                                'w-10 h-10 rounded-xl flex items-center justify-center text-body-lg font-bold flex-shrink-0',
+                                item.correct
+                                    ? 'bg-success-100 text-success-600'
+                                    : 'bg-danger-100 text-danger-600'
+                            )}>
                                 {item.correct ? '✓' : '✗'}
                             </div>
-
-                            <div style={styles.historyBody}>
-                                <p style={styles.historyQuestion}>Exercițiul #{item.exerciseId}</p>
-                                <div style={styles.historyMeta}>
-                  <span style={styles.metaItem}>
-                    Incercarea #{item.attemptNumber}
-                  </span>
-                                    <span style={styles.metaDot}>•</span>
-                                    <span style={styles.metaItem}>
-                    {formatDate(item.submittedAt)}
-                  </span>
-                                </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-body font-bold text-neutral-900">
+                                    Exercițiul #{item.exerciseId}
+                                </p>
+                                <p className="text-caption text-neutral-400">
+                                    Încercarea #{item.attemptNumber} · {formatDate(item.submittedAt)}
+                                </p>
                             </div>
-
-                            <div style={styles.historyPoints}>
-                                {item.pointsEarned > 0 ? (
-                                    <span style={styles.pointsPositive}>+{item.pointsEarned}</span>
-                                ) : (
-                                    <span style={styles.pointsZero}>0</span>
-                                )}
-                                <span style={styles.pointsLabel}>pct</span>
+                            <div className="text-right flex-shrink-0">
+                                <span className={cn(
+                                    'text-body-lg font-bold',
+                                    item.pointsEarned > 0 ? 'text-success-600' : 'text-neutral-300'
+                                )}>
+                                    {item.pointsEarned > 0 ? `+${item.pointsEarned}` : '0'}
+                                </span>
+                                <p className="text-micro text-neutral-400">pct</p>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
         </div>
-    )
-}
-
-const styles = {
-    container: {
-        maxWidth: 800,
-        margin: '0 auto',
-        padding: '28px 20px',
-    },
-    sectionTitle: {
-        fontSize: '0.85rem',
-        fontWeight: 800,
-        color: '#9ca3af',
-        letterSpacing: '1px',
-        textTransform: 'uppercase',
-        marginBottom: 16,
-    },
-    statsGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: 14,
-    },
-    statCard: {
-        background: 'white',
-        borderRadius: 16,
-        padding: '20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        border: '1px solid #f3f4f6',
-    },
-    statIconWrap: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-    },
-    statIcon: {
-        fontSize: '1.4rem',
-    },
-    statNum: {
-        fontSize: '1.8rem',
-        fontWeight: 900,
-        color: '#1a1d23',
-        lineHeight: 1,
-    },
-    statLabel: {
-        fontSize: '0.78rem',
-        fontWeight: 700,
-        color: '#9ca3af',
-        marginTop: 4,
-    },
-    historyList: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-    },
-    historyCard: {
-        background: 'white',
-        borderRadius: 14,
-        padding: '16px 18px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        border: '1px solid #f3f4f6',
-    },
-    historyStatus: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '1.1rem',
-        fontWeight: 800,
-        flexShrink: 0,
-    },
-    historyBody: {
-        flex: 1,
-        minWidth: 0,
-    },
-    historyQuestion: {
-        fontSize: '0.95rem',
-        fontWeight: 700,
-        color: '#1a1d23',
-        margin: 0,
-        marginBottom: 4,
-    },
-    historyMeta: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-    },
-    metaItem: {
-        fontSize: '0.78rem',
-        color: '#9ca3af',
-        fontWeight: 600,
-    },
-    metaDot: {
-        color: '#d1d5db',
-    },
-    historyPoints: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        flexShrink: 0,
-    },
-    pointsPositive: {
-        fontSize: '1.1rem',
-        fontWeight: 900,
-        color: '#22c55e',
-    },
-    pointsZero: {
-        fontSize: '1.1rem',
-        fontWeight: 900,
-        color: '#d1d5db',
-    },
-    pointsLabel: {
-        fontSize: '0.65rem',
-        fontWeight: 700,
-        color: '#9ca3af',
-        textTransform: 'uppercase',
-    },
-    empty: {
-        background: 'white',
-        borderRadius: 16,
-        padding: '40px 20px',
-        textAlign: 'center',
-        border: '1px solid #f3f4f6',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 12,
-    },
-    emptyText: {
-        color: '#9ca3af',
-        fontWeight: 600,
-        margin: 0,
-    },
-    startBtn: {
-        background: '#4F6BF6',
-        color: 'white',
-        border: 'none',
-        borderRadius: 12,
-        padding: '11px 24px',
-        fontSize: '0.95rem',
-        fontWeight: 800,
-        cursor: 'pointer',
-        marginTop: 8,
-    },
-    loadingWrap: {
-        minHeight: '50vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    spinner: {
-        width: 36,
-        height: 36,
-        border: '3px solid #e5e7eb',
-        borderTop: '3px solid #4F6BF6',
-        borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite',
-    },
+    );
 }

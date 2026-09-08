@@ -1,167 +1,102 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import api from '../api/axios'
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import QuizStartScreen from '../components/quiz/QuizStartScreen';
+import QuizFinishScreen from '../components/quiz/QuizFinishScreen';
+import ExercisePlayer from '../components/player/ExercisePlayer';
+import api from '../api/axios';
 
-export default function ExercisePage() {
-    const { quizId } = useParams()
-    const navigate = useNavigate()
-    const [exercises, setExercises] = useState([])
-    const [loading, setLoading] = useState(true)
+const ExercisePage = () => {
+    const { quizId } = useParams();
+    const [quiz, setQuiz] = useState(null);
+    const [screen, setScreen] = useState('start');
+    const [currentAttemptId, setCurrentAttemptId] = useState(null);
+    const [exerciseIndex, setExerciseIndex] = useState(0);
 
     useEffect(() => {
-        api.get(`/exercises/quiz/${quizId}`)
-            .then(res => setExercises(res.data))
-            .catch(err => console.error(err))
-            .finally(() => setLoading(false))
-    }, [quizId])
+        api.get(`/quizzes/${quizId}`)
+            .then((r) => setQuiz(r.data))
+            .catch(() => {});
+    }, [quizId]);
 
-    if (loading) return (
-        <div style={styles.centered}>
-            <div style={styles.spinner} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    const handleStart = (attemptId) => {
+        setCurrentAttemptId(attemptId);
+        setExerciseIndex(0);
+        setScreen('playing');
+    };
+
+    const handleFinishQuiz = () => {
+        setScreen('finish');
+    };
+
+    const handleNextExercise = () => {
+        if (quiz?.exercises && exerciseIndex < quiz.exercises.length - 1) {
+            setExerciseIndex((i) => i + 1);
+        } else {
+            handleFinishQuiz();
+        }
+    };
+
+    const handleRestart = (newAttemptId) => {
+        setCurrentAttemptId(newAttemptId);
+        setExerciseIndex(0);
+        setScreen('playing');
+    };
+
+    if (!quiz) return (
+        <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+            <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
         </div>
-    )
+    );
 
     return (
-        <div style={styles.page}>
-            <div style={styles.header}>
-                <button onClick={() => navigate('/')} style={styles.backBtn}>← Înapoi</button>
-                <span style={styles.title}>Quiz</span>
-                <div style={{ width: 80 }} />
-            </div>
+        <div className="min-h-screen bg-neutral-50">
+            {screen === 'start' && (
+                <QuizStartScreen
+                    quiz={quiz}
+                    onStart={handleStart}
+                />
+            )}
 
-            <div style={styles.container}>
-                <h2 style={styles.sectionTitle}>Exerciții în acest quiz ({exercises.length})</h2>
-                {exercises.length === 0 ? (
-                    <p style={styles.emptyText}>Nu există exerciții publicate în acest quiz.</p>
-                ) : (
-                    <div style={styles.list}>
-                        {exercises.map((ex, i) => (
-                            <div key={ex.id} style={styles.exerciseCard}>
-                                <div style={styles.exerciseNum}>{i + 1}</div>
-                                <div style={styles.exerciseContent}>
-                                    <p style={styles.exerciseType}>{ex.type || 'CUSTOM'}</p>
-                                    <p style={styles.exercisePoints}>
-                                        {ex.points} puncte · dificultate {ex.difficulty}
-                                    </p>
-                                </div>
-                                <button
-                                    style={styles.playBtn}
-                                    onClick={() => navigate(`/exercise/${ex.id}/play`)}
-                                >
-                                    Rezolvă →
-                                </button>
-                            </div>
-                        ))}
+            {screen === 'playing' && quiz.exercises?.[exerciseIndex] && (
+                <div className="max-w-4xl mx-auto px-4 py-6">
+                    {/* Progress bar exercitii */}
+                    <div className="mb-4 flex items-center gap-3">
+                        <span className="text-caption text-neutral-600 font-semibold">
+                            {exerciseIndex + 1} / {quiz.exercises.length}
+                        </span>
+                        <div className="flex-1 h-2 bg-neutral-200 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-hero-primary rounded-full transition-all duration-500"
+                                style={{
+                                    width: `${((exerciseIndex + 1) / quiz.exercises.length) * 100}%`
+                                }}
+                            />
+                        </div>
+                        <button
+                            onClick={handleFinishQuiz}
+                            className="text-caption text-neutral-500 hover:text-neutral-700"
+                        >
+                            Termina
+                        </button>
                     </div>
-                )}
-            </div>
-        </div>
-    )
-}
 
-const styles = {
-    page: { minHeight: '100vh', background: '#f0f2f5' },
-    centered: {
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        minHeight: '100vh', flexDirection: 'column', gap: 16,
-    },
-    spinner: {
-        width: 40, height: 40,
-        border: '3px solid #e5e7eb',
-        borderTop: '3px solid #4F6BF6',
-        borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite',
-    },
-    header: {
-        background: 'white',
-        borderBottom: '1px solid #e5e7eb',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    backBtn: {
-        background: 'none',
-        border: '1.5px solid #e5e7eb',
-        borderRadius: 10,
-        padding: '7px 14px',
-        cursor: 'pointer',
-        fontSize: '0.85rem',
-        fontWeight: 700,
-        color: '#6b7280',
-    },
-    title: {
-        fontWeight: 800,
-        fontSize: '1rem',
-        color: '#1a1d23',
-    },
-    container: {
-        maxWidth: 720,
-        margin: '0 auto',
-        padding: '32px 20px',
-    },
-    sectionTitle: {
-        fontSize: '0.85rem',
-        fontWeight: 800,
-        color: '#9ca3af',
-        letterSpacing: '1px',
-        textTransform: 'uppercase',
-        marginBottom: 14,
-    },
-    list: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-    },
-    exerciseCard: {
-        background: 'white',
-        borderRadius: 12,
-        padding: '14px 18px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-    },
-    exerciseNum: {
-        width: 36, height: 36,
-        borderRadius: 10,
-        background: '#4F6BF6',
-        color: 'white',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontWeight: 900,
-        fontSize: '0.9rem',
-        flexShrink: 0,
-    },
-    exerciseContent: { flex: 1 },
-    exerciseType: {
-        fontSize: '0.9rem',
-        fontWeight: 700,
-        color: '#1a1d23',
-        margin: '0 0 3px 0',
-    },
-    exercisePoints: {
-        fontSize: '0.8rem',
-        color: '#6b7280',
-        fontWeight: 600,
-        margin: 0,
-    },
-    playBtn: {
-        padding: '9px 16px',
-        background: '#4F6BF6',
-        color: 'white',
-        border: 'none',
-        borderRadius: 10,
-        fontSize: '0.85rem',
-        fontWeight: 700,
-        cursor: 'pointer',
-        flexShrink: 0,
-    },
-    emptyText: {
-        fontSize: '0.9rem',
-        color: '#9ca3af',
-        fontStyle: 'italic',
-        textAlign: 'center',
-        padding: '40px 20px',
-    },
-}
+                    <ExercisePlayer
+                        exerciseId={quiz.exercises[exerciseIndex].id}
+                        onComplete={handleNextExercise}
+                    />
+                </div>
+            )}
+
+            {screen === 'finish' && (
+                <QuizFinishScreen
+                    attemptId={currentAttemptId}
+                    quizId={quiz.id}
+                    quizTitle={quiz.title}
+                    onRestart={handleRestart}
+                />
+            )}
+        </div>
+    );
+};
+
+export default ExercisePage;

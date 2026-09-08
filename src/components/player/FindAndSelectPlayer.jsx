@@ -12,6 +12,7 @@ import PlayerPdf from "./PlayerPDF.jsx";
 import {getAbsolutePosition} from "../../utils/elementPosition.js";
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import {getTheme} from "../../constants/themes.js";
+import ExerciseFeedbackWidget from '../feedback/ExerciseFeedbackWidget';
 
 const CONTAINER_PADDING = 40;
 const HINT_AFTER_MISTAKES = 2;
@@ -37,7 +38,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
     const [phase, setPhase] = useState('playing');
     const [result, setResult] = useState(null);
     const [submitError, setSubmitError] = useState('');
-
+    const [showFeedback, setShowFeedback] = useState(false);
     const canvasWidth = config.canvas.width;
     const canvasHeight = config.canvas.height;
 
@@ -129,6 +130,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
             const res = await api.post('/exercises/submit', { exerciseId, answer });
             setResult(res.data);
             setPhase('result');
+            setShowFeedback(true);
             if (!res.data.correct && hintText) setHintVisible(true);
         } catch (err) {
             console.error('Eroare la trimiterea raspunsului:', err);
@@ -387,6 +389,12 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                             <p style={styles.exhaustedText}>Ai epuizat numărul de încercări.</p>
                         )}
                     </div>
+                )}
+                {showFeedback && (
+                    <ExerciseFeedbackWidget
+                        exerciseId={exerciseId}
+                        onDismiss={() => setShowFeedback(false)}
+                    />
                 )}
             </div>
         </ThemeProvider>

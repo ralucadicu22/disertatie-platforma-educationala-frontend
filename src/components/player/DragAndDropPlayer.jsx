@@ -12,6 +12,9 @@ import { ELEMENT_TYPES } from '../../constants/elementTypes';
 import { getAbsolutePosition } from '../../utils/elementPosition';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import {getTheme} from "../../constants/themes.js";
+import ExerciseFeedbackWidget from '../feedback/ExerciseFeedbackWidget';
+
+
 
 const CONTAINER_PADDING = 40;
 const MAGNET_RADIUS = 110;
@@ -101,7 +104,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
     const [phase, setPhase] = useState('playing');
     const [result, setResult] = useState(null);
     const [submitError, setSubmitError] = useState('');
-
+    const [showFeedback, setShowFeedback] = useState(false);
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -322,6 +325,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
             });
             setResult(res.data);
             setPhase('result');
+            setShowFeedback(true);
         } catch (err) {
             console.error('Eroare la trimiterea raspunsului:', err);
             setSubmitError(err.response?.data?.message || 'Eroare la trimiterea răspunsului');
@@ -526,6 +530,12 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                         )}
                     </div>
                 )}
+                {showFeedback && (
+                    <ExerciseFeedbackWidget
+                        exerciseId={exerciseId}
+                        onDismiss={() => setShowFeedback(false)}
+                    />
+                )}
             </div>
         </ThemeProvider>
     );
@@ -708,6 +718,7 @@ function DraggableItem({ element, isPlaced, isHovered, onHover, onUnhover, regis
                 />
             )}
         </Group>
+
     );
 }
 

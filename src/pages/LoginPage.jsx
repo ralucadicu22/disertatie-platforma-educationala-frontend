@@ -1,450 +1,211 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import api from '../api/axios'
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../api/axios';
+import { cn } from '../design-system/cn';
 
 const ROLES = [
-    { value: 'ELEV',     label: 'Elev',      icon: '🎒' },
-    { value: 'PROFESOR', label: 'Profesor',   icon: '👩‍🏫' },
-    { value: 'EDITOR',   label: 'Editor',     icon: '✏️' },
-    { value: 'ADMIN',    label: 'Admin',      icon: '⚙️' },
-]
+    { value: 'ELEV',     label: 'Elev',     icon: '🎒' },
+    { value: 'PROFESOR', label: 'Profesor',  icon: '👩‍🏫' },
+    { value: 'EDITOR',   label: 'Editor',   icon: '✏️' },
+    { value: 'ADMIN',    label: 'Admin',    icon: '⚙️' },
+    { value: 'PARINTE',  label: 'Părinte',  icon: '👨‍👧' },
+];
+
+const ROLE_REDIRECTS = {
+    PARINTE:  '/parinte',
+    PROFESOR: '/clase',
+    ADMIN:    '/clase',
+    EDITOR:   '/',
+    ELEV:     '/',
+};
 
 export default function LoginPage() {
-    const [email, setEmail]       = useState('')
-    const [password, setPassword] = useState('')
-    const [isLogin, setIsLogin]   = useState(true)
-    const [name, setName]         = useState('')
-    const [role, setRole]         = useState('ELEV')
-    const [loading, setLoading]   = useState(false)
-    const [error, setError]       = useState('')
-    const navigate = useNavigate()
+    const [email, setEmail]       = useState('');
+    const [password, setPassword] = useState('');
+    const [isLogin, setIsLogin]   = useState(true);
+    const [name, setName]         = useState('');
+    const [role, setRole]         = useState('ELEV');
+    const [loading, setLoading]   = useState(false);
+    const [error, setError]       = useState('');
+    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
-        e.preventDefault()
-        setError('')
-        setLoading(true)
-
+        e.preventDefault();
+        setError('');
+        setLoading(true);
         try {
-            const endpoint = isLogin ? '/auth/login' : '/auth/register'
-            const payload = isLogin
-                ? { email, password }
-                : { email, password, name, role }
-
-            const res = await api.post(endpoint, payload)
-            localStorage.setItem('token', res.data.token)
-
-            const userRes = await api.get('/auth/me')
-            localStorage.setItem('user', JSON.stringify(userRes.data))
-
-            window.location.href = '/'
+            const endpoint = isLogin ? '/auth/login' : '/auth/register';
+            const payload  = isLogin ? { email, password } : { email, password, name, role };
+            const res      = await api.post(endpoint, payload);
+            localStorage.setItem('token', res.data.token);
+            const userRes  = await api.get('/auth/me');
+            localStorage.setItem('user', JSON.stringify(userRes.data));
+            window.location.href = ROLE_REDIRECTS[userRes.data.role] || '/';
         } catch (err) {
-            setError(err.response?.data?.message || 'Eroare la autentificare')
+            setError(err.response?.data?.message || 'Eroare la autentificare');
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     return (
-        <div style={styles.page}>
+        <div className="min-h-screen bg-neutral-100 flex items-center justify-center p-4 relative overflow-hidden">
+            {/* Background blobs */}
+            <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-primary-200 opacity-20 blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-accent-200 opacity-20 blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
-            <div style={styles.bgCircle1} />
-            <div style={styles.bgCircle2} />
-            <div style={styles.bgCircle3} />
+            <div className="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex">
 
-            <div style={styles.wrapper}>
-
-                <div style={styles.brandSide}>
-                    <div style={styles.brandContent}>
-                        <div style={styles.logoIcon}>🎓</div>
-                        <h1 style={styles.brandTitle}>EduPlatform</h1>
-                        <p style={styles.brandSub}>
-                            Platforma educationala interactiva pentru copii.
-                        </p>
-                        <div style={styles.features}>
-                            <div style={styles.feature}>
-                                <span style={styles.featureIcon}>📚</span>
-                                <span style={styles.featureText}>Exercitii interactive</span>
+                {/* Brand side */}
+                <div className="hidden md:flex flex-col justify-center w-80 flex-shrink-0 bg-gradient-to-br from-neutral-900 to-neutral-700 p-10">
+                    <div className="text-5xl mb-4">🎓</div>
+                    <h1 className="text-h1 font-bold text-white mb-3 leading-tight">EduPlatform</h1>
+                    <p className="text-body text-neutral-400 mb-8 leading-relaxed">
+                        Platformă educațională interactivă pentru copii.
+                    </p>
+                    <div className="flex flex-col gap-4">
+                        {[
+                            { icon: '📚', text: 'Exerciții interactive' },
+                            { icon: '📊', text: 'Progres în timp real' },
+                            { icon: '🏆', text: 'Feedback și recompense' },
+                        ].map(f => (
+                            <div key={f.text} className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-lg flex-shrink-0">
+                                    {f.icon}
+                                </div>
+                                <span className="text-body text-neutral-300 font-semibold">{f.text}</span>
                             </div>
-                            <div style={styles.feature}>
-                                <span style={styles.featureIcon}>📊</span>
-                                <span style={styles.featureText}>Progres in timp real</span>
-                            </div>
-                            <div style={styles.feature}>
-                                <span style={styles.featureIcon}>🏆</span>
-                                <span style={styles.featureText}>Feedback si recompense</span>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
 
-                <div style={styles.formSide}>
-                    <div style={styles.formHeader}>
-                        <h2 style={styles.formTitle}>
-                            {isLogin ? 'Bine ai revenit!' : 'Creeaza un cont'}
+                {/* Form side */}
+                <div className="flex-1 p-8 md:p-10 overflow-y-auto max-h-screen">
+                    <div className="mb-6">
+                        <h2 className="text-h2 font-bold text-neutral-900 mb-1">
+                            {isLogin ? 'Bine ai revenit!' : 'Creează un cont'}
                         </h2>
-                        <p style={styles.formSub}>
-                            {isLogin
-                                ? 'Conecteaza-te pentru a continua'
-                                : 'Inregistreaza-te si incepe sa inveti'}
+                        <p className="text-body text-neutral-500">
+                            {isLogin ? 'Conectează-te pentru a continua' : 'Înregistrează-te și începe să înveți'}
                         </p>
                     </div>
 
                     {error && (
-                        <div style={styles.error}>
-                            <span>⚠️</span>
-                            <span>{error}</span>
+                        <div className="flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 rounded-md px-4 py-3 text-body font-semibold mb-5">
+                            ⚠️ {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} style={styles.form}>
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                         {!isLogin && (
-                            <div style={styles.fieldGroup}>
-                                <label style={styles.label}>Nume complet</label>
+                            <Field label="Nume complet">
                                 <input
                                     type="text"
                                     value={name}
                                     onChange={e => setName(e.target.value)}
                                     required
-                                    style={styles.input}
-                                    onFocus={e => e.target.style.borderColor = '#4F6BF6'}
-                                    onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+                                    placeholder="ex: Maria Ionescu"
+                                    className={inputCls}
                                 />
-                            </div>
+                            </Field>
                         )}
 
-                        <div style={styles.fieldGroup}>
-                            <label style={styles.label}>Email</label>
+                        <Field label="Email">
                             <input
                                 type="email"
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 required
-                                style={styles.input}
-                                onFocus={e => e.target.style.borderColor = '#4F6BF6'}
-                                onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+                                placeholder="email@exemplu.ro"
+                                className={inputCls}
                             />
-                        </div>
+                        </Field>
 
-                        <div style={styles.fieldGroup}>
-                            <label style={styles.label}>Parola</label>
+                        <Field label="Parolă">
                             <input
                                 type="password"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 required
-                                style={styles.input}
-                                onFocus={e => e.target.style.borderColor = '#4F6BF6'}
-                                onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+                                placeholder="••••••••"
+                                className={inputCls}
                             />
-                        </div>
+                        </Field>
 
                         {!isLogin && (
-                            <div style={styles.fieldGroup}>
-                                <label style={styles.label}>Selecteaza rolul</label>
-                                <div style={styles.rolesGrid}>
+                            <Field label="Rol">
+                                <div className="grid grid-cols-3 gap-2 mt-1">
                                     {ROLES.map(r => (
-                                        <div
+                                        <button
                                             key={r.value}
+                                            type="button"
                                             onClick={() => setRole(r.value)}
-                                            style={{
-                                                ...styles.roleCard,
-                                                borderColor: role === r.value ? '#4F6BF6' : '#e5e7eb',
-                                                background: role === r.value ? '#f0f3ff' : 'white',
-                                            }}
+                                            className={cn(
+                                                'flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border-2 transition-all',
+                                                role === r.value
+                                                    ? 'border-primary-500 bg-primary-50 text-primary-700'
+                                                    : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
+                                            )}
                                         >
-                                            <span style={styles.roleIcon}>{r.icon}</span>
-                                            <span style={{
-                                                ...styles.roleLabel,
-                                                color: role === r.value ? '#4F6BF6' : '#374151',
-                                            }}>
-                        {r.label}
-                      </span>
-                                            <span style={styles.roleDesc}>{r.desc}</span>
-                                            {role === r.value && <div style={styles.roleCheck}>✓</div>}
-                                        </div>
+                                            <span className="text-xl">{r.icon}</span>
+                                            <span className="text-caption font-bold">{r.label}</span>
+                                        </button>
                                     ))}
                                 </div>
-                            </div>
+                            </Field>
                         )}
 
                         <button
                             type="submit"
                             disabled={loading}
-                            style={{
-                                ...styles.button,
-                                opacity: loading ? 0.6 : 1,
-                            }}
+                            className={cn(
+                                'w-full py-3 rounded-lg text-body-lg font-bold text-white transition-all mt-1',
+                                'bg-gradient-to-r from-primary-600 to-primary-500',
+                                'hover:from-primary-700 hover:to-primary-600 hover:shadow-glow-primary',
+                                'active:scale-[0.98]',
+                                loading && 'opacity-60 cursor-not-allowed'
+                            )}
                         >
-                            {loading
-                                ? 'Se proceseaza...'
-                                : isLogin
-                                    ? 'Conecteaza-te'
-                                    : 'Creeaza contul'}
+                            {loading ? 'Se procesează...' : isLogin ? 'Conectează-te' : 'Creează contul'}
                         </button>
                     </form>
 
-                    <div style={styles.divider}>
-                        <div style={styles.dividerLine} />
-                        <span style={styles.dividerText}>sau</span>
-                        <div style={styles.dividerLine} />
+                    <div className="flex items-center gap-3 my-5">
+                        <div className="flex-1 h-px bg-neutral-200" />
+                        <span className="text-caption text-neutral-400 font-semibold">sau</span>
+                        <div className="flex-1 h-px bg-neutral-200" />
                     </div>
 
-                    <p style={styles.toggle}>
+                    <p className="text-center text-body text-neutral-500">
                         {isLogin ? 'Nu ai un cont? ' : 'Ai deja un cont? '}
-                        <span
-                            onClick={() => {
-                                setIsLogin(!isLogin)
-                                setError('')
-                            }}
-                            style={styles.link}
+                        <button
+                            type="button"
+                            onClick={() => { setIsLogin(!isLogin); setError(''); }}
+                            className="text-primary-600 font-bold hover:text-primary-700 transition-colors"
                         >
-              {isLogin ? 'Inregistreaza-te' : 'Conecteaza-te'}
-            </span>
+                            {isLogin ? 'Înregistrează-te' : 'Conectează-te'}
+                        </button>
                     </p>
                 </div>
             </div>
         </div>
-    )
+    );
 }
 
-const styles = {
-    page: {
-        minHeight: '100vh',
-        background: '#f0f2f5',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-        position: 'relative',
-        overflow: 'hidden',
-    },
-    bgCircle1: {
-        position: 'absolute',
-        width: 600, height: 600,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(79,107,246,0.08) 0%, transparent 70%)',
-        top: -200, right: -100,
-    },
-    bgCircle2: {
-        position: 'absolute',
-        width: 400, height: 400,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(79,107,246,0.06) 0%, transparent 70%)',
-        bottom: -100, left: -100,
-    },
-    bgCircle3: {
-        position: 'absolute',
-        width: 300, height: 300,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(168,85,247,0.06) 0%, transparent 70%)',
-        top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-    },
-    wrapper: {
-        display: 'flex',
-        maxWidth: 900,
-        width: '100%',
-        background: 'white',
-        borderRadius: 24,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.08)',
-        overflow: 'hidden',
-        position: 'relative',
-        zIndex: 1,
-    },
-    brandSide: {
-        flex: '0 0 340px',
-        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-        padding: '48px 32px',
-        display: 'flex',
-        alignItems: 'center',
-    },
-    brandContent: {
-        color: 'white',
-    },
-    logoIcon: {
-        fontSize: '3rem',
-        marginBottom: 16,
-    },
-    brandTitle: {
-        fontSize: '1.8rem',
-        fontWeight: 900,
-        marginBottom: 12,
-        letterSpacing: '-0.5px',
-    },
-    brandSub: {
-        fontSize: '0.9rem',
-        fontWeight: 500,
-        lineHeight: 1.6,
-        color: 'rgba(255,255,255,0.7)',
-        marginBottom: 32,
-    },
-    features: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 14,
-    },
-    feature: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-    },
-    featureIcon: {
-        fontSize: '1.2rem',
-        width: 36, height: 36,
-        background: 'rgba(255,255,255,0.1)',
-        borderRadius: 10,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-    },
-    featureText: {
-        fontSize: '0.85rem',
-        fontWeight: 600,
-        color: 'rgba(255,255,255,0.85)',
-    },
-    formSide: {
-        flex: 1,
-        padding: '40px 36px',
-        overflowY: 'auto',
-        maxHeight: '90vh',
-    },
-    formHeader: {
-        marginBottom: 24,
-    },
-    formTitle: {
-        fontSize: '1.5rem',
-        fontWeight: 800,
-        color: '#1a1d23',
-        marginBottom: 6,
-    },
-    formSub: {
-        fontSize: '0.9rem',
-        color: '#6b7280',
-        fontWeight: 500,
-    },
-    error: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        background: '#fef2f2',
-        color: '#991b1b',
-        padding: '12px 14px',
-        borderRadius: 10,
-        fontSize: '0.85rem',
-        fontWeight: 600,
-        marginBottom: 16,
-        border: '1px solid #fecaca',
-    },
-    form: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 18,
-    },
-    fieldGroup: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-    },
-    label: {
-        fontSize: '0.8rem',
-        fontWeight: 700,
-        color: '#374151',
-        letterSpacing: '0.3px',
-    },
-    input: {
-        padding: '11px 14px',
-        border: '2px solid #e5e7eb',
-        borderRadius: 10,
-        fontSize: '0.9rem',
-        fontFamily: 'inherit',
-        outline: 'none',
-        transition: 'border-color 0.2s',
-        color: '#1a1d23',
-    },
-    rolesGrid: {
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 10,
-        marginTop: 4,
-    },
-    roleCard: {
-        border: '2px solid #e5e7eb',
-        borderRadius: 12,
-        padding: '12px 10px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 4,
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        position: 'relative',
-        textAlign: 'center',
-    },
-    roleIcon: {
-        fontSize: '1.3rem',
-    },
-    roleLabel: {
-        fontSize: '0.8rem',
-        fontWeight: 700,
-    },
-    roleDesc: {
-        fontSize: '0.65rem',
-        color: '#9ca3af',
-        fontWeight: 500,
-        lineHeight: 1.3,
-    },
-    roleCheck: {
-        position: 'absolute',
-        top: 6, right: 6,
-        width: 18, height: 18,
-        borderRadius: '50%',
-        background: '#4F6BF6',
-        color: 'white',
-        fontSize: '0.65rem',
-        fontWeight: 800,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    button: {
-        padding: '13px 20px',
-        background: '#4F6BF6',
-        color: 'white',
-        border: 'none',
-        borderRadius: 10,
-        fontSize: '1rem',
-        fontWeight: 800,
-        cursor: 'pointer',
-        boxShadow: '0 4px 0 #3d55d4',
-        transition: 'transform 0.1s',
-        marginTop: 4,
-    },
-    divider: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        margin: '20px 0',
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        background: '#e5e7eb',
-    },
-    dividerText: {
-        fontSize: '0.8rem',
-        color: '#9ca3af',
-        fontWeight: 600,
-    },
-    toggle: {
-        textAlign: 'center',
-        fontSize: '0.9rem',
-        color: '#6b7280',
-        fontWeight: 600,
-    },
-    link: {
-        color: '#4F6BF6',
-        cursor: 'pointer',
-        fontWeight: 800,
-    },
+function Field({ label, children }) {
+    return (
+        <div className="flex flex-col gap-1.5">
+            <label className="text-caption font-bold text-neutral-700 uppercase tracking-wide">
+                {label}
+            </label>
+            {children}
+        </div>
+    );
 }
+
+const inputCls = [
+    'w-full px-4 py-2.5 rounded-lg border-2 border-neutral-200 bg-white',
+    'text-body text-neutral-900 placeholder-neutral-400',
+    'focus:outline-none focus:border-primary-400 transition-colors',
+    'font-sans',
+].join(' ');
