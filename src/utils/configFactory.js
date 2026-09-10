@@ -15,6 +15,7 @@ export const DEFAULT_SOLUTION = {
     correctElementIds: [],
     correctAnswers: {},
     dropMapping: {},
+    alternativeAnswers:[],
 };
 
 export function createDefaultConfig({ type = EXERCISE_TYPES.CUSTOM, name = 'Exercitiu nou' } = {}) {

@@ -1,5 +1,6 @@
 import { useEditor } from '../../store/editorStore.jsx';
 import { EXERCISE_TYPE_DEFINITIONS, EXERCISE_TYPES } from '../../constants/exerciseTypes';
+import {useState} from "react";
 
 export default function SolutionPanel() {
     const {
@@ -136,6 +137,19 @@ export default function SolutionPanel() {
                     </Field>
                 </Section>
 
+                {(meta.type === 'INPUT_TEXT' || meta.type === 'INPUT_NUMERIC' || meta.type === 'CUSTOM') && (
+                    <Section title="Răspunsuri acceptate">
+                        <p style={{ ...styles.emptyText, fontStyle: 'normal', color: '#374151', marginBottom: 4 }}>
+                            Adaugă toate variantele de răspuns acceptate (ex: "7", "șapte", "7,0").
+                        </p>
+                        <AlternativeAnswers
+                            answers={solution.alternativeAnswers || []}
+                            onChange={(answers) => updateSolution({ alternativeAnswers: answers })}
+                            type={meta.type}
+                        />
+                    </Section>
+                )}
+
                 <Section title="Marcare răspuns">
                     {!isDragAndDrop && (
                         <>
@@ -258,7 +272,90 @@ function DragDropMapping({ selectedElement, draggableElements, targetElements, d
         </div>
     );
 }
+function AlternativeAnswers({ answers, onChange, type }) {
+    const [newAnswer, setNewAnswer] = useState('');
 
+    const addAnswer = () => {
+        const trimmed = newAnswer.trim();
+        if (!trimmed || answers.includes(trimmed)) return;
+        onChange([...answers, trimmed]);
+        setNewAnswer('');
+    };
+
+    const removeAnswer = (index) => {
+        onChange(answers.filter((_, i) => i !== index));
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addAnswer();
+        }
+    };
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {answers.length === 0 ? (
+                <p style={styles.emptyText}>Niciun răspuns adăugat încă.</p>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {answers.map((ans, i) => (
+                        <div key={i} style={{
+                            display: 'flex', alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 10px',
+                            background: '#f0fdf4',
+                            border: '1px solid #bbf7d0',
+                            borderRadius: 6,
+                        }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#166534' }}>
+                                {ans}
+                            </span>
+                            <button
+                                onClick={() => removeAnswer(i)}
+                                style={{
+                                    background: '#fee2e2', color: '#b91c1c',
+                                    border: 'none', borderRadius: 4,
+                                    width: 20, height: 20, fontSize: '0.65rem',
+                                    cursor: 'pointer', flexShrink: 0,
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                    type={type === 'INPUT_NUMERIC' ? 'number' : 'text'}
+                    value={newAnswer}
+                    onChange={(e) => setNewAnswer(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={type === 'INPUT_NUMERIC' ? 'ex: 7' : 'ex: șapte'}
+                    style={{ ...styles.input, flex: 1 }}
+                />
+                <button
+                    onClick={addAnswer}
+                    disabled={!newAnswer.trim()}
+                    style={{
+                        background: newAnswer.trim() ? '#059669' : '#d1fae5',
+                        color: newAnswer.trim() ? 'white' : '#6ee7b7',
+                        border: 'none', borderRadius: 8,
+                        padding: '8px 12px', fontSize: '0.85rem',
+                        fontWeight: 800, cursor: newAnswer.trim() ? 'pointer' : 'not-allowed',
+                    }}
+                >
+                    + Adaugă
+                </button>
+            </div>
+            <p style={{ ...styles.emptyText, marginTop: 2 }}>
+                Apasă Enter sau butonul + pentru a adăuga. Primul răspuns e cel principal.
+            </p>
+        </div>
+    );
+}
 function Section({ title, children }) {
     return (
         <div style={styles.section}>
