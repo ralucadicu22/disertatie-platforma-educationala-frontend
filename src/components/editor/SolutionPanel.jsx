@@ -114,6 +114,16 @@ export default function SolutionPanel() {
                         </select>
                     </Field>
                 </Section>
+                <Field label="Afișează media grupei">
+                    <select
+                        value={settings.showGroupAverage ? 'true' : 'false'}
+                        onChange={(e) => updateSettings({ showGroupAverage: e.target.value === 'true' })}
+                        style={styles.input}
+                    >
+                        <option value="false">Nu (privat)</option>
+                        <option value="true">Da (elevul vede comparația)</option>
+                    </select>
+                </Field>
 
                 <Section title="Hint & Explicație">
                     <Field label="Hint (afișat elevului la eșec)">

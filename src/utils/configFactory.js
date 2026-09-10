@@ -3,12 +3,13 @@ import { EXERCISE_TYPES } from '../constants/exerciseTypes';
 import { getInitialLayoutForType } from './typeLayouts';
 
 export const DEFAULT_SETTINGS = {
-    maxAttempts: 3,
-    hint: null,
-    explanation: null,
+    maxAttempts: 0,
     scoringMode: 'integral',
     feedbackType: 'instant',
-    behaviorOnFail: 'showSolution',
+    behaviorOnFail: 'retry',
+    hint: null,
+    explanation: null,
+    showGroupAverage: false,
 };
 
 export const DEFAULT_SOLUTION = {

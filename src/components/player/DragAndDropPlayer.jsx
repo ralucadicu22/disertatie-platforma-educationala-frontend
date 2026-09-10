@@ -16,6 +16,7 @@ import ExerciseFeedbackWidget from '../feedback/ExerciseFeedbackWidget';
 
 
 
+
 const CONTAINER_PADDING = 40;
 const MAGNET_RADIUS = 110;
 const SNAP_RADIUS = 70;
@@ -58,6 +59,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
     const stageRef = useRef(null);
     const layerRef = useRef(null);
     const [scale, setScale] = useState(1);
+    const [classAverage, setClassAverage] = useState(null);
 
     const [bgImage] = useImage(config.canvas.backgroundImage || '', 'anonymous');
 
@@ -324,6 +326,11 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                 answer: buildCurrentMapping(),
             });
             setResult(res.data);
+            if (config.settings?.showGroupAverage) {
+                api.get(`/progress/exercise/${exerciseId}/class-average`)
+                    .then(res => setClassAverage(res.data))
+                    .catch(() => {});
+            }
             setPhase('result');
             setShowFeedback(true);
         } catch (err) {
@@ -502,6 +509,33 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                             {!result.correct && result.attemptsRemaining !== null &&
                                 ` · Încercări rămase: ${result.attemptsRemaining}`}
                         </p>
+                        {classAverage !== null && config.settings?.showGroupAverage && (
+                            <div style={styles.averagePanel}>
+                                <p style={styles.averageTitle}>📊 Comparație cu grupa</p>
+                                <div style={styles.averageRow}>
+                                    <div style={styles.averageStat}>
+                <span style={styles.averageValue}>
+                    {Math.round(result.score * 100)}%
+                </span>
+                                        <span style={styles.averageLabel}>Scorul tău</span>
+                                    </div>
+                                    <div style={styles.averageDivider}>vs</div>
+                                    <div style={styles.averageStat}>
+                <span style={{ ...styles.averageValue, color: '#4F6BF6' }}>
+                    {Math.round(classAverage.classAverage)}%
+                </span>
+                                        <span style={styles.averageLabel}>Media clasei</span>
+                                    </div>
+                                    <div style={styles.averageDivider}>|</div>
+                                    <div style={styles.averageStat}>
+                <span style={{ ...styles.averageValue, color: '#9ca3af' }}>
+                    {Math.round(classAverage.globalAverage)}%
+                </span>
+                                        <span style={styles.averageLabel}>Media globală</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {result.correct && config.settings?.explanation && (
                             <p style={styles.explanationText}>{config.settings.explanation}</p>
                         )}
@@ -800,5 +834,29 @@ const styles = {
     solutionBtn: {
         padding: '9px 20px', background: '#f59e0b', color: 'white', border: 'none',
         borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+    },
+    averagePanel: {
+        background: '#f8faff', border: '1.5px solid #e0e7ff',
+        borderRadius: 12, padding: '12px 16px', margin: '12px 0',
+    },
+    averageTitle: {
+        fontSize: '0.8rem', fontWeight: 800, color: '#4F6BF6',
+        margin: '0 0 10px 0', textAlign: 'center',
+    },
+    averageRow: {
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
+    },
+    averageStat: {
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+    },
+    averageValue: {
+        fontSize: '1.4rem', fontWeight: 900, color: '#22c55e',
+    },
+    averageLabel: {
+        fontSize: '0.7rem', fontWeight: 700, color: '#9ca3af',
+        textTransform: 'uppercase', letterSpacing: '0.5px',
+    },
+    averageDivider: {
+        fontSize: '0.85rem', color: '#d1d5db', fontWeight: 700,
     },
 };

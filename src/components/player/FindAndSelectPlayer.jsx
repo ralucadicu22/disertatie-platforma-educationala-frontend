@@ -42,6 +42,8 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
     const canvasWidth = config.canvas.width;
     const canvasHeight = config.canvas.height;
 
+    const [classAverage, setClassAverage] = useState(null);
+
     const totalCorrect = useMemo(
         () => config.solution?.correctCount ?? 0,
         [config.solution]
@@ -129,6 +131,11 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
         try {
             const res = await api.post('/exercises/submit', { exerciseId, answer });
             setResult(res.data);
+            if (config.settings?.showGroupAverage) {
+                api.get(`/progress/exercise/${exerciseId}/class-average`)
+                    .then(res => setClassAverage(res.data))
+                    .catch(() => {});
+            }
             setPhase('result');
             setShowFeedback(true);
             if (!res.data.correct && hintText) setHintVisible(true);
@@ -351,7 +358,33 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                             {!result.correct && result.attemptsRemaining !== null &&
                                 ` · Încercări rămase: ${result.attemptsRemaining}`}
                         </p>
-
+                        {classAverage !== null && config.settings?.showGroupAverage && (
+                            <div style={styles.averagePanel}>
+                                <p style={styles.averageTitle}>📊 Comparație cu grupa</p>
+                                <div style={styles.averageRow}>
+                                    <div style={styles.averageStat}>
+                <span style={styles.averageValue}>
+                    {Math.round(result.score * 100)}%
+                </span>
+                                        <span style={styles.averageLabel}>Scorul tău</span>
+                                    </div>
+                                    <div style={styles.averageDivider}>vs</div>
+                                    <div style={styles.averageStat}>
+                <span style={{ ...styles.averageValue, color: '#4F6BF6' }}>
+                    {Math.round(classAverage.classAverage)}%
+                </span>
+                                        <span style={styles.averageLabel}>Media clasei</span>
+                                    </div>
+                                    <div style={styles.averageDivider}>|</div>
+                                    <div style={styles.averageStat}>
+                <span style={{ ...styles.averageValue, color: '#9ca3af' }}>
+                    {Math.round(classAverage.globalAverage)}%
+                </span>
+                                        <span style={styles.averageLabel}>Media globală</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {result.correct && config.settings?.explanation && (
                             <p style={styles.explanationText}>{config.settings.explanation}</p>
                         )}
@@ -463,4 +496,29 @@ const styles = {
         borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
     },
     exhaustedText: { fontSize: '0.85rem', fontWeight: 700, color: '#ef4444', margin: '12px 0 0 0' },
+    averagePanel: {
+        background: '#f8faff', border: '1.5px solid #e0e7ff',
+        borderRadius: 12, padding: '12px 16px', margin: '12px 0',
+    },
+    averageTitle: {
+        fontSize: '0.8rem', fontWeight: 800, color: '#4F6BF6',
+        margin: '0 0 10px 0', textAlign: 'center',
+    },
+    averageRow: {
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
+    },
+    averageStat: {
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+    },
+    averageValue: {
+        fontSize: '1.4rem', fontWeight: 900, color: '#22c55e',
+    },
+    averageLabel: {
+        fontSize: '0.7rem', fontWeight: 700, color: '#9ca3af',
+        textTransform: 'uppercase', letterSpacing: '0.5px',
+    },
+    averageDivider: {
+        fontSize: '0.85rem', color: '#d1d5db', fontWeight: 700,
+    },
+
 };
