@@ -514,6 +514,33 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                                     Încearcă din nou
                                 </button>
                             )}
+                            {!result.correct && config.settings?.behaviorOnFail === 'showSolution' && (
+                                <button
+                                    style={{ ...styles.solutionBtn, borderRadius: theme.borderRadius }}
+                                    onClick={() => {
+
+                                        const correctMapping = config.solution?.dropMapping || {};
+                                        Object.entries(correctMapping).forEach(([draggableId, targetId]) => {
+                                            const targetNode = targetNodeRefs.current[targetId];
+                                            if (targetNode) {
+                                                new Konva.Tween({
+                                                    node: targetNode,
+                                                    duration: 0.4,
+                                                    scaleX: 1.15,
+                                                    scaleY: 1.15,
+                                                    easing: Konva.Easings.BounceEaseOut,
+                                                    onFinish: () => {
+                                                        targetNode.scaleX(1.05);
+                                                        targetNode.scaleY(1.05);
+                                                    },
+                                                }).play();
+                                            }
+                                        });
+                                    }}
+                                >
+                                    Arată soluția
+                                </button>
+                            )}
                             <button
                                 style={{
                                     ...styles.quizBtn,
@@ -661,7 +688,7 @@ function DraggableItem({ element, isPlaced, isHovered, onHover, onUnhover, regis
         );
     }
 
-    // SHAPE — respecta shapeType
+
     const shapeCommonProps = {
         fill: element.fill || '#4F6BF6',
         stroke: element.stroke || '#1a1d23',
@@ -770,4 +797,8 @@ const styles = {
         borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
     },
     exhaustedText: { fontSize: '0.85rem', fontWeight: 700, color: '#ef4444', margin: '12px 0 0 0' },
+    solutionBtn: {
+        padding: '9px 20px', background: '#f59e0b', color: 'white', border: 'none',
+        borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+    },
 };
