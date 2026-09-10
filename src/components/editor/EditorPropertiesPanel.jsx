@@ -137,7 +137,7 @@ export default function EditorPropertiesPanel() {
                     <NumField label="Rotație°" value={Math.round(el.rotation || 0)} onChange={v => update('rotation', v)} />
                 </Tab>
 
-                {el.type === 'TEXT' && <TextPropertyTabs el={el} update={update} />}
+                {el.type === 'TEXT' && <TextPropertyTabs el={el} update={update} updateElement={updateElement} />}
                 {el.type === 'IMAGE' && (
                     <ImagePropertyTabs el={el} update={update} fileInputRef={fileInputRef} onOpenLibrary={openLibrary} />
                 )}
@@ -160,7 +160,16 @@ export default function EditorPropertiesPanel() {
 }
 
 
-function TextPropertyTabs({ el, update }) {
+const HEADING_SIZES = { none: null, h1: 48, h2: 36, h3: 28 };
+const TEXT_PRESETS = [
+    { label: 'Titlu', fontSize: 36, fontStyle: 'bold', fontFamily: 'Nunito', fill: '#1a1d23' },
+    { label: 'Subtitlu', fontSize: 24, fontStyle: 'normal', fontFamily: 'Nunito', fill: '#374151' },
+    { label: 'Corp', fontSize: 18, fontStyle: 'normal', fontFamily: 'Nunito', fill: '#6b7280' },
+    { label: 'Mic', fontSize: 14, fontStyle: 'normal', fontFamily: 'Nunito', fill: '#9ca3af' },
+    { label: 'Enunț', fontSize: 22, fontStyle: 'bold', fontFamily: 'Nunito', fill: '#1a1d23' },
+];
+
+function TextPropertyTabs({ el, update,updateElement}) {
     const isBold = el.fontStyle?.includes('bold');
     const isItalic = el.fontStyle?.includes('italic');
     const isUnderline = el.textDecoration === 'underline';
@@ -179,9 +188,72 @@ function TextPropertyTabs({ el, update }) {
 
     const toggleUnderline = () => update('textDecoration', isUnderline ? '' : 'underline');
 
+    const applyHeading = (level) => {
+        const sizeMap = { h1: 48, h2: 36, h3: 28 };
+        if (level === 'none') {
+            updateElement(el.id, { headingLevel: 'none' });
+        } else {
+            updateElement(el.id, {
+                headingLevel: level,
+                fontSize: sizeMap[level],
+                fontStyle: 'bold',
+            });
+        }
+    };
+
+    const applyPreset = (preset) => {
+        updateElement(el.id, {
+            fontSize: preset.fontSize,
+            fontStyle: preset.fontStyle,
+            fontFamily: preset.fontFamily,
+            fill: preset.fill,
+        });
+    };
+
+    const insertDivider = () => {
+        const current = el.text || '';
+        update('text', current + '\n─────────────────\n');
+    };
+
     return (
         <>
+            {/* Presets rapide */}
+            <Tab title="Preset stil">
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {TEXT_PRESETS.map(p => (
+                        <button
+                            key={p.label}
+                            onClick={() => applyPreset(p)}
+                            style={{
+                                background: '#f3f4f6', border: '1.5px solid #e5e7eb',
+                                borderRadius: 6, padding: '5px 10px',
+                                fontSize: '0.78rem', fontWeight: 700,
+                                color: '#374151', cursor: 'pointer',
+                            }}
+                        >
+                            {p.label}
+                        </button>
+                    ))}
+                </div>
+            </Tab>
+
             <Tab title="Text">
+                {/* Heading level */}
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Heading</label>
+                    <div style={styles.btnGroup}>
+                        {['none', 'h1', 'h2', 'h3'].map(h => (
+                            <ToggleBtn
+                                key={h}
+                                active={(el.headingLevel || 'none') === h}
+                                onClick={() => applyHeading(h)}
+                            >
+                                {h === 'none' ? '—' : h.toUpperCase()}
+                            </ToggleBtn>
+                        ))}
+                    </div>
+                </div>
+
                 <SelectField label="Font" value={el.fontFamily} onChange={v => update('fontFamily', v)}
                              options={FONT_FAMILIES.map(f => ({ value: f, label: f }))} width={150} />
                 <NumField label="Size" value={el.fontSize} onChange={v => update('fontSize', v)} />
@@ -222,6 +294,29 @@ function TextPropertyTabs({ el, update }) {
                 <NumField label="Spațiere rânduri" value={el.lineHeight} onChange={v => update('lineHeight', parseFloat(v) || 1)} step={0.1} />
                 <NumField label="Padding" value={el.padding} onChange={v => update('padding', v)} />
 
+                {/* Indentare */}
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Indentare</label>
+                    <div style={styles.btnGroup}>
+                        <button
+                            onClick={() => update('indent', Math.max(0, (el.indent || 0) - 1))}
+                            style={{ ...styles.fieldInput, width: 32, textAlign: 'center', cursor: 'pointer', padding: '7px 4px' }}
+                        >
+                            ←
+                        </button>
+                        <div style={{ ...styles.fieldInput, width: 32, textAlign: 'center' }}>
+                            {el.indent || 0}
+                        </div>
+                        <button
+                            onClick={() => update('indent', Math.min(5, (el.indent || 0) + 1))}
+                            style={{ ...styles.fieldInput, width: 32, textAlign: 'center', cursor: 'pointer', padding: '7px 4px' }}
+                        >
+                            →
+                        </button>
+                    </div>
+                </div>
+
+                {/* Liste */}
                 <div style={styles.field}>
                     <label style={styles.fieldLabel}>Listă</label>
                     <div style={styles.btnGroup}>
@@ -231,6 +326,32 @@ function TextPropertyTabs({ el, update }) {
                             </ToggleBtn>
                         ))}
                     </div>
+                </div>
+
+                {/* Auto-expand */}
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Auto-expand</label>
+                    <ToggleBtn
+                        active={el.autoExpand === true}
+                        onClick={() => update('autoExpand', !el.autoExpand)}
+                    >
+                        {el.autoExpand ? 'ON' : 'OFF'}
+                    </ToggleBtn>
+                </div>
+
+                {/* Divider */}
+                <div style={styles.field}>
+                    <label style={styles.fieldLabel}>Divider</label>
+                    <button
+                        onClick={insertDivider}
+                        style={{
+                            ...styles.uploadBtn,
+                            background: '#f3f4f6', color: '#374151',
+                            fontSize: '0.78rem', padding: '6px 10px',
+                        }}
+                    >
+                        + Inserează linie
+                    </button>
                 </div>
             </Tab>
 

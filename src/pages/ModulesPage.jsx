@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import ProductsPage from './ProductsPage.jsx';
 import { StatCard } from '../design-system/components';
+import { Users, BookOpen, FileText, CheckCircle, BarChart3 } from 'lucide-react';
 import { cn } from '../design-system/cn';
+import {classroomApi} from "../api/classroomApi.js";
 
 const ACCENTS = [
     'from-primary-500 to-accent-500',
@@ -17,25 +19,36 @@ const ICONS = ['📚', '🔢', '🎯', '⭐', '🧠'];
 export default function ModulesPage() {
     const [modules, setModules] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [classroomsWithQuizzes, setClassroomsWithQuizzes] = useState([]);
+    const [loadingQuizzes, setLoadingQuizzes] = useState(false);
     const navigate = useNavigate();
+
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const role = user.role || 'ELEV';
+    const firstName = user.name?.split(' ')[0] || 'utilizator';
 
     useEffect(() => {
-        if (['ELEV', 'PROFESOR', 'EDITOR', 'ADMIN'].includes(role)) {
+        if (['PROFESOR', 'EDITOR', 'ADMIN'].includes(role)) {
             api.get('/modules')
                 .then(res => setModules(res.data))
                 .catch(console.error)
                 .finally(() => setLoading(false));
-        } else {
+        } else if (role === 'ELEV') {
+            setLoading(false);
+            setLoadingQuizzes(true);
+            classroomApi.getMy()
+                .then(data => setClassroomsWithQuizzes(data))
+                .catch(console.error)
+                .finally(() => setLoadingQuizzes(false));
+        }else {
             setLoading(false);
         }
     }, [role]);
 
-    const firstName = user.name?.split(' ')[0] || 'utilizator';
-
     return (
         <div className="animate-fade-in">
+
+            {/* ── ELEV ── */}
             {role === 'ELEV' && (
                 <>
                     <div className="mb-6">
@@ -43,10 +56,58 @@ export default function ModulesPage() {
                             Salut, {firstName}! 👋
                         </h1>
                         <p className="text-body-lg text-neutral-500">
-                            Alege un produs și începe să înveți.
+                            Alege o clasă pentru a rezolva exercițiile.
                         </p>
                     </div>
-                    <ProductsPage />
+
+                    {loadingQuizzes ? (
+                        <div className="flex items-center justify-center py-16">
+                            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    ) : classroomsWithQuizzes.length === 0 ? (
+                        <div className="bg-white rounded-xl border-2 border-dashed border-neutral-200 p-12 text-center">
+                            <div className="text-4xl mb-3">📭</div>
+                            <h3 className="text-h3 font-bold text-neutral-900 mb-2">
+                                Nu ești în nicio clasă încă
+                            </h3>
+                            <p className="text-body text-neutral-500">
+                                Profesorul tău trebuie să te adauge într-o clasă.
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
+                                Clasele mele
+                            </p>
+                            <div className="flex flex-col gap-3">
+                                {classroomsWithQuizzes.map((classroom, i) => (
+                                    <button
+                                        key={classroom.id}
+                                        onClick={() => navigate(`/clase/${classroom.id}`)}
+                                        className="group flex items-center gap-4 bg-white rounded-xl border border-neutral-200 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
+                                    >
+                                        <div className={cn(
+                                            'w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 bg-gradient-to-br text-white shadow-sm',
+                                            ACCENTS[i % ACCENTS.length]
+                                        )}>
+                                            🎓
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-body-lg font-bold text-neutral-900 mb-0.5">
+                                                {classroom.name}
+                                            </p>
+                                            <p className="text-caption text-neutral-500">
+                                                {classroom.quizCount || 0} quiz-uri · {classroom.studentCount || 0} elevi
+                                            </p>
+                                        </div>
+                                        <div className="text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-1 transition-all">
+                                            →
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </>
             )}
 
@@ -61,9 +122,9 @@ export default function ModulesPage() {
                         </p>
                     </div>
                     <div className="grid grid-cols-3 gap-4 mb-8">
-                        <StatCard title="Elevi înscriși" value="—" icon="👥" />
-                        <StatCard title="Exerciții completate" value="—" icon="📊" />
-                        <StatCard title="Scor mediu" value="—" icon="⭐" />
+                        <StatCard label="Elevi înscriși" value="—" icon={Users} />
+                        <StatCard label="Exerciții completate" value="—" icon={BookOpen} />
+                        <StatCard label="Scor mediu" value="—" icon={BarChart3} />
                     </div>
                     <ModuleList modules={modules} loading={loading} navigate={navigate} />
                 </>
@@ -82,7 +143,6 @@ export default function ModulesPage() {
                     <ModuleList modules={modules} loading={loading} navigate={navigate} />
                 </>
             )}
-
             {role === 'ADMIN' && (
                 <>
                     <div className="mb-6">
@@ -94,11 +154,36 @@ export default function ModulesPage() {
                         </p>
                     </div>
                     <div className="grid grid-cols-3 gap-4 mb-8">
-                        <StatCard title="Utilizatori totali" value="—" icon="👥" />
-                        <StatCard title="Module active" value={String(modules.length)} icon="📚" />
-                        <StatCard title="Exerciții totale" value="—" icon="📝" />
+                        <StatCard label="Utilizatori totali" value="—" icon={Users} />
+                        <StatCard label="Module active" value={String(modules.length)} icon={BookOpen} />
+                        <StatCard label="Exerciții totale" value="—" icon={FileText} />
                     </div>
-                    <ModuleList modules={modules} loading={loading} navigate={navigate} />
+                    <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
+                        Acțiuni rapide
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                        {[
+                            { label: 'Gestionare conținut', desc: 'Produse, module, quiz-uri', to: '/admin/content', icon: BookOpen },
+                            { label: 'Review exerciții', desc: 'Aprobă sau respinge', to: '/admin/review', icon: CheckCircle },
+                            { label: 'Clase', desc: 'Gestionează clasele', to: '/clase', icon: Users },
+                            { label: 'Părinți-Copii', desc: 'Asocieri conturi', to: '/admin/parinti', icon: FileText },
+                        ].map(item => (
+                            <button
+                                key={item.to}
+                                onClick={() => navigate(item.to)}
+                                className="group flex items-center gap-4 bg-white rounded-xl border border-neutral-200 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 text-left"
+                            >
+                                <div className="w-11 h-11 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+                                    <item.icon className="w-5 h-5 text-primary-600" />
+                                </div>
+                                <div>
+                                    <p className="text-body font-bold text-neutral-900">{item.label}</p>
+                                    <p className="text-caption text-neutral-500">{item.desc}</p>
+                                </div>
+                                <div className="ml-auto text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-1 transition-all">→</div>
+                            </button>
+                        ))}
+                    </div>
                 </>
             )}
         </div>
@@ -106,24 +191,20 @@ export default function ModulesPage() {
 }
 
 function ModuleList({ modules, loading, navigate }) {
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center py-16">
-                <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
-    }
-    if (modules.length === 0) {
-        return (
-            <div className="bg-white rounded-xl border-2 border-dashed border-neutral-200 p-12 text-center">
-                <div className="text-4xl mb-3">📚</div>
-                <h3 className="text-h3 font-bold text-neutral-900 mb-2">Nu există module încă</h3>
-                <p className="text-body text-neutral-500">
-                    Trebuie să existe cel puțin un modul cu un quiz asociat în platformă.
-                </p>
-            </div>
-        );
-    }
+    if (loading) return (
+        <div className="flex items-center justify-center py-16">
+            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
+    if (modules.length === 0) return (
+        <div className="bg-white rounded-xl border-2 border-dashed border-neutral-200 p-12 text-center">
+            <div className="text-4xl mb-3">📚</div>
+            <h3 className="text-h3 font-bold text-neutral-900 mb-2">Nu există module încă</h3>
+            <p className="text-body text-neutral-500">
+                Trebuie să existe cel puțin un modul cu un quiz asociat în platformă.
+            </p>
+        </div>
+    );
     return (
         <>
             <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
@@ -146,9 +227,7 @@ function ModuleList({ modules, loading, navigate }) {
                             <p className="text-body-lg font-bold text-neutral-900 mb-0.5">{m.title}</p>
                             <p className="text-caption text-neutral-500 truncate">{m.description}</p>
                         </div>
-                        <div className="text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-1 transition-all">
-                            →
-                        </div>
+                        <div className="text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-1 transition-all">→</div>
                     </button>
                 ))}
             </div>

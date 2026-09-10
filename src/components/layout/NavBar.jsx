@@ -34,6 +34,7 @@ const NAV_LINKS = {
         { to: '/admin/parinti',     icon: Link2,         label: 'Parinti-Copii' },
         { to: '/admin/review',      icon: UserCheck,     label: 'Review' },
         { to: '/profesor',          icon: BarChart3,     label: 'Dashboard' },
+        { to: '/admin/content', icon: Settings, label: 'Conținut' },
     ],
 };
 

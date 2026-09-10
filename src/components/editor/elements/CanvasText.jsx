@@ -2,11 +2,22 @@ import { useRef, useEffect, useState } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import { Html } from 'react-konva-utils';
 import { formatListText } from '../../../utils/textFormat';
-export default function CanvasText({ element, isSelected, onSelect, onChange, onDragMove, onDragEnd,isLocked }) {
+
+export default function CanvasText({ element, isSelected, onSelect, onChange, onDragMove, onDragEnd, isLocked }) {
     const [isEditing, setIsEditing] = useState(false);
     const textRef = useRef(null);
     const groupRef = useRef(null);
+    const textareaRef = useRef(null);
 
+    useEffect(() => {
+        if (element.autoExpand && textRef.current) {
+            const textNode = textRef.current;
+            const textHeight = textNode.getSelfRect().height;
+            if (textHeight > 0 && Math.abs(textHeight + (element.padding || 0) * 2 - element.height) > 2) {
+                onChange({ height: textHeight + (element.padding || 0) * 2 + 8 });
+            }
+        }
+    }, [element.text, element.fontSize, element.lineHeight, element.autoExpand]);
 
     useEffect(() => {
         if (textRef.current) {
@@ -14,15 +25,30 @@ export default function CanvasText({ element, isSelected, onSelect, onChange, on
         }
     }, [element]);
 
-    const formattedText = formatListText(element.text, element.listStyle);
-
-    const handleDblClick = () => {
-        setIsEditing(true);
+    const getIndentedText = (text) => {
+        if (!element.indent || element.indent === 0) return text;
+        const indent = '    '.repeat(element.indent); // 4 spații per nivel
+        return text.split('\n').map(line => line ? indent + line : line).join('\n');
     };
+
+    const formattedText = getIndentedText(formatListText(element.text, element.listStyle));
+
+    const handleDblClick = () => setIsEditing(true);
 
     const handleEditEnd = (newText) => {
         setIsEditing(false);
-        onChange({ text: newText });
+        const updates = { text: newText };
+        if (element.autoExpand && textareaRef.current) {
+            const scrollH = textareaRef.current.scrollHeight;
+            updates.height = Math.max(element.height, scrollH + 8);
+        }
+        onChange(updates);
+    };
+    const handleTextareaInput = (e) => {
+        if (element.autoExpand) {
+            e.target.style.height = 'auto';
+            e.target.style.height = e.target.scrollHeight + 'px';
+        }
     };
 
     return (
@@ -39,7 +65,6 @@ export default function CanvasText({ element, isSelected, onSelect, onChange, on
             onDblTap={handleDblClick}
             onDragMove={onDragMove}
             onDragEnd={onDragEnd}
-            onTransformEnd={(e) =>  onChange({ x: e.target.x(), y: e.target.y() })}
             onTransformEnd={(e) => {
                 const node = e.target;
                 const scaleX = node.scaleX();
@@ -50,12 +75,11 @@ export default function CanvasText({ element, isSelected, onSelect, onChange, on
                     x: node.x(),
                     y: node.y(),
                     width: Math.max(40, element.width * scaleX),
-                    height: Math.max(20, element.height * scaleY),
+                    height: element.autoExpand ? element.height : Math.max(20, element.height * scaleY),
                     rotation: node.rotation(),
                 });
             }}
         >
-
             <Rect
                 width={element.width}
                 height={element.height}
@@ -73,7 +97,6 @@ export default function CanvasText({ element, isSelected, onSelect, onChange, on
                 dash={isSelected && element.bgStroke === 'transparent' ? [4, 4] : undefined}
                 cornerRadius={element.bgCornerRadius}
             />
-
 
             {!isEditing && (
                 <Text
@@ -98,28 +121,27 @@ export default function CanvasText({ element, isSelected, onSelect, onChange, on
                 />
             )}
 
-
             {isEditing && (
                 <Html
                     groupProps={{ x: 0, y: 0 }}
                     divProps={{ style: { pointerEvents: 'auto' } }}
                 >
                     <textarea
+                        ref={textareaRef}
                         autoFocus
                         defaultValue={element.text}
+                        onInput={handleTextareaInput}
                         onBlur={(e) => handleEditEnd(e.target.value)}
                         onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                                setIsEditing(false);
-                            }
-
+                            if (e.key === 'Escape') setIsEditing(false);
                             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                                 handleEditEnd(e.target.value);
                             }
                         }}
                         style={{
                             width: element.width,
-                            height: element.height,
+                            height: element.autoExpand ? 'auto' : element.height,
+                            minHeight: element.autoExpand ? element.height : undefined,
                             fontSize: element.fontSize,
                             fontFamily: element.fontFamily,
                             fontWeight: element.fontStyle?.includes('bold') ? 'bold' : 'normal',
@@ -133,9 +155,10 @@ export default function CanvasText({ element, isSelected, onSelect, onChange, on
                             border: '2px solid #4F6BF6',
                             borderRadius: 4,
                             outline: 'none',
-                            resize: 'none',
+                            resize: element.autoExpand ? 'none' : 'none',
                             background: 'white',
                             boxSizing: 'border-box',
+                            overflow: element.autoExpand ? 'hidden' : 'auto',
                         }}
                     />
                 </Html>
@@ -143,5 +166,3 @@ export default function CanvasText({ element, isSelected, onSelect, onChange, on
         </Group>
     );
 }
-
-

@@ -8,9 +8,19 @@ import {
 import { Card, Button, Badge, Avatar, EmptyState, Skeleton, Tabs, Modal } from '../design-system/components';
 import AddMemberModal from '../components/classroom/AddMemberModal';
 import { classroomApi } from '../api/classroomApi';
+import { quizAssignmentApi } from '../api/quizAssignmentApi';
 import { gradeLevelLabel } from '../utils/gradeLevel';
 import { formatDate } from '../utils/formatters';
 import { notify } from '../design-system/toast';
+import { cn } from '../design-system/cn';
+
+const ACCENTS = [
+    'from-primary-500 to-accent-500',
+    'from-primary-400 to-primary-600',
+    'from-warm-400 to-accent-400',
+    'from-danger-400 to-warm-500',
+    'from-success-400 to-primary-400',
+];
 
 const ClassroomDetailPage = () => {
     const { id } = useParams();
@@ -23,9 +33,11 @@ const ClassroomDetailPage = () => {
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [removingId, setRemovingId] = useState(null);
+    const [removingQuizId, setRemovingQuizId] = useState(null);
 
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     const isAdmin = user?.role === 'ADMIN';
+    const isElev = user?.role === 'ELEV';
 
     const load = () => {
         setLoading(true);
@@ -68,6 +80,22 @@ const ClassroomDetailPage = () => {
         }
     };
 
+    const handleRemoveQuiz = async (quizId) => {
+        setRemovingQuizId(quizId);
+        try {
+            await quizAssignmentApi.unassign(id, quizId);
+            setClassroom(prev => ({
+                ...prev,
+                assignedQuizzes: prev.assignedQuizzes.filter(q => q.id !== quizId),
+            }));
+            notify.success('Quiz dezasignat');
+        } catch (err) {
+            notify.error(err?.response?.data?.message || 'Eroare la dezasignare');
+        } finally {
+            setRemovingQuizId(null);
+        }
+    };
+
     const handleDelete = async () => {
         setDeleting(true);
         try {
@@ -84,114 +112,209 @@ const ClassroomDetailPage = () => {
         ? (classroom?.teachers || []).map((t) => t.id)
         : (classroom?.students || []).map((s) => s.id);
 
-    return (
-        <div user={user} title={classroom?.name || 'Detaliu clasa'} back={{ to: '/clase' }}>
-            {loading && (
-                <div className="space-y-6">
-                    <Skeleton variant="card" height={160} />
-                    <Skeleton variant="card" height={300} />
+    if (loading) return (
+        <div className="space-y-6">
+            <Skeleton variant="card" height={160} />
+            <Skeleton variant="card" height={300} />
+        </div>
+    );
+
+    if (error) return (
+        <Card>
+            <EmptyState
+                icon={AlertCircle}
+                variant="warm"
+                title="A aparut o eroare"
+                description={error}
+                action={<Button variant="primary" onClick={load}>Reincarca</Button>}
+            />
+        </Card>
+    );
+
+    if (!classroom) return null;
+
+    // ── VIEW ELEV ──────────────────────────────────────────────────────────────
+    if (isElev) {
+        const quizzes = classroom.assignedQuizzes || [];
+        return (
+            <div className="animate-fade-in">
+                {/* Header clasă */}
+                <button
+                    onClick={() => navigate('/')}
+                    className="flex items-center gap-1.5 text-body font-semibold text-neutral-500 hover:text-neutral-800 transition-colors mb-6"
+                >
+                    ← Înapoi
+                </button>
+
+                <div className="bg-gradient-to-br from-primary-50 to-accent-50 border border-primary-100 rounded-2xl p-6 mb-8">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        {classroom.gradeLevel && (
+                            <Badge variant="primary" icon={School}>
+                                {gradeLevelLabel(classroom.gradeLevel)}
+                            </Badge>
+                        )}
+                        {classroom.schoolYear && (
+                            <Badge variant="accent" icon={Calendar}>
+                                {classroom.schoolYear}
+                            </Badge>
+                        )}
+                    </div>
+                    <h1 className="text-h1 font-bold text-neutral-900 mb-1">{classroom.name}</h1>
+                    {classroom.description && (
+                        <p className="text-body text-neutral-600">{classroom.description}</p>
+                    )}
                 </div>
-            )}
 
-            {error && !loading && (
-                <Card>
-                    <EmptyState
-                        icon={AlertCircle}
-                        variant="warm"
-                        title="A aparut o eroare"
-                        description={error}
-                        action={<Button variant="primary" onClick={load}>Reincarca</Button>}
-                    />
-                </Card>
-            )}
+                {/* Quiz-uri asignate */}
+                <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
+                    Quiz-uri disponibile ({quizzes.length})
+                </p>
 
-            {!loading && !error && classroom && (
-                <>
-                    <motion.div
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        <Card variant="cool" padding="lg" className="mb-6">
-                            <div className="flex items-start justify-between gap-4 flex-wrap">
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2 flex-wrap mb-2">
-                                        {!classroom.active && <Badge variant="neutral">Inactiva</Badge>}
-                                        {classroom.gradeLevel && (
-                                            <Badge variant="primary" icon={School}>
-                                                {gradeLevelLabel(classroom.gradeLevel)}
-                                            </Badge>
-                                        )}
-                                        {classroom.schoolYear && (
-                                            <Badge variant="accent" icon={Calendar}>
-                                                {classroom.schoolYear}
-                                            </Badge>
-                                        )}
-                                    </div>
-                                    <h1 className="text-h1 text-neutral-900">{classroom.name}</h1>
-                                    {classroom.description && (
-                                        <p className="text-body-lg text-neutral-700 mt-2">{classroom.description}</p>
-                                    )}
-                                    <p className="text-caption text-neutral-500 mt-3">
-                                        Creata pe {formatDate(classroom.createdAt)}
-                                    </p>
+                {quizzes.length === 0 ? (
+                    <div className="bg-white rounded-xl border-2 border-dashed border-neutral-200 p-12 text-center">
+                        <div className="text-4xl mb-3">📭</div>
+                        <h3 className="text-h3 font-bold text-neutral-900 mb-2">
+                            Niciun quiz asignat încă
+                        </h3>
+                        <p className="text-body text-neutral-500">
+                            Profesorul tău va asigna quiz-uri în curând.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-3">
+                        {quizzes.map((q, i) => (
+                            <button
+                                key={q.id}
+                                onClick={() => navigate(`/quiz/${q.id}`)}
+                                className="group flex items-center gap-4 bg-white rounded-xl border border-neutral-200 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
+                            >
+                                <div className={cn(
+                                    'w-12 h-12 rounded-xl flex items-center justify-center text-body-lg font-bold text-white flex-shrink-0 bg-gradient-to-br shadow-sm',
+                                    ACCENTS[i % ACCENTS.length]
+                                )}>
+                                    {i + 1}
                                 </div>
-                                {isAdmin && (
-                                    <Button
-                                        variant="ghost"
-                                        icon={Trash2}
-                                        onClick={() => setDeleteOpen(true)}
-                                        className="text-danger-600 hover:bg-danger-50"
-                                    >
-                                        <span className="hidden md:inline">Sterge</span>
-                                    </Button>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-body-lg font-bold text-neutral-900 mb-0.5">
+                                        {q.title}
+                                    </p>
+                                    {q.description && (
+                                        <p className="text-caption text-neutral-500 truncate">
+                                            {q.description}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-1 transition-all text-lg flex-shrink-0">
+                                    →
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ── VIEW PROFESOR / ADMIN ──────────────────────────────────────────────────
+    return (
+        <div>
+            <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+            >
+                <Card variant="cool" padding="lg" className="mb-6">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap mb-2">
+                                {!classroom.active && <Badge variant="neutral">Inactiva</Badge>}
+                                {classroom.gradeLevel && (
+                                    <Badge variant="primary" icon={School}>
+                                        {gradeLevelLabel(classroom.gradeLevel)}
+                                    </Badge>
+                                )}
+                                {classroom.schoolYear && (
+                                    <Badge variant="accent" icon={Calendar}>
+                                        {classroom.schoolYear}
+                                    </Badge>
                                 )}
                             </div>
-                        </Card>
-                    </motion.div>
-                    <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-                        <Tabs
-                            value={tab}
-                            onChange={setTab}
-                            variant="pills"
-                            options={[
-                                { value: 'students', label: 'Elevi', icon: Users, badge: classroom.students?.length ?? 0 },
-                                { value: 'teachers', label: 'Profesori', icon: GraduationCap, badge: classroom.teachers?.length ?? 0 },
-                                { value: 'quizzes', label: 'Quiz-uri', icon: BookOpen, badge: classroom.assignedQuizzes?.length ?? 0 },
-                            ]}
-                        />
-                        {tab !== 'quizzes' && (isAdmin || tab === 'students') && (
-                            <Button variant="primary" icon={Plus} onClick={() => setAddOpen(true)}>
-                                {tab === 'teachers' ? 'Adauga profesor' : 'Adauga elev'}
+                            <h1 className="text-h1 text-neutral-900">{classroom.name}</h1>
+                            {classroom.description && (
+                                <p className="text-body-lg text-neutral-700 mt-2">{classroom.description}</p>
+                            )}
+                            <p className="text-caption text-neutral-500 mt-3">
+                                Creata pe {formatDate(classroom.createdAt)}
+                            </p>
+                        </div>
+                        {isAdmin && (
+                            <Button
+                                variant="ghost"
+                                icon={Trash2}
+                                onClick={() => setDeleteOpen(true)}
+                                className="text-danger-600 hover:bg-danger-50"
+                            >
+                                <span className="hidden md:inline">Sterge</span>
                             </Button>
                         )}
                     </div>
+                </Card>
+            </motion.div>
 
-                    {tab === 'students' && (
-                        <MemberList
-                            members={classroom.students}
-                            emptyIcon={Users}
-                            emptyTitle="Nu exista elevi inca"
-                            emptyDescription="Adauga primul elev in aceasta clasa."
-                            onRemove={(uid) => handleRemoveMember(uid, 'student')}
-                            removingId={removingId}
-                        />
-                    )}
-                    {tab === 'teachers' && (
-                        <MemberList
-                            members={classroom.teachers}
-                            emptyIcon={GraduationCap}
-                            emptyTitle="Nu exista profesori inca"
-                            emptyDescription="Doar administratorii pot adauga profesori."
-                            onRemove={isAdmin ? (uid) => handleRemoveMember(uid, 'teacher') : null}
-                            removingId={removingId}
-                        />
-                    )}
-                    {tab === 'quizzes' && (
-                        <QuizzesList quizzes={classroom.assignedQuizzes} />
-                    )}
-                </>
+            <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
+                <Tabs
+                    value={tab}
+                    onChange={setTab}
+                    variant="pills"
+                    options={[
+                        { value: 'students', label: 'Elevi', icon: Users, badge: classroom.students?.length ?? 0 },
+                        { value: 'teachers', label: 'Profesori', icon: GraduationCap, badge: classroom.teachers?.length ?? 0 },
+                        { value: 'quizzes', label: 'Quiz-uri', icon: BookOpen, badge: classroom.assignedQuizzes?.length ?? 0 },
+                    ]}
+                />
+                {tab === 'quizzes' ? (
+                    <Button
+                        variant="primary"
+                        icon={Plus}
+                        onClick={() => navigate('/asignare-quizuri')}
+                    >
+                        Asignează quiz-uri
+                    </Button>
+                ) : (isAdmin || tab === 'students') && (
+                    <Button variant="primary" icon={Plus} onClick={() => setAddOpen(true)}>
+                        {tab === 'teachers' ? 'Adauga profesor' : 'Adauga elev'}
+                    </Button>
+                )}
+            </div>
+
+            {tab === 'students' && (
+                <MemberList
+                    members={classroom.students}
+                    emptyIcon={Users}
+                    emptyTitle="Nu exista elevi inca"
+                    emptyDescription="Adauga primul elev in aceasta clasa."
+                    onRemove={(uid) => handleRemoveMember(uid, 'student')}
+                    removingId={removingId}
+                />
             )}
+            {tab === 'teachers' && (
+                <MemberList
+                    members={classroom.teachers}
+                    emptyIcon={GraduationCap}
+                    emptyTitle="Nu exista profesori inca"
+                    emptyDescription="Doar administratorii pot adauga profesori."
+                    onRemove={isAdmin ? (uid) => handleRemoveMember(uid, 'teacher') : null}
+                    removingId={removingId}
+                />
+            )}
+            {tab === 'quizzes' && (
+                <QuizzesList
+                    quizzes={classroom.assignedQuizzes}
+                    onRemove={handleRemoveQuiz}
+                    removingId={removingQuizId}
+                />
+            )}
+
             <AddMemberModal
                 open={addOpen}
                 onClose={() => setAddOpen(false)}
@@ -264,20 +387,28 @@ const MemberList = ({ members, emptyIcon, emptyTitle, emptyDescription, onRemove
     );
 };
 
-const QuizzesList = ({ quizzes }) => {
+const QuizzesList = ({ quizzes, onRemove, removingId }) => {
+    const navigate = useNavigate();
+
     if (!quizzes || quizzes.length === 0) {
         return (
             <Card>
                 <EmptyState
                     icon={BookOpen}
                     variant="primary"
-                    title="Niciun quiz asignat inca"
-                    description="Asigneaza quiz-uri din pagina de gestiune quiz-uri."
+                    title="Niciun quiz asignat încă"
+                    description="Apasă 'Asignează quiz-uri' pentru a adăuga quiz-uri în această clasă."
                     size="sm"
+                    action={
+                        <Button variant="primary" icon={Plus} onClick={() => navigate('/asignare-quizuri')}>
+                            Asignează quiz-uri
+                        </Button>
+                    }
                 />
             </Card>
         );
     }
+
     return (
         <Card padding="none">
             <div className="divide-y divide-neutral-100">
@@ -293,11 +424,28 @@ const QuizzesList = ({ quizzes }) => {
                             <BookOpen className="w-6 h-6 text-primary-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <div className="text-body font-semibold text-neutral-900 truncate">{q.title}</div>
+                            <div className="text-body font-semibold text-neutral-900 truncate">
+                                {q.title}
+                            </div>
                             {q.description && (
-                                <div className="text-caption text-neutral-500 truncate">{q.description}</div>
+                                <div className="text-caption text-neutral-500 truncate">
+                                    {q.description}
+                                </div>
                             )}
                         </div>
+                        {onRemove && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                icon={Trash2}
+                                onClick={() => onRemove(q.id)}
+                                loading={removingId === q.id}
+                                disabled={removingId != null && removingId !== q.id}
+                                className="text-danger-600 hover:bg-danger-50"
+                            >
+                                <span className="hidden md:inline">Elimină</span>
+                            </Button>
+                        )}
                     </motion.div>
                 ))}
             </div>

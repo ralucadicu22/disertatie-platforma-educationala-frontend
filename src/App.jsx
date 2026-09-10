@@ -22,6 +22,7 @@ import StudentFeedbackInboxPage from './pages/StudentFeedbackInboxPage';
 import ExerciseFeedbackSummaryPage from './pages/ExerciseFeedbackSummaryPage';
 import MainLayout from './components/layout/MainLayout';
 import { ToastProvider } from './design-system/toast.jsx';
+import AdminContentPage from './pages/AdminContentPage.jsx';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -82,6 +83,7 @@ function App() {
                     element={<PrivateRoute withNav={false}><ExerciseEditor mode="existing" /></PrivateRoute>}
                 />
                 <Route path="/exercise/:exerciseId/play" element={<ExercisePlayer />} />
+                <Route path="/admin/content" element={<PrivateRoute><AdminContentPage /></PrivateRoute>} />
             </Routes>
         </>
     );
