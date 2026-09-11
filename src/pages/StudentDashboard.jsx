@@ -3,16 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { StatCard } from '../design-system/components';
 import { cn } from '../design-system/cn';
+import { badgesApi } from '../api/badgesApi';
+import { CheckCircle, Star, Target } from 'lucide-react';
 
 export default function StudentDashboard() {
     const [stats, setStats] = useState(null);
     const [history, setHistory] = useState([]);
+    const [badges, setBadges] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
-        Promise.all([api.get('/progress/me/stats'), api.get('/progress/me')])
-            .then(([s, h]) => { setStats(s.data); setHistory(h.data); })
+        Promise.all([
+            api.get('/progress/me/stats'),
+            api.get('/progress/me'),
+            badgesApi.getMyBadges(),
+        ])
+            .then(([s, h, b]) => {
+                setStats(s.data);
+                setHistory(h.data);
+                setBadges(b);
+            })
             .catch(console.error)
             .finally(() => setLoading(false));
     }, []);
@@ -34,12 +45,41 @@ export default function StudentDashboard() {
                 <p className="text-body text-neutral-500">Urmărește activitatea și punctele acumulate.</p>
             </div>
 
+            {/* StatCard-uri */}
             <div className="grid grid-cols-3 gap-4 mb-8">
-                <StatCard title="Exerciții rezolvate" value={String(stats?.completedExercises || 0)} icon="✅" />
-                <StatCard title="Puncte acumulate" value={String(stats?.totalPoints || 0)} icon="⭐" />
-                <StatCard title="Total încercări" value={String(stats?.totalSubmissions || 0)} icon="🎯" />
+                <StatCard label="Exerciții rezolvate" value={String(stats?.completedExercises || 0)} icon={CheckCircle} variant="success" />
+                <StatCard label="Puncte acumulate" value={String(stats?.totalPoints || 0)} icon={Star} variant="warning" />
+                <StatCard label="Total încercări" value={String(stats?.totalSubmissions || 0)} icon={Target} variant="primary" />
             </div>
 
+            {/* Badge-uri */}
+            <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
+                Badge-urile mele ({badges.length})
+            </p>
+            {badges.length === 0 ? (
+                <div className="bg-white rounded-xl border-2 border-dashed border-neutral-200 p-8 text-center mb-8">
+                    <div className="text-4xl mb-3">🏅</div>
+                    <p className="text-body font-bold text-neutral-900 mb-1">Niciun badge încă</p>
+                    <p className="text-caption text-neutral-500">
+                        Rezolvă exerciții pentru a câștiga badge-uri!
+                    </p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-3 gap-3 mb-8">
+                    {badges.map(badge => (
+                        <div key={badge.id} className="bg-white rounded-xl border border-neutral-200 p-4 text-center hover:shadow-md transition-shadow">
+                            <div className="text-4xl mb-2">{badge.icon}</div>
+                            <p className="text-body font-bold text-neutral-900 mb-1">{badge.name}</p>
+                            <p className="text-caption text-neutral-500">{badge.description}</p>
+                            <p className="text-micro text-neutral-300 mt-2">
+                                {new Date(badge.earnedAt).toLocaleDateString('ro-RO')}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Istoric activitate */}
             <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
                 Istoric activitate
             </p>

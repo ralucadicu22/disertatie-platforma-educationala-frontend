@@ -43,6 +43,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
     const canvasHeight = config.canvas.height;
 
     const [classAverage, setClassAverage] = useState(null);
+    const [newBadges, setNewBadges] = useState([]);
 
     const totalCorrect = useMemo(
         () => config.solution?.correctCount ?? 0,
@@ -131,6 +132,9 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
         try {
             const res = await api.post('/exercises/submit', { exerciseId, answer });
             setResult(res.data);
+            if (res.data.newBadges?.length > 0) {
+                setNewBadges(res.data.newBadges);
+            }
             if (config.settings?.showGroupAverage) {
                 api.get(`/progress/exercise/${exerciseId}/class-average`)
                     .then(res => setClassAverage(res.data))
@@ -428,6 +432,29 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                         exerciseId={exerciseId}
                         onDismiss={() => setShowFeedback(false)}
                     />
+                )}
+                {newBadges.length > 0 && (
+                    <div style={{
+                        marginTop: 16, background: 'white', border: '2px solid #fbbf24',
+                        borderRadius: 14, padding: '18px 24px', textAlign: 'center', minWidth: 280,
+                    }}>
+                        <p style={{ fontSize: '1rem', fontWeight: 900, color: '#92400e', marginBottom: 12 }}>
+                            🎉 Badge-uri noi câștigate!
+                        </p>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                            {newBadges.map(badge => (
+                                <div key={badge.id} style={{
+                                    background: '#fffbeb', border: '1.5px solid #fde68a',
+                                    borderRadius: 10, padding: '10px 14px', textAlign: 'center',
+                                }}>
+                                    <div style={{ fontSize: '2rem', marginBottom: 4 }}>{badge.icon}</div>
+                                    <p style={{ fontSize: '0.8rem', fontWeight: 800, color: '#92400e' }}>
+                                        {badge.name}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 )}
             </div>
         </ThemeProvider>
