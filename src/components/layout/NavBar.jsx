@@ -35,6 +35,7 @@ const NAV_LINKS = {
         { to: '/admin/review',      icon: UserCheck,     label: 'Review' },
         { to: '/profesor',          icon: BarChart3,     label: 'Dashboard' },
         { to: '/admin/content', icon: Settings, label: 'Conținut' },
+        { to: '/admin/users', icon: Users, label: 'Utilizatori' },
     ],
 };
 

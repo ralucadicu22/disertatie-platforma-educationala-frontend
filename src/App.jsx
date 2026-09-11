@@ -23,6 +23,7 @@ import ExerciseFeedbackSummaryPage from './pages/ExerciseFeedbackSummaryPage';
 import MainLayout from './components/layout/MainLayout';
 import { ToastProvider } from './design-system/toast.jsx';
 import AdminContentPage from './pages/AdminContentPage.jsx';
+import AdminUsersPage from "./pages/AdminUsersPage.jsx";
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -84,6 +85,7 @@ function App() {
                 />
                 <Route path="/exercise/:exerciseId/play" element={<ExercisePlayer />} />
                 <Route path="/admin/content" element={<PrivateRoute><AdminContentPage /></PrivateRoute>} />
+                <Route path="/admin/users" element={<PrivateRoute><AdminUsersPage /></PrivateRoute>} />
             </Routes>
         </>
     );

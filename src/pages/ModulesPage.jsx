@@ -48,7 +48,6 @@ export default function ModulesPage() {
     return (
         <div className="animate-fade-in">
 
-            {/* ── ELEV ── */}
             {role === 'ELEV' && (
                 <>
                     <div className="mb-6">
@@ -167,6 +166,7 @@ export default function ModulesPage() {
                             { label: 'Review exerciții', desc: 'Aprobă sau respinge', to: '/admin/review', icon: CheckCircle },
                             { label: 'Clase', desc: 'Gestionează clasele', to: '/clase', icon: Users },
                             { label: 'Părinți-Copii', desc: 'Asocieri conturi', to: '/admin/parinti', icon: FileText },
+                            { label: 'Utilizatori', desc: 'Gestionează conturi', to: '/admin/users', icon: Users },
                         ].map(item => (
                             <button
                                 key={item.to}
