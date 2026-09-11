@@ -2,17 +2,41 @@ import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { StatCard } from '../design-system/components';
 import { cn } from '../design-system/cn';
+import { exportApi } from '../api/exportApi';
+import { classroomApi } from '../api/classroomApi';
+import { Users, CheckCircle, BarChart3 } from 'lucide-react';
 
 export default function TeacherDashboard() {
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [myClassrooms, setMyClassrooms] = useState([]);
+    const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
         api.get('/progress/teacher/all-students')
             .then(res => setStudents(res.data))
             .catch(console.error)
             .finally(() => setLoading(false));
+
+        classroomApi.getMy()
+            .then(setMyClassrooms)
+            .catch(console.error);
     }, []);
+
+    const handleExport = async (classroomId, classroomName, type) => {
+        setExporting(true);
+        try {
+            if (type === 'detailed') {
+                await exportApi.downloadClassroomCsv(classroomId, classroomName);
+            } else {
+                await exportApi.downloadClassroomSummaryCsv(classroomId, classroomName);
+            }
+        } catch (err) {
+            console.error('Eroare la export:', err);
+        } finally {
+            setExporting(false);
+        }
+    };
 
     if (loading) return (
         <div className="flex items-center justify-center py-20">
@@ -40,10 +64,49 @@ export default function TeacherDashboard() {
             </div>
 
             <div className="grid grid-cols-3 gap-4 mb-8">
-                <StatCard title="Elevi activi" value={String(students.length)} icon="👥" />
-                <StatCard title="Exerciții rezolvate" value={String(totalCompleted)} icon="✅" />
-                <StatCard title="Scor mediu / elev" value={String(avgPoints)} icon="📊" />
+                <StatCard label="Elevi activi" value={String(students.length)} icon={Users} />
+                <StatCard label="Exerciții rezolvate" value={String(totalCompleted)} icon={CheckCircle} variant="success" />
+                <StatCard label="Scor mediu / elev" value={String(avgPoints)} icon={BarChart3} variant="warning" />
             </div>
+
+            {myClassrooms.length > 0 && (
+                <>
+                    <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
+                        Export rezultate
+                    </p>
+                    <div className="flex flex-col gap-3 mb-8">
+                        {myClassrooms.map(classroom => (
+                            <div
+                                key={classroom.id}
+                                className="bg-white rounded-xl border border-neutral-200 p-4 flex items-center justify-between"
+                            >
+                                <div>
+                                    <p className="text-body font-bold text-neutral-900">{classroom.name}</p>
+                                    <p className="text-caption text-neutral-500">
+                                        {classroom.studentCount} elevi · {classroom.quizCount} quiz-uri
+                                    </p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleExport(classroom.id, classroom.name, 'summary')}
+                                        disabled={exporting}
+                                        className="px-3 py-1.5 bg-success-600 text-white rounded-lg text-caption font-bold hover:bg-success-700 transition-colors disabled:opacity-60"
+                                    >
+                                        📊 Sumar CSV
+                                    </button>
+                                    <button
+                                        onClick={() => handleExport(classroom.id, classroom.name, 'detailed')}
+                                        disabled={exporting}
+                                        className="px-3 py-1.5 bg-primary-600 text-white rounded-lg text-caption font-bold hover:bg-primary-700 transition-colors disabled:opacity-60"
+                                    >
+                                        📋 Detaliat CSV
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
 
             <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
                 Progresul elevilor
@@ -58,7 +121,6 @@ export default function TeacherDashboard() {
                 </div>
             ) : (
                 <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
-                    {/* Header */}
                     <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-neutral-50 border-b border-neutral-200">
                         {['#', 'Elev', 'Rezolvate', 'Încercări', 'Puncte'].map((h, i) => (
                             <div
