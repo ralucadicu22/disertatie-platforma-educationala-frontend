@@ -5,12 +5,14 @@ import { cn } from '../design-system/cn';
 import { exportApi } from '../api/exportApi';
 import { classroomApi } from '../api/classroomApi';
 import { Users, CheckCircle, BarChart3 } from 'lucide-react';
+import {useNavigate} from "react-router-dom";
 
 export default function TeacherDashboard() {
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [myClassrooms, setMyClassrooms] = useState([]);
     const [exporting, setExporting] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         api.get('/progress/teacher/all-students')
@@ -138,7 +140,8 @@ export default function TeacherDashboard() {
                     {sorted.map((s, i) => (
                         <div
                             key={s.userId}
-                            className="grid grid-cols-12 gap-2 items-center px-4 py-3.5 border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors"
+                            onClick={() => navigate(`/profesor/elev/${s.userId}`)}
+                            className="grid grid-cols-12 gap-2 items-center px-4 py-3.5 border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors cursor-pointer"
                         >
                             <div className="col-span-1">
                                 <span className={cn(

@@ -13,6 +13,7 @@ import {getAbsolutePosition} from "../../utils/elementPosition.js";
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import {getTheme} from "../../constants/themes.js";
 import ExerciseFeedbackWidget from '../feedback/ExerciseFeedbackWidget';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const CONTAINER_PADDING = 40;
 const HINT_AFTER_MISTAKES = 2;
@@ -363,30 +364,58 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                                 ` · Încercări rămase: ${result.attemptsRemaining}`}
                         </p>
                         {classAverage !== null && config.settings?.showGroupAverage && (
-                            <div style={styles.averagePanel}>
-                                <p style={styles.averageTitle}>📊 Comparație cu grupa</p>
-                                <div style={styles.averageRow}>
-                                    <div style={styles.averageStat}>
-                <span style={styles.averageValue}>
-                    {Math.round(result.score * 100)}%
-                </span>
-                                        <span style={styles.averageLabel}>Scorul tău</span>
-                                    </div>
-                                    <div style={styles.averageDivider}>vs</div>
-                                    <div style={styles.averageStat}>
-                <span style={{ ...styles.averageValue, color: '#4F6BF6' }}>
-                    {Math.round(classAverage.classAverage)}%
-                </span>
-                                        <span style={styles.averageLabel}>Media clasei</span>
-                                    </div>
-                                    <div style={styles.averageDivider}>|</div>
-                                    <div style={styles.averageStat}>
-                <span style={{ ...styles.averageValue, color: '#9ca3af' }}>
-                    {Math.round(classAverage.globalAverage)}%
-                </span>
-                                        <span style={styles.averageLabel}>Media globală</span>
-                                    </div>
-                                </div>
+                            <div style={{
+                                marginTop: 16, background: 'white', border: '1.5px solid #e0e7ff',
+                                borderRadius: 14, padding: '18px 24px', minWidth: 280, maxWidth: 400,
+                            }}>
+                                <p style={{
+                                    fontSize: '0.85rem', fontWeight: 800, color: '#4F6BF6',
+                                    margin: '0 0 14px 0', textAlign: 'center',
+                                }}>
+                                    📊 Comparație cu grupa
+                                </p>
+                                <ResponsiveContainer width="100%" height={160}>
+                                    <BarChart
+                                        data={[
+                                            {
+                                                name: 'Scorul tău',
+                                                value: Math.round(result.score * 100),
+                                            },
+                                            {
+                                                name: 'Media clasei',
+                                                value: Math.round(classAverage.classAverage),
+                                            },
+                                            {
+                                                name: 'Media globală',
+                                                value: Math.round(classAverage.globalAverage),
+                                            },
+                                        ]}
+                                        margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                                        <XAxis
+                                            dataKey="name"
+                                            tick={{ fontSize: 11, fontWeight: 700, fill: '#6b7280' }}
+                                        />
+                                        <YAxis
+                                            domain={[0, 100]}
+                                            tick={{ fontSize: 11, fill: '#6b7280' }}
+                                            tickFormatter={(v) => `${v}%`}
+                                        />
+                                        <Tooltip
+                                            formatter={(value) => [`${value}%`, 'Scor']}
+                                            contentStyle={{
+                                                borderRadius: 8, border: '1px solid #e5e7eb',
+                                                fontSize: '0.8rem', fontWeight: 700,
+                                            }}
+                                        />
+                                        <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                                            <Cell fill="#4F6BF6" />
+                                            <Cell fill="#a78bfa" />
+                                            <Cell fill="#d1d5db" />
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
                         )}
                         {result.correct && config.settings?.explanation && (

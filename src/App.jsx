@@ -24,6 +24,7 @@ import MainLayout from './components/layout/MainLayout';
 import { ToastProvider } from './design-system/toast.jsx';
 import AdminContentPage from './pages/AdminContentPage.jsx';
 import AdminUsersPage from "./pages/AdminUsersPage.jsx";
+import TeacherStudentDetailPage from './pages/TeacherStudentDetailPage.jsx';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -86,6 +87,7 @@ function App() {
                 <Route path="/exercise/:exerciseId/play" element={<ExercisePlayer />} />
                 <Route path="/admin/content" element={<PrivateRoute><AdminContentPage /></PrivateRoute>} />
                 <Route path="/admin/users" element={<PrivateRoute><AdminUsersPage /></PrivateRoute>} />
+                <Route path="/profesor/elev/:studentId" element={<PrivateRoute><TeacherStudentDetailPage /></PrivateRoute>} />
             </Routes>
         </>
     );
