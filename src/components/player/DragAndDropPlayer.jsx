@@ -11,12 +11,9 @@ import ParticleBurst from './ParticleBurst';
 import { ELEMENT_TYPES } from '../../constants/elementTypes';
 import { getAbsolutePosition } from '../../utils/elementPosition';
 import { ThemeProvider } from '../../contexts/ThemeContext';
-import {getTheme} from "../../constants/themes.js";
+import { getTheme } from '../../constants/themes.js';
 import ExerciseFeedbackWidget from '../feedback/ExerciseFeedbackWidget';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-
-
-
 
 const CONTAINER_PADDING = 40;
 const MAGNET_RADIUS = 110;
@@ -55,15 +52,11 @@ const soundCorrect = () => {
 };
 const soundWrong = () => playTone(150, 0.2, 'sawtooth', 0.08);
 
-
 export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
     const containerRef = useRef(null);
     const stageRef = useRef(null);
     const layerRef = useRef(null);
     const [scale, setScale] = useState(1);
-    const [classAverage, setClassAverage] = useState(null);
-    const [newBadges, setNewBadges] = useState([]);
-
     const [bgImage] = useImage(config.canvas.backgroundImage || '', 'anonymous');
 
     const canvasWidth = config.canvas.width;
@@ -110,6 +103,17 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
     const [result, setResult] = useState(null);
     const [submitError, setSubmitError] = useState('');
     const [showFeedback, setShowFeedback] = useState(false);
+    const [classAverage, setClassAverage] = useState(null);
+    const [newBadges, setNewBadges] = useState([]);
+
+    const [hintsAvailable, setHintsAvailable] = useState([]);
+    const [hintsUsed, setHintsUsed] = useState(0);
+    const [currentHint, setCurrentHint] = useState(null);
+    const [highlightedIds, setHighlightedIds] = useState(new Set());
+    const [animatingIds, setAnimatingIds] = useState(new Set());
+
+    const theme = getTheme(config.meta?.themeId || 'formal');
+
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -123,23 +127,20 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
         return () => observer.disconnect();
     }, [canvasWidth]);
 
+    useEffect(() => {
+        api.get(`/exercises/${exerciseId}/hints/available`)
+            .then(res => setHintsAvailable(res.data || []))
+            .catch(() => {});
+    }, [exerciseId]);
 
     useEffect(() => {
         if (!activeTargetId) return;
         const node = targetNodeRefs.current[activeTargetId];
         if (!node) return;
-
         const tween = new Konva.Tween({
-            node,
-            duration: 0.4,
-            scaleX: 1.08,
-            scaleY: 1.08,
-            easing: Konva.Easings.EaseInOut,
-            yoyo: true,
-            onFinish: () => {
-                node.scaleX(1);
-                node.scaleY(1);
-            },
+            node, duration: 0.4, scaleX: 1.08, scaleY: 1.08,
+            easing: Konva.Easings.EaseInOut, yoyo: true,
+            onFinish: () => { node.scaleX(1); node.scaleY(1); },
         });
         tween.play();
         return () => tween.destroy();
@@ -147,10 +148,8 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
 
     useEffect(() => {
         if (!stageRef.current) return;
-
         const engine = Matter.Engine.create({ gravity: { x: 0, y: 0 } });
         const world = engine.world;
-
         const wallThickness = 60;
         const walls = [
             Matter.Bodies.rectangle(canvasWidth / 2, -wallThickness / 2, canvasWidth + wallThickness * 2, wallThickness, { isStatic: true }),
@@ -186,10 +185,9 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
         });
 
         Matter.Events.on(mouseConstraint, 'enddrag', (event) => {
-            const body = event.body;
             draggingIdRef.current = null;
             setActiveTargetId(null);
-            if (body) handleDragEnd(body);
+            if (event.body) handleDragEnd(event.body);
         });
 
         Matter.Events.on(engine, 'beforeUpdate', () => {
@@ -216,9 +214,9 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                 const len = Math.hypot(dx, dy) || 1;
                 const strength = 0.0006 * (1 - nearestDist / MAGNET_RADIUS);
                 Matter.Body.applyForce(body, body.position, { x: (dx / len) * strength, y: (dy / len) * strength });
-                setActiveTargetId(prev => (prev === nearest.id ? prev : nearest.id));
+                setActiveTargetId(prev => prev === nearest.id ? prev : nearest.id);
             } else {
-                setActiveTargetId(prev => (prev === null ? prev : null));
+                setActiveTargetId(prev => prev === null ? prev : null);
             }
         });
 
@@ -248,7 +246,6 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
             Matter.World.clear(world, false);
             Matter.Engine.clear(engine);
         };
-
     }, [scale, draggableElements, targetElements]);
 
     const handleDragEnd = async (body) => {
@@ -285,7 +282,6 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                 setBursts(prev => [...prev, { id: `${draggableId}_${Date.now()}`, x: cx, y: cy }]);
                 soundCorrect();
             } else {
-
                 const angle = Math.random() * Math.PI * 2;
                 const force = 0.03;
                 Matter.Body.applyForce(body, body.position, {
@@ -301,6 +297,35 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
     };
 
     const removeBurst = (id) => setBursts(prev => prev.filter(b => b.id !== id));
+
+    const handleHint = () => {
+        if (!hintsAvailable || hintsUsed >= hintsAvailable.length) return;
+        const hint = hintsAvailable[hintsUsed];
+        setHintsUsed(prev => prev + 1);
+        setCurrentHint(hint);
+
+        if (hint.type === 'HIGHLIGHT' && hint.targetElementId) {
+            setHighlightedIds(prev => new Set([...prev, hint.targetElementId]));
+            setTimeout(() => {
+                setHighlightedIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(hint.targetElementId);
+                    return next;
+                });
+            }, 3000);
+        }
+
+        if (hint.type === 'ANIMATION' && hint.targetElementId) {
+            setAnimatingIds(prev => new Set([...prev, hint.targetElementId]));
+            setTimeout(() => {
+                setAnimatingIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(hint.targetElementId);
+                    return next;
+                });
+            }, 1500);
+        }
+    };
 
     const buildCurrentMapping = () => {
         const mapping = {};
@@ -329,18 +354,19 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                 answer: buildCurrentMapping(),
             });
             setResult(res.data);
+            setPhase('result');
+            setShowFeedback(true);
+
             if (res.data.newBadges?.length > 0) {
                 setNewBadges(res.data.newBadges);
             }
+
             if (config.settings?.showGroupAverage) {
                 api.get(`/progress/exercise/${exerciseId}/class-average`)
-                    .then(res => setClassAverage(res.data))
+                    .then(r => setClassAverage(r.data))
                     .catch(() => {});
             }
-            setPhase('result');
-            setShowFeedback(true);
         } catch (err) {
-            console.error('Eroare la trimiterea raspunsului:', err);
             setSubmitError(err.response?.data?.message || 'Eroare la trimiterea răspunsului');
             setPhase('playing');
         }
@@ -352,6 +378,10 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
         setResult(null);
         setSubmitError('');
         setPhase('playing');
+        setCurrentHint(null);
+        setHighlightedIds(new Set());
+        setAnimatingIds(new Set());
+        setNewBadges([]);
         Object.values(bodiesRef.current).forEach(body => {
             Matter.Body.setStatic(body, false);
         });
@@ -367,13 +397,13 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
     };
 
     const attemptsExhausted = result && !result.correct && result.attemptsRemaining === 0;
+    const canShowHint = hintsAvailable.length > 0 && hintsUsed < hintsAvailable.length && phase === 'playing';
 
     const topLevelStatic = staticElements.filter(el => !el.parentId);
     const getStaticChildren = (parentId) => staticElements.filter(el => el.parentId === parentId);
 
     const renderStaticElement = (el) => {
         if (el.hidden) return null;
-
         if (el.type === ELEMENT_TYPES.TEXT) return <PlayerText key={el.id} element={el} />;
         if (el.type === ELEMENT_TYPES.IMAGE) return (
             <PlayerImage key={el.id} element={el} interactionState={undefined} onElementClick={noop} />
@@ -386,8 +416,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
             return (
                 <Group key={el.id} x={el.x} y={el.y} rotation={el.rotation || 0}>
                     <Rect
-                        width={el.width}
-                        height={el.height}
+                        width={el.width} height={el.height}
                         fill={el.bgFill !== 'transparent' ? el.bgFill : undefined}
                         stroke={el.bgStroke !== 'transparent' ? el.bgStroke : undefined}
                         strokeWidth={el.bgStrokeWidth}
@@ -405,8 +434,6 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
         return null;
     };
 
-    const theme = getTheme(config.meta?.themeId || 'formal');
-
     return (
         <ThemeProvider themeId={config.meta?.themeId}>
             <div style={{
@@ -419,6 +446,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                 fontFamily: theme.font.family,
                 color: theme.colors.text,
             }}>
+                {/* Header */}
                 <div style={styles.header}>
                     <button style={styles.backBtn} onClick={onExit}>← Înapoi la quiz</button>
                     <div style={styles.progress}>
@@ -482,21 +510,58 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                     </div>
                 </div>
 
+
+                {currentHint && (
+                    <div style={{
+                        ...styles.hintBox,
+                        borderColor: currentHint.type === 'HIGHLIGHT' ? '#f59e0b'
+                            : currentHint.type === 'ANIMATION' ? '#8b5cf6'
+                                : '#4F6BF6',
+                        background: currentHint.type === 'HIGHLIGHT' ? '#fffbeb'
+                            : currentHint.type === 'ANIMATION' ? '#f5f3ff'
+                                : '#f0f4ff',
+                    }}>
+                        <span style={styles.hintIcon}>
+                            {currentHint.type === 'HIGHLIGHT' ? '🔦'
+                                : currentHint.type === 'ANIMATION' ? '✨'
+                                    : '💡'}
+                        </span>
+                        <span style={styles.hintText}>
+                            {currentHint.text || (
+                                currentHint.type === 'HIGHLIGHT' ? 'Uită-te la elementele evidențiate!'
+                                    : currentHint.type === 'ANIMATION' ? 'Urmărește elementul animat!'
+                                        : 'Hint disponibil'
+                            )}
+                        </span>
+                    </div>
+                )}
+
                 {submitError && <p style={styles.errorText}>{submitError}</p>}
 
+                {/* Butoane */}
                 {phase !== 'result' && (
-                    <button
-                        style={{
-                            ...styles.finishBtn,
-                            background: theme.colors.primary,
-                            borderRadius: theme.borderRadius,
-                            boxShadow: `0 4px 0 ${theme.colors.primary}aa`,
-                        }}
-                        onClick={handleFinish}
-                        disabled={phase === 'submitting'}
-                    >
-                        {phase === 'submitting' ? 'Se trimite...' : 'Am terminat'}
-                    </button>
+                    <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+                        {canShowHint && (
+                            <button
+                                style={{ ...styles.hintBtn, borderRadius: theme.borderRadius }}
+                                onClick={handleHint}
+                            >
+                                💡 Hint ({hintsAvailable.length - hintsUsed} rămas)
+                            </button>
+                        )}
+                        <button
+                            style={{
+                                ...styles.finishBtn,
+                                background: theme.colors.primary,
+                                borderRadius: theme.borderRadius,
+                                boxShadow: `0 4px 0 ${theme.colors.primary}aa`,
+                            }}
+                            onClick={handleFinish}
+                            disabled={phase === 'submitting'}
+                        >
+                            {phase === 'submitting' ? 'Se trimite...' : 'Am terminat'}
+                        </button>
+                    </div>
                 )}
 
                 {phase === 'result' && result && (
@@ -515,51 +580,34 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                             {!result.correct && result.attemptsRemaining !== null &&
                                 ` · Încercări rămase: ${result.attemptsRemaining}`}
                         </p>
+
                         {classAverage !== null && config.settings?.showGroupAverage && (
                             <div style={{
-                                marginTop: 16, background: 'white', border: '1.5px solid #e0e7ff',
-                                borderRadius: 14, padding: '18px 24px', minWidth: 280, maxWidth: 400,
+                                marginTop: 12, background: '#f8faff',
+                                border: '1.5px solid #e0e7ff',
+                                borderRadius: 12, padding: '14px 16px',
                             }}>
                                 <p style={{
-                                    fontSize: '0.85rem', fontWeight: 800, color: '#4F6BF6',
-                                    margin: '0 0 14px 0', textAlign: 'center',
+                                    fontSize: '0.82rem', fontWeight: 800,
+                                    color: '#4F6BF6', margin: '0 0 10px 0', textAlign: 'center',
                                 }}>
                                     📊 Comparație cu grupa
                                 </p>
-                                <ResponsiveContainer width="100%" height={160}>
+                                <ResponsiveContainer width="100%" height={140}>
                                     <BarChart
                                         data={[
-                                            {
-                                                name: 'Scorul tău',
-                                                value: Math.round(result.score * 100),
-                                            },
-                                            {
-                                                name: 'Media clasei',
-                                                value: Math.round(classAverage.classAverage),
-                                            },
-                                            {
-                                                name: 'Media globală',
-                                                value: Math.round(classAverage.globalAverage),
-                                            },
+                                            { name: 'Scorul tău', value: Math.round(result.score * 100) },
+                                            { name: 'Media clasei', value: Math.round(classAverage.classAverage) },
+                                            { name: 'Media globală', value: Math.round(classAverage.globalAverage) },
                                         ]}
                                         margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
                                     >
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                                        <XAxis
-                                            dataKey="name"
-                                            tick={{ fontSize: 11, fontWeight: 700, fill: '#6b7280' }}
-                                        />
-                                        <YAxis
-                                            domain={[0, 100]}
-                                            tick={{ fontSize: 11, fill: '#6b7280' }}
-                                            tickFormatter={(v) => `${v}%`}
-                                        />
+                                        <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700, fill: '#6b7280' }} />
+                                        <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#6b7280' }} tickFormatter={v => `${v}%`} />
                                         <Tooltip
-                                            formatter={(value) => [`${value}%`, 'Scor']}
-                                            contentStyle={{
-                                                borderRadius: 8, border: '1px solid #e5e7eb',
-                                                fontSize: '0.8rem', fontWeight: 700,
-                                            }}
+                                            formatter={value => [`${value}%`, 'Scor']}
+                                            contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }}
                                         />
                                         <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                                             <Cell fill="#4F6BF6" />
@@ -570,9 +618,11 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                                 </ResponsiveContainer>
                             </div>
                         )}
+
                         {result.correct && config.settings?.explanation && (
                             <p style={styles.explanationText}>{config.settings.explanation}</p>
                         )}
+
                         <div style={styles.resultActions}>
                             {!result.correct && !attemptsExhausted && (
                                 <button
@@ -586,7 +636,6 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                                 <button
                                     style={{ ...styles.solutionBtn, borderRadius: theme.borderRadius }}
                                     onClick={() => {
-
                                         const correctMapping = config.solution?.dropMapping || {};
                                         Object.entries(correctMapping).forEach(([draggableId, targetId]) => {
                                             const targetNode = targetNodeRefs.current[targetId];
@@ -594,13 +643,9 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                                                 new Konva.Tween({
                                                     node: targetNode,
                                                     duration: 0.4,
-                                                    scaleX: 1.15,
-                                                    scaleY: 1.15,
+                                                    scaleX: 1.15, scaleY: 1.15,
                                                     easing: Konva.Easings.BounceEaseOut,
-                                                    onFinish: () => {
-                                                        targetNode.scaleX(1.05);
-                                                        targetNode.scaleY(1.05);
-                                                    },
+                                                    onFinish: () => { targetNode.scaleX(1.05); targetNode.scaleY(1.05); },
                                                 }).play();
                                             }
                                         });
@@ -620,11 +665,37 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                                 Înapoi la quiz
                             </button>
                         </div>
+
                         {attemptsExhausted && (
                             <p style={styles.exhaustedText}>Ai epuizat numărul de încercări.</p>
                         )}
                     </div>
                 )}
+
+                {newBadges.length > 0 && (
+                    <div style={{
+                        marginTop: 16, background: 'white', border: '2px solid #fbbf24',
+                        borderRadius: 14, padding: '18px 24px', textAlign: 'center', minWidth: 280,
+                    }}>
+                        <p style={{ fontSize: '1rem', fontWeight: 900, color: '#92400e', marginBottom: 12 }}>
+                            🎉 Badge-uri noi câștigate!
+                        </p>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                            {newBadges.map(badge => (
+                                <div key={badge.id} style={{
+                                    background: '#fffbeb', border: '1.5px solid #fde68a',
+                                    borderRadius: 10, padding: '10px 14px', textAlign: 'center',
+                                }}>
+                                    <div style={{ fontSize: '2rem', marginBottom: 4 }}>{badge.icon}</div>
+                                    <p style={{ fontSize: '0.8rem', fontWeight: 800, color: '#92400e' }}>
+                                        {badge.name}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {showFeedback && (
                     <ExerciseFeedbackWidget
                         exerciseId={exerciseId}
@@ -632,29 +703,6 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                     />
                 )}
             </div>
-            {newBadges.length > 0 && (
-                <div style={{
-                    marginTop: 16, background: 'white', border: '2px solid #fbbf24',
-                    borderRadius: 14, padding: '18px 24px', textAlign: 'center', minWidth: 280,
-                }}>
-                    <p style={{ fontSize: '1rem', fontWeight: 900, color: '#92400e', marginBottom: 12 }}>
-                        🎉 Badge-uri noi câștigate!
-                    </p>
-                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                        {newBadges.map(badge => (
-                            <div key={badge.id} style={{
-                                background: '#fffbeb', border: '1.5px solid #fde68a',
-                                borderRadius: 10, padding: '10px 14px', textAlign: 'center',
-                            }}>
-                                <div style={{ fontSize: '2rem', marginBottom: 4 }}>{badge.icon}</div>
-                                <p style={{ fontSize: '0.8rem', fontWeight: 800, color: '#92400e' }}>
-                                    {badge.name}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </ThemeProvider>
     );
 }
@@ -681,29 +729,13 @@ function TargetSlot({ element, isActive, registerRef }) {
             offsetY={element.height / 2}
         >
             {element.shapeType === 'circle' && (
-                <Circle
-                    {...commonShape}
-                    x={element.width / 2}
-                    y={element.height / 2}
-                    radius={Math.min(element.width, element.height) / 2}
-                />
+                <Circle {...commonShape} x={element.width / 2} y={element.height / 2} radius={Math.min(element.width, element.height) / 2} />
             )}
             {element.shapeType === 'polygon' && (
-                <RegularPolygon
-                    {...commonShape}
-                    x={element.width / 2}
-                    y={element.height / 2}
-                    sides={6}
-                    radius={Math.min(element.width, element.height) / 2}
-                />
+                <RegularPolygon {...commonShape} x={element.width / 2} y={element.height / 2} sides={6} radius={Math.min(element.width, element.height) / 2} />
             )}
             {(!element.shapeType || element.shapeType === 'rect') && (
-                <Rect
-                    {...commonShape}
-                    width={element.width}
-                    height={element.height}
-                    cornerRadius={element.cornerRadius || 12}
-                />
+                <Rect {...commonShape} width={element.width} height={element.height} cornerRadius={element.cornerRadius || 12} />
             )}
         </Group>
     );
@@ -729,12 +761,8 @@ function DraggableItem({ element, isPlaced, isHovered, onHover, onUnhover, regis
             e.target.getStage().container().style.cursor = 'default';
             onUnhover();
         },
-        onMouseDown: (e) => {
-            e.target.getStage().container().style.cursor = 'grabbing';
-        },
-        onMouseUp: (e) => {
-            e.target.getStage().container().style.cursor = 'grab';
-        },
+        onMouseDown: (e) => { e.target.getStage().container().style.cursor = 'grabbing'; },
+        onMouseUp: (e) => { e.target.getStage().container().style.cursor = 'grab'; },
     };
 
     const shadowProps = {
@@ -748,37 +776,14 @@ function DraggableItem({ element, isPlaced, isHovered, onHover, onUnhover, regis
     if (element.type === ELEMENT_TYPES.IMAGE) {
         return (
             <Group {...groupProps}>
-                <Rect
-                    width={element.width}
-                    height={element.height}
-                    fill={image ? undefined : '#e5e7eb'}
-                    cornerRadius={element.cornerRadius || 12}
-                    {...shadowProps}
-                />
-                {image && (
-                    <KonvaImage
-                        image={image}
-                        width={element.width}
-                        height={element.height}
-                        cornerRadius={element.cornerRadius || 12}
-                    />
-                )}
+                <Rect width={element.width} height={element.height} fill={image ? undefined : '#e5e7eb'} cornerRadius={element.cornerRadius || 12} {...shadowProps} />
+                {image && <KonvaImage image={image} width={element.width} height={element.height} cornerRadius={element.cornerRadius || 12} />}
                 {isPlaced && (
-                    <Text
-                        text="✓"
-                        width={element.width}
-                        height={element.height}
-                        align="center"
-                        verticalAlign="middle"
-                        fontSize={element.width * 0.4}
-                        fontStyle="bold"
-                        fill="#16a34a"
-                    />
+                    <Text text="✓" width={element.width} height={element.height} align="center" verticalAlign="middle" fontSize={element.width * 0.4} fontStyle="bold" fill="#16a34a" />
                 )}
             </Group>
         );
     }
-
 
     const shapeCommonProps = {
         fill: element.fill || '#4F6BF6',
@@ -790,61 +795,25 @@ function DraggableItem({ element, isPlaced, isHovered, onHover, onUnhover, regis
     return (
         <Group {...groupProps}>
             {element.shapeType === 'circle' && (
-                <Circle
-                    {...shapeCommonProps}
-                    x={element.width / 2}
-                    y={element.height / 2}
-                    radius={Math.min(element.width, element.height) / 2}
-                />
+                <Circle {...shapeCommonProps} x={element.width / 2} y={element.height / 2} radius={Math.min(element.width, element.height) / 2} />
             )}
             {element.shapeType === 'polygon' && (
-                <RegularPolygon
-                    {...shapeCommonProps}
-                    x={element.width / 2}
-                    y={element.height / 2}
-                    sides={6}
-                    radius={Math.min(element.width, element.height) / 2}
-                />
+                <RegularPolygon {...shapeCommonProps} x={element.width / 2} y={element.height / 2} sides={6} radius={Math.min(element.width, element.height) / 2} />
             )}
             {element.shapeType === 'line' && (
-                <Line
-                    {...shapeCommonProps}
-                    points={[0, element.height / 2, element.width, element.height / 2]}
-                    fill={undefined}
-                    stroke={element.fill || '#4F6BF6'}
-                    strokeWidth={Math.max(element.strokeWidth || 4, 4)}
-                />
+                <Line {...shapeCommonProps} points={[0, element.height / 2, element.width, element.height / 2]} fill={undefined} stroke={element.fill || '#4F6BF6'} strokeWidth={Math.max(element.strokeWidth || 4, 4)} />
             )}
             {(!element.shapeType || element.shapeType === 'rect') && (
-                <Rect
-                    {...shapeCommonProps}
-                    width={element.width}
-                    height={element.height}
-                    cornerRadius={element.cornerRadius || 12}
-                />
+                <Rect {...shapeCommonProps} width={element.width} height={element.height} cornerRadius={element.cornerRadius || 12} />
             )}
             {isPlaced && (
-                <Text
-                    text="✓"
-                    width={element.width}
-                    height={element.height}
-                    align="center"
-                    verticalAlign="middle"
-                    fontSize={Math.min(element.width, element.height) * 0.4}
-                    fontStyle="bold"
-                    fill="#16a34a"
-                />
+                <Text text="✓" width={element.width} height={element.height} align="center" verticalAlign="middle" fontSize={Math.min(element.width, element.height) * 0.4} fontStyle="bold" fill="#16a34a" />
             )}
         </Group>
-
     );
 }
 
 const styles = {
-    page: {
-        minHeight: '100vh', background: '#f0f2f5', display: 'flex',
-        flexDirection: 'column', alignItems: 'center', paddingBottom: 32,
-    },
     header: {
         width: '100%', background: 'white', borderBottom: '1px solid #e5e7eb',
         padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -862,14 +831,25 @@ const styles = {
         width: '100%', maxWidth: 1240, display: 'flex', justifyContent: 'center',
         padding: '20px', boxSizing: 'border-box',
     },
-    errorText: { color: '#dc2626', fontWeight: 700, fontSize: '0.85rem' },
+    hintBox: {
+        display: 'flex', alignItems: 'center', gap: 10,
+        border: '2px solid', borderRadius: 12,
+        padding: '10px 16px', marginTop: 12,
+        maxWidth: 480, width: '90%',
+    },
+    hintIcon: { fontSize: '1.2rem', flexShrink: 0 },
+    hintText: { fontSize: '0.88rem', fontWeight: 600, color: '#374151' },
+    errorText: { color: '#dc2626', fontWeight: 700, fontSize: '0.85rem', marginTop: 8 },
+    hintBtn: {
+        padding: '10px 20px', background: '#fffbeb', color: '#92400e',
+        border: '2px solid #fde68a', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer',
+    },
     finishBtn: {
-        marginTop: 12, padding: '12px 28px', background: '#4F6BF6', color: 'white',
-        border: 'none', borderRadius: 12, fontSize: '0.95rem', fontWeight: 800, cursor: 'pointer',
-        boxShadow: '0 4px 0 #3a52c4',
+        padding: '12px 28px', color: 'white', border: 'none',
+        fontSize: '0.95rem', fontWeight: 800, cursor: 'pointer',
     },
     resultPanel: {
-        marginTop: 16, background: 'white', border: '2px solid', borderRadius: 14,
+        marginTop: 16, border: '2px solid', borderRadius: 14,
         padding: '18px 24px', textAlign: 'center', minWidth: 280, maxWidth: 460,
     },
     resultTitle: { fontSize: '1.1rem', fontWeight: 900, margin: '0 0 6px 0', color: '#1a1d23' },
@@ -878,42 +858,18 @@ const styles = {
         fontSize: '0.85rem', fontWeight: 600, color: '#374151', margin: '0 0 14px 0',
         lineHeight: 1.5, background: '#f9fafb', padding: '10px 14px', borderRadius: 10,
     },
-    resultActions: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' },
+    resultActions: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 12 },
     retryBtn: {
-        padding: '9px 20px', background: '#1a1d23', color: 'white', border: 'none',
-        borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+        padding: '9px 20px', background: '#1a1d23', color: 'white',
+        border: 'none', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+    },
+    solutionBtn: {
+        padding: '9px 20px', background: '#f59e0b', color: 'white',
+        border: 'none', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
     },
     quizBtn: {
-        padding: '9px 20px', background: '#4F6BF6', color: 'white', border: 'none',
-        borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+        padding: '9px 20px', color: 'white', border: 'none',
+        fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
     },
     exhaustedText: { fontSize: '0.85rem', fontWeight: 700, color: '#ef4444', margin: '12px 0 0 0' },
-    solutionBtn: {
-        padding: '9px 20px', background: '#f59e0b', color: 'white', border: 'none',
-        borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
-    },
-    averagePanel: {
-        background: '#f8faff', border: '1.5px solid #e0e7ff',
-        borderRadius: 12, padding: '12px 16px', margin: '12px 0',
-    },
-    averageTitle: {
-        fontSize: '0.8rem', fontWeight: 800, color: '#4F6BF6',
-        margin: '0 0 10px 0', textAlign: 'center',
-    },
-    averageRow: {
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
-    },
-    averageStat: {
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-    },
-    averageValue: {
-        fontSize: '1.4rem', fontWeight: 900, color: '#22c55e',
-    },
-    averageLabel: {
-        fontSize: '0.7rem', fontWeight: 700, color: '#9ca3af',
-        textTransform: 'uppercase', letterSpacing: '0.5px',
-    },
-    averageDivider: {
-        fontSize: '0.85rem', color: '#d1d5db', fontWeight: 700,
-    },
 };

@@ -14,6 +14,14 @@ import { parentDashboardApi } from '../api/parentDashboardApi';
 import { timeAgo, formatDate, formatNumber } from '../utils/formatters';
 import { notify } from '../design-system/toast';
 
+const formatMinutes = (minutes) => {
+    if (!minutes) return '0m';
+    if (minutes >= 60) {
+        return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+    }
+    return `${minutes}m`;
+};
+
 const ParentChildDetailPage = () => {
     const { childId } = useParams();
     const [loading, setLoading] = useState(true);
@@ -96,6 +104,7 @@ const ParentChildDetailPage = () => {
                             </div>
                         </Card>
                     </motion.div>
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                         <StatCard
                             label="Exercitii"
@@ -117,14 +126,13 @@ const ParentChildDetailPage = () => {
                             variant="warm"
                         />
                         <StatCard
-                            label="Rata succes"
-                            value={Math.round(successRate)}
-                            suffix="%"
-                            icon={TrendingUp}
+                            label="Timp petrecut"
+                            value={formatMinutes(data.totalMinutesSpent)}
+                            icon={Clock}
                             variant="success"
-                            progress={successRate}
                         />
                     </div>
+
                     <Tabs
                         value={tab}
                         onChange={setTab}
@@ -133,6 +141,7 @@ const ParentChildDetailPage = () => {
                         options={[
                             { value: 'overview', label: 'Clase & progres', icon: Users },
                             { value: 'history', label: 'Istoric', icon: Clock, badge: data.recentAttempts?.length },
+                            { value: 'time', label: 'Timp petrecut', icon: TrendingUp, badge: data.quizTimeList?.length },
                         ]}
                     />
 
@@ -142,6 +151,10 @@ const ParentChildDetailPage = () => {
 
                     {tab === 'history' && (
                         <RecentAttemptsList attempts={data.recentAttempts} />
+                    )}
+
+                    {tab === 'time' && (
+                        <TimeSessionsList sessions={data.quizTimeList} />
                     )}
                 </>
             )}
@@ -262,6 +275,78 @@ const RecentAttemptsList = ({ attempts }) => {
                 ))}
             </div>
         </Card>
+    );
+};
+
+const TimeSessionsList = ({ sessions }) => {
+    if (!sessions || sessions.length === 0) {
+        return (
+            <Card>
+                <EmptyState
+                    icon={Clock}
+                    variant="neutral"
+                    title="Nicio sesiune finalizata"
+                    description="Timpul petrecut apare dupa ce copilul finalizeaza un quiz."
+                    size="sm"
+                />
+            </Card>
+        );
+    }
+
+    const totalMinutes = sessions.reduce((sum, s) => sum + s.minutesSpent, 0);
+    const avgMinutes = Math.round(totalMinutes / sessions.length);
+
+    return (
+        <>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+                <Card padding="md">
+                    <p className="text-caption text-neutral-500 mb-1">Total sesiuni</p>
+                    <p className="text-h2 font-bold text-neutral-900">{sessions.length}</p>
+                </Card>
+                <Card padding="md">
+                    <p className="text-caption text-neutral-500 mb-1">Timp mediu / sesiune</p>
+                    <p className="text-h2 font-bold text-neutral-900">{formatMinutes(avgMinutes)}</p>
+                </Card>
+            </div>
+
+            <Card padding="none">
+                <div className="divide-y divide-neutral-100">
+                    {sessions.map((session, index) => (
+                        <motion.div
+                            key={session.attemptId}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.03 }}
+                            className="p-4 flex items-center gap-4 hover:bg-neutral-50 transition-colors"
+                        >
+                            <div className="w-11 h-11 rounded-xl bg-primary-100 flex items-center justify-center flex-shrink-0">
+                                <Clock className="w-5 h-5 text-primary-600" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                                <div className="text-body font-semibold text-neutral-900 truncate">
+                                    {session.quizTitle}
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 text-caption text-neutral-500">
+                                    <span>{formatDate(session.startedAt)}</span>
+                                    <span>·</span>
+                                    <span>
+                                        {session.status === 'COMPLETED' ? 'Finalizat' : 'În progres'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex-shrink-0 text-right">
+                                <div className="font-display font-bold text-h3 text-primary-700">
+                                    {formatMinutes(session.minutesSpent)}
+                                </div>
+                                <div className="text-caption text-neutral-500">timp</div>
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+            </Card>
+        </>
     );
 };
 

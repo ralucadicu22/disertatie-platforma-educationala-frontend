@@ -8,23 +8,24 @@ export default function PlayerImage({ element, interactionState, onElementClick 
     const groupRef = useRef(null);
 
     const isInteractive = element.behavior && element.behavior !== 'static';
-    const isFound = interactionState === 'found' || interactionState === 'correct';
+    const isFound = interactionState === 'found';
     const isShaking = interactionState === 'shake';
-    const isSelected = interactionState === 'selected';
-    const isIncorrect = interactionState === 'incorrect';
-    const isMissed = interactionState === 'missed';
+    const isHighlighted = interactionState === 'highlight';
+    const isAnimating = interactionState === 'animate';
+
 
     useEffect(() => {
         if (!isShaking || !groupRef.current) return;
         const node = groupRef.current;
         const originX = element.x;
         const tween = new Konva.Tween({
-            node, duration: 0.06, x: originX + 8, yoyo: true, easing: Konva.Easings.EaseInOut,
+            node, duration: 0.06, x: originX + 8, yoyo: true,
+            easing: Konva.Easings.EaseInOut,
         });
         let count = 0;
         const runShake = () => {
             if (count >= 4) { node.x(originX); return; }
-            count += 1;
+            count++;
             tween.reset();
             tween.play();
         };
@@ -33,13 +34,42 @@ export default function PlayerImage({ element, interactionState, onElementClick 
         return () => tween.destroy();
     }, [isShaking]);
 
+    useEffect(() => {
+        if (!isHighlighted || !groupRef.current) return;
+        const node = groupRef.current;
+        const tween = new Konva.Tween({
+            node, duration: 0.5,
+            scaleX: 1.08, scaleY: 1.08,
+            easing: Konva.Easings.EaseInOut,
+            yoyo: true,
+            onFinish: () => { node.scaleX(1); node.scaleY(1); },
+        });
+        tween.play();
+        return () => tween.destroy();
+    }, [isHighlighted]);
+
+
+    useEffect(() => {
+        if (!isAnimating || !groupRef.current) return;
+        const node = groupRef.current;
+        const originY = element.y;
+        const tween = new Konva.Tween({
+            node, duration: 0.3,
+            y: originY - 20,
+            easing: Konva.Easings.EaseOut,
+            yoyo: true,
+            onFinish: () => { node.y(originY); },
+        });
+        tween.play();
+        return () => tween.destroy();
+    }, [isAnimating]);
+
     if (element.hidden) return null;
 
     const getImageDimensions = () => {
         if (!image) return { width: element.width, height: element.height, x: 0, y: 0 };
         const naturalRatio = image.width / image.height;
         const boxRatio = element.width / element.height;
-
         if (element.fitMode === 'stretch') {
             return { width: element.width, height: element.height, x: 0, y: 0 };
         }
@@ -56,7 +86,6 @@ export default function PlayerImage({ element, interactionState, onElementClick 
     };
 
     const imgDims = getImageDimensions();
-    const opacity = (isFound || isIncorrect) ? 0.5 : (element.opacity ?? 1);
 
     return (
         <Group
@@ -64,8 +93,35 @@ export default function PlayerImage({ element, interactionState, onElementClick 
             x={element.x}
             y={element.y}
             rotation={element.rotation || 0}
-            opacity={opacity}
+            opacity={isFound ? 0.4 : (element.opacity ?? 1)}
         >
+            {isHighlighted && (
+                <Rect
+                    x={-6} y={-6}
+                    width={element.width + 12}
+                    height={element.height + 12}
+                    fill="transparent"
+                    stroke="#f59e0b"
+                    strokeWidth={4}
+                    cornerRadius={8}
+                    dash={[8, 4]}
+                    listening={false}
+                />
+            )}
+
+            {isAnimating && (
+                <Rect
+                    x={-4} y={-4}
+                    width={element.width + 8}
+                    height={element.height + 8}
+                    fill="rgba(139, 92, 246, 0.15)"
+                    stroke="#8b5cf6"
+                    strokeWidth={3}
+                    cornerRadius={6}
+                    listening={false}
+                />
+            )}
+
             <Rect
                 width={element.width}
                 height={element.height}
@@ -96,26 +152,6 @@ export default function PlayerImage({ element, interactionState, onElementClick 
                 />
             )}
 
-            {isShaking && (
-                <Rect width={element.width} height={element.height} fill="#ef4444" opacity={0.35} listening={false} />
-            )}
-
-            {isSelected && (
-                <Rect
-                    width={element.width} height={element.height}
-                    stroke="#4F6BF6" strokeWidth={4} cornerRadius={element.cornerRadius}
-                    listening={false}
-                />
-            )}
-
-            {isMissed && (
-                <Rect
-                    width={element.width} height={element.height}
-                    stroke="#f59e0b" strokeWidth={3} dash={[8, 4]} cornerRadius={element.cornerRadius}
-                    listening={false}
-                />
-            )}
-
             {isFound && (
                 <Text
                     text="✓"
@@ -126,20 +162,6 @@ export default function PlayerImage({ element, interactionState, onElementClick 
                     fontSize={Math.min(element.width, element.height) * 0.4}
                     fontStyle="bold"
                     fill="#16a34a"
-                    listening={false}
-                />
-            )}
-
-            {isIncorrect && (
-                <Text
-                    text="✕"
-                    width={element.width}
-                    height={element.height}
-                    align="center"
-                    verticalAlign="middle"
-                    fontSize={Math.min(element.width, element.height) * 0.4}
-                    fontStyle="bold"
-                    fill="#dc2626"
                     listening={false}
                 />
             )}
