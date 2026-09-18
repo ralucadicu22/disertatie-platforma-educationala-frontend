@@ -8,7 +8,7 @@ export default function EditorPropertiesPanel() {
     const {
         selectedElement, updateElement, deleteElement, deleteSelected,
         selectedIds, alignElements, distributeElements,
-        canvas, updateCanvas,
+        canvas, updateCanvas,elements
     } = useEditor();
     const fileInputRef = useRef(null);
     const bgFileInputRef = useRef(null);
@@ -139,7 +139,14 @@ export default function EditorPropertiesPanel() {
 
                 {el.type === 'TEXT' && <TextPropertyTabs el={el} update={update} updateElement={updateElement} />}
                 {el.type === 'IMAGE' && (
-                    <ImagePropertyTabs el={el} update={update} fileInputRef={fileInputRef} onOpenLibrary={openLibrary} />
+                    <ImagePropertyTabs
+                        el={el}
+                        update={update}
+                        fileInputRef={fileInputRef}
+                        onOpenLibrary={openLibrary}
+                        elements={elements}
+                        updateElement={updateElement}
+                    />
                 )}
                 {el.type === 'SHAPE' && <ShapePropertyTabs el={el} update={update} />}
                 {el.type === 'BOX' && <BoxPropertyTabs el={el} update={update} />}
@@ -217,7 +224,7 @@ function TextPropertyTabs({ el, update,updateElement}) {
 
     return (
         <>
-            {/* Presets rapide */}
+
             <Tab title="Preset stil">
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {TEXT_PRESETS.map(p => (
@@ -384,7 +391,7 @@ function TextPropertyTabs({ el, update,updateElement}) {
 }
 
 
-function ImagePropertyTabs({ el, update, fileInputRef, onOpenLibrary }) {
+function ImagePropertyTabs({ el, update, fileInputRef, onOpenLibrary, elements, updateElement }) {
     const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -392,6 +399,21 @@ function ImagePropertyTabs({ el, update, fileInputRef, onOpenLibrary }) {
         reader.onload = (evt) => update('src', evt.target.result);
         reader.readAsDataURL(file);
     };
+
+    const fillParentZone = () => {
+        if (!el.parentId) return;
+        const parent = elements.find(p => p.id === el.parentId);
+        if (!parent) return;
+        const padding = parent.padding || 0;
+        updateElement(el.id, {
+            x: padding,
+            y: padding,
+            width: parent.width - padding * 2,
+            height: parent.height - padding * 2,
+        });
+    };
+
+    const parentIsZone = el.parentId && elements.find(p => p.id === el.parentId)?.role;
 
     return (
         <>
@@ -420,6 +442,23 @@ function ImagePropertyTabs({ el, update, fileInputRef, onOpenLibrary }) {
                         </button>
                     </div>
                 </div>
+
+                {parentIsZone && (
+                    <div style={styles.field}>
+                        <label style={styles.fieldLabel}>Umplere zonă</label>
+                        <button
+                            onClick={fillParentZone}
+                            style={{
+                                ...styles.uploadBtn,
+                                background: '#f0fdf4',
+                                color: '#166534',
+                                border: '1.5px solid #86efac',
+                            }}
+                        >
+                            ⛶ Umple zona părinte
+                        </button>
+                    </div>
+                )}
 
                 <div style={styles.field}>
                     <label style={styles.fieldLabel}>Mod încadrare</label>
@@ -622,8 +661,40 @@ function ShapePropertyTabs({ el, update }) {
 
 
 function BoxPropertyTabs({ el, update }) {
+    const isRoleZone = !!el.role;
+    const isLockedZone = isRoleZone && el.locked;
+
     return (
         <>
+            {isRoleZone && (
+                <Tab title="Zonă semantică">
+                    <div style={styles.field}>
+                        <label style={styles.fieldLabel}>Rol</label>
+                        <div style={{
+                            fontSize: '0.75rem', fontWeight: 700, color: '#4F6BF6',
+                            padding: '6px 10px', background: '#eef2ff', borderRadius: 6,
+                        }}>
+                            {el.role}
+                        </div>
+                    </div>
+                    <div style={styles.field}>
+                        <label style={styles.fieldLabel}>Stare</label>
+                        <button
+                            onClick={() => update('locked', !el.locked)}
+                            style={{
+                                background: isLockedZone ? '#fef3c7' : '#dcfce7',
+                                border: '1.5px solid ' + (isLockedZone ? '#fcd34d' : '#86efac'),
+                                color: isLockedZone ? '#92400e' : '#166534',
+                                borderRadius: 8, padding: '7px 12px',
+                                fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
+                            }}
+                        >
+                            {isLockedZone ? '🔒 Deblochează zona' : '🔓 Blochează zona'}
+                        </button>
+                    </div>
+                </Tab>
+            )}
+
             <Tab title="Container">
                 <ColorField
                     label="Fundal"
@@ -657,20 +728,6 @@ function BoxPropertyTabs({ el, update }) {
                 <NumField label="Blur" value={el.shadowBlur} onChange={v => update('shadowBlur', v)} />
                 <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
             </Tab>
-
-            {el.role && (
-                <Tab title="Rol semantic">
-                    <div style={styles.field}>
-                        <label style={styles.fieldLabel}>Zonă</label>
-                        <div style={{
-                            fontSize: '0.75rem', fontWeight: 700, color: '#4F6BF6',
-                            padding: '6px 10px', background: '#eef2ff', borderRadius: 6,
-                        }}>
-                            {el.role}
-                        </div>
-                    </div>
-                </Tab>
-            )}
         </>
     );
 }
@@ -812,6 +869,48 @@ function PdfPropertyTabs({ el, update, onOpenLibrary }) {
                 <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
             </Tab>
         </>
+    );
+}
+function HotspotPropertyTabs({ el, update }) {
+    return (
+        <Tab title="Hotspot">
+            <div style={styles.field}>
+                <label style={styles.fieldLabel}>Etichetă</label>
+                <input
+                    type="text"
+                    value={el.label || ''}
+                    onChange={e => update('label', e.target.value)}
+                    placeholder="ex: Zona corectă"
+                    style={{ ...styles.fieldInput, width: '100%' }}
+                />
+            </div>
+            <ColorField
+                label="Culoare zonă"
+                value={el.fill || 'rgba(255, 200, 0, 0.25)'}
+                onChange={v => update('fill', v)}
+            />
+            <ColorField
+                label="Chenar"
+                value={el.stroke || '#f59e0b'}
+                onChange={v => update('stroke', v)}
+            />
+            <NumField
+                label="Border w."
+                value={el.strokeWidth || 2}
+                onChange={v => update('strokeWidth', v)}
+            />
+            <NumField
+                label="Radius"
+                value={el.cornerRadius || 8}
+                onChange={v => update('cornerRadius', v)}
+            />
+            <NumField
+                label="Opacity"
+                value={el.opacity ?? 1}
+                onChange={v => update('opacity', parseFloat(v) || 1)}
+                step={0.1}
+            />
+        </Tab>
     );
 }
 

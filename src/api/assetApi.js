@@ -1,11 +1,20 @@
+import axios from 'axios';
 import api from './axios';
+
+const BASE = 'http://localhost:8080/api';
 
 export const assetApi = {
     upload: (file, onProgress) => {
         const formData = new FormData();
         formData.append('file', file);
-        return api.post('/assets/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
+
+        const token = localStorage.getItem('token');
+
+        return axios.post(`${BASE}/assets/upload`, formData, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+
+            },
             onUploadProgress: (e) => {
                 if (onProgress && e.total) {
                     onProgress(Math.round((e.loaded / e.total) * 100));

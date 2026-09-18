@@ -11,6 +11,7 @@ import CanvasGrid from './elements/CanvasGrid';
 import { getAbsolutePosition, clampChildInsideParent, getGridCellRect } from '../../utils/elementPosition';
 import CanvasVideo from "./elements/CanvasVideo.jsx";
 import CanvasPdf from './elements/CanvasPdf';
+import CanvasHotspot from "./elements/CanvasHotspot.jsx";
 
 export default function EditorCanvas() {
     const {
@@ -238,13 +239,19 @@ export default function EditorCanvas() {
     const handleElementDragMove = (id, e) => {
         const el = elements.find(x => x.id === id);
         if (!el) return;
+
+        if (el.role && el.locked) {
+            e.target.x(el.x);
+            e.target.y(el.y);
+            return;
+        }
+
         let localX = e.target.x();
         let localY = e.target.y();
 
         const parent = el.parentId ? elements.find(p => p.id === el.parentId) : null;
 
         if (parent && parent.type === 'GRID') {
-
             const cellRect = getGridCellRect(parent, el.slotIndex);
             e.target.x(cellRect.x);
             e.target.y(cellRect.y);
@@ -258,7 +265,6 @@ export default function EditorCanvas() {
             e.target.y(clamped.y);
             return;
         }
-
 
         const g = computeGuides(id, localX, localY, el.width, el.height);
         setGuides({ vertical: g.vertical, horizontal: g.horizontal });
@@ -315,8 +321,29 @@ export default function EditorCanvas() {
 
         let elementNode = null;
         if (el.type === ELEMENT_TYPES.TEXT) elementNode = <CanvasText key={el.id} {...common} />;
-        if (el.type === ELEMENT_TYPES.IMAGE) elementNode = <CanvasImage key={el.id} {...common} />;
+        if (el.type === ELEMENT_TYPES.IMAGE) {
+            const parentEl = el.parentId ? elements.find(p => p.id === el.parentId) : null;
+            const lockedByParent = !!parentEl?.role;
+            elementNode = (
+                <CanvasImage
+                    key={el.id}
+                    {...common}
+                    isLocked={common.isLocked || lockedByParent}
+                    lockedByParent={lockedByParent}
+                />
+            );
+        }
         if (el.type === ELEMENT_TYPES.SHAPE) elementNode = <CanvasShape key={el.id} {...common} />;
+        if (el.type === ELEMENT_TYPES.HOTSPOT) {
+            elementNode = (
+                <CanvasHotspot
+                    key={el.id}
+                    {...common}
+                    element={{ ...el, _isCorrect: isMarkedCorrect }}
+                    isSolutionMode={mode === 'solution'}
+                />
+            );
+        }
         if (el.type === ELEMENT_TYPES.BOX) {
             const children = getChildren(el.id).map(child => renderElement(child));
             elementNode = (
@@ -328,10 +355,8 @@ export default function EditorCanvas() {
         if (el.type === ELEMENT_TYPES.GRID) {
             const gridChildren = getChildren(el.id);
             const renderedChildren = gridChildren.map(child => {
-
                 if (child.slotIndex === undefined) return renderElement(child);
                 const cellRect = getGridCellRect(el, child.slotIndex);
-
                 const positioned = { ...child, x: cellRect.x, y: cellRect.y };
                 return renderElement(positioned);
             });
@@ -345,7 +370,8 @@ export default function EditorCanvas() {
         if (el.type === ELEMENT_TYPES.PDF) elementNode = <CanvasPdf key={el.id} {...common} />;
         if (!elementNode) return null;
 
-        if (isMarkedCorrect) {
+        // Hotspot-ul are deja outline propriu in solution mode, deci nu adaugam al doilea chenar
+        if (isMarkedCorrect && el.type !== ELEMENT_TYPES.HOTSPOT) {
             const abs = getAbsolutePosition(el, elements);
             return (
                 <React.Fragment key={el.id}>

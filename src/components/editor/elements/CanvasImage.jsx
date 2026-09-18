@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { Group, Rect, Image as KonvaImage } from 'react-konva';
 import useImage from 'use-image';
 
-export default function CanvasImage({ element, isSelected, onSelect, onChange, onDragMove, onDragEnd, isLocked }) {
+export default function CanvasImage({ element, isSelected, onSelect, onChange, onDragMove, onDragEnd, isLocked, lockedByParent = false }) {
     const [image, status] = useImage(element.src || '', 'anonymous');
     const groupRef = useRef(null);
 
@@ -13,12 +13,15 @@ export default function CanvasImage({ element, isSelected, onSelect, onChange, o
     }, [element]);
 
     const handleSelect = (e) => {
+
+        if (lockedByParent) return;
         e.cancelBubble = true;
         if (e.evt) e.evt.stopPropagation();
         onSelect(e);
     };
 
     const handleMouseDown = (e) => {
+        if (lockedByParent) return;
         e.cancelBubble = true;
         if (e.evt) e.evt.stopPropagation();
     };
@@ -49,14 +52,27 @@ export default function CanvasImage({ element, isSelected, onSelect, onChange, o
             x={element.x}
             y={element.y}
             rotation={element.rotation || 0}
-            draggable={!isLocked}
+            draggable={!isLocked && !lockedByParent}
+            dragDistance={8}
+            onDragStart={(e) => {
+                if (lockedByParent || isLocked) {
+                    e.target.stopDrag();
+                    e.target.x(element.x);
+                    e.target.y(element.y);
+                    return;
+                }
+            }}
+            onDragMove={(!isLocked && !lockedByParent) ? onDragMove : undefined}
+            onDragEnd={(!isLocked && !lockedByParent) ? onDragEnd : (e) => {
+                // Resetează la poziția originală
+                e.target.x(element.x);
+                e.target.y(element.y);
+            }}
             opacity={element.opacity ?? 1}
             onClick={handleSelect}
             onTap={handleSelect}
             onMouseDown={handleMouseDown}
             onTouchStart={handleMouseDown}
-            onDragMove={onDragMove}
-            onDragEnd={onDragEnd}
             onTransformEnd={(e) => {
                 const node = e.target;
                 const scaleX = node.scaleX();

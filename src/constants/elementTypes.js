@@ -6,6 +6,7 @@ export const ELEMENT_TYPES = {
     GRID: 'GRID',
     VIDEO: 'VIDEO',
     PDF: 'PDF',
+    HOTSPOT:'HOTSPOT',
 };
 
 export const ELEMENT_DEFINITIONS = [
@@ -16,4 +17,5 @@ export const ELEMENT_DEFINITIONS = [
     { type: ELEMENT_TYPES.SHAPE, label: 'Formă', icon: '◼' },
     { type: ELEMENT_TYPES.BOX, label: 'Container', icon: '▢' },
     { type: ELEMENT_TYPES.GRID, label: 'Grid', icon: '⊞' },
+    { type: ELEMENT_TYPES.HOTSPOT, label: 'Hotspot',   icon: '🎯' },
 ];

@@ -14,23 +14,23 @@ const PLAYERS_BY_TYPE = {
 export default function PreviewPanel() {
     const { elements, canvas, meta, settings, solution, setMode } = useEditor();
 
-    const config = useMemo(() => {
-        const sanitizedSolution = {
+    const config = useMemo(() => ({
+        version: 1,
+        meta: { ...meta },
+        canvas: { ...canvas },
+        elements: JSON.parse(JSON.stringify(elements)),
+        settings: { ...settings }, // include hints, explanation etc.
+        solution: {
+            correctElementIds: Array.isArray(solution.correctElementIds)
+                ? solution.correctElementIds : [],
             correctCount: Array.isArray(solution.correctElementIds)
                 ? solution.correctElementIds.length
                 : Object.keys(solution.dropMapping || {}).length,
-        };
-
-        return {
-            version: 1,
-            meta: { ...meta },
-            canvas: { ...canvas },
-            elements: JSON.parse(JSON.stringify(elements)), // deep clone
-            settings: { ...settings },
-            solution: sanitizedSolution,
-        };
-    }, [elements, canvas, meta, settings, solution]);
-
+            dropMapping: solution.dropMapping || {},
+            correctAnswers: solution.correctAnswers || {},
+            targets: solution.targets || [],
+        },
+    }), [elements, canvas, meta, settings, solution]);
 
     const fullConfigForMock = useMemo(() => ({
         ...config,
@@ -41,7 +41,6 @@ export default function PreviewPanel() {
             correctAnswers: solution.correctAnswers || {},
         },
     }), [config, solution]);
-
 
     useEffect(() => {
         const mockApi = createMockPreviewApi(fullConfigForMock);
@@ -80,6 +79,7 @@ export default function PreviewPanel() {
                 exerciseId={-1}
                 config={config}
                 onExit={() => setMode('editor')}
+                isPreview={true}
             />
         </div>
     );
@@ -87,54 +87,20 @@ export default function PreviewPanel() {
 
 const styles = {
     wrapper: {
-        position: 'fixed',
-        inset: 0,
-        background: 'white',
-        zIndex: 50,
-        display: 'flex',
-        flexDirection: 'column',
+        position: 'fixed', inset: 0, background: 'white',
+        zIndex: 50, display: 'flex', flexDirection: 'column',
     },
     previewHeader: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '10px 16px',
-        background: '#eef2ff',
-        borderBottom: '1px solid #c7d2fe',
-        flexShrink: 0,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '10px 16px', background: '#eef2ff',
+        borderBottom: '1px solid #c7d2fe', flexShrink: 0,
     },
-    badge: {
-        fontSize: '0.75rem',
-        fontWeight: 800,
-        color: '#4F6BF6',
-        letterSpacing: '0.5px',
-    },
+    badge: { fontSize: '0.75rem', fontWeight: 800, color: '#4F6BF6', letterSpacing: '0.5px' },
     exitBtn: {
-        background: 'white',
-        border: '1.5px solid #c7d2fe',
-        color: '#4F6BF6',
-        padding: '6px 14px',
-        borderRadius: 8,
-        fontSize: '0.82rem',
-        fontWeight: 700,
-        cursor: 'pointer',
+        background: 'white', border: '1.5px solid #c7d2fe', color: '#4F6BF6',
+        padding: '6px 14px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
     },
-    panel: {
-        background: 'white',
-        borderTop: '1px solid #e5e7eb',
-        padding: '20px 24px',
-    },
-    header: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    emptyText: {
-        color: '#9ca3af',
-        fontSize: '0.9rem',
-        fontWeight: 600,
-        textAlign: 'center',
-        margin: '20px 0',
-    },
+    panel: { background: 'white', borderTop: '1px solid #e5e7eb', padding: '20px 24px' },
+    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    emptyText: { color: '#9ca3af', fontSize: '0.9rem', fontWeight: 600, textAlign: 'center', margin: '20px 0' },
 };

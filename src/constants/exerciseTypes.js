@@ -25,6 +25,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Exercițiu liber, fără interactivitate specifică',
         icon: '🎨',
         implemented: false,
+        hasTargets: false,
+        allowedTools: null,
     },
     {
         type: EXERCISE_TYPES.FIND_AND_SELECT,
@@ -32,6 +34,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Elevul dă click pe elementele corecte din canvas',
         icon: '👆',
         implemented: true,
+        hasTargets: true,
+        allowedTools: ['TEXT', 'IMAGE', 'SHAPE', 'HOTSPOT', 'BOX'],
     },
     {
         type: EXERCISE_TYPES.FIND_AND_COUNT,
@@ -39,14 +43,17 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Elevul numără elementele de fiecare categorie',
         icon: '🔢',
         implemented: false,
+        hasTargets: true,
+        allowedTools: ['TEXT', 'IMAGE', 'SHAPE', 'HOTSPOT', 'BOX', 'GRID'],
     },
-
     {
         type: EXERCISE_TYPES.MULTIPLE_CHOICE,
         label: 'Selecție multiplă',
         description: 'Elevul alege una sau mai multe variante corecte',
         icon: '☑️',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'IMAGE', 'SHAPE', 'BOX'],
     },
     {
         type: EXERCISE_TYPES.INPUT_TEXT,
@@ -54,6 +61,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Elevul scrie răspunsul',
         icon: '⌨️',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'IMAGE', 'BOX'],
     },
     {
         type: EXERCISE_TYPES.INPUT_NUMERIC,
@@ -61,6 +70,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Elevul introduce un număr',
         icon: '🔢',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'IMAGE', 'BOX'],
     },
     {
         type: EXERCISE_TYPES.MATCHING,
@@ -68,6 +79,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Elevul potrivește perechi de elemente',
         icon: '🔗',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'IMAGE', 'SHAPE', 'BOX'],
     },
     {
         type: EXERCISE_TYPES.ORDERING,
@@ -75,6 +88,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Elevul aranjează elementele în ordinea corectă',
         icon: '↕️',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'IMAGE', 'SHAPE', 'BOX'],
     },
     {
         type: EXERCISE_TYPES.PUZZLE,
@@ -82,6 +97,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Elevul reconstituie o imagine',
         icon: '🧩',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['IMAGE', 'BOX', 'GRID'],
     },
     {
         type: EXERCISE_TYPES.COLORING,
@@ -89,6 +106,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Elevul colorează zonele indicate',
         icon: '🎨',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['IMAGE', 'SHAPE', 'HOTSPOT', 'BOX'],
     },
     {
         type: EXERCISE_TYPES.GRID_BASED,
@@ -96,6 +115,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Exercițiu bazat pe grilă de imagini',
         icon: '⊞',
         implemented: false,
+        hasTargets: true,
+        allowedTools: ['TEXT', 'IMAGE', 'BOX', 'GRID'],
     },
     {
         type: EXERCISE_TYPES.VIDEO,
@@ -103,6 +124,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Exercițiu bazat pe conținut video',
         icon: '🎬',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'VIDEO', 'BOX'],
     },
     {
         type: EXERCISE_TYPES.PDF,
@@ -110,6 +133,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Exercițiu bazat pe document PDF',
         icon: '📄',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'PDF', 'BOX'],
     },
     {
         type: EXERCISE_TYPES.TABLES_CHARTS,
@@ -117,6 +142,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Exercițiu de interpretare tabele/grafice',
         icon: '📊',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'IMAGE', 'BOX'],
     },
     {
         type: EXERCISE_TYPES.LOGICAL_SERIES,
@@ -124,6 +151,8 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Elevul continuă sau completează un șir logic',
         icon: '➕',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'IMAGE', 'SHAPE', 'BOX', 'GRID'],
     },
     {
         type: EXERCISE_TYPES.TEXT_PROBLEMS,
@@ -131,18 +160,31 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         description: 'Probleme rezolvabile prin raționament textual',
         icon: '📝',
         implemented: false,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'IMAGE', 'BOX'],
     },
-
     {
         type: EXERCISE_TYPES.DRAG_AND_DROP,
         label: 'Drag & drop',
         description: 'Elevul trage elementele în zonele corecte',
         icon: '✥',
         implemented: true,
+        hasTargets: false,
+        allowedTools: ['TEXT', 'IMAGE', 'SHAPE', 'BOX'],
     },
 ];
 
-// Helper pentru lookup rapid
 export function getTypeDefinition(type) {
     return EXERCISE_TYPE_DEFINITIONS.find(d => d.type === type) || EXERCISE_TYPE_DEFINITIONS[0];
+}
+
+
+export function getAllowedTools(type) {
+    const def = getTypeDefinition(type);
+    return def.allowedTools ?? null;
+}
+
+export function typeHasTargets(type) {
+    const def = getTypeDefinition(type);
+    return def.hasTargets ?? false;
 }

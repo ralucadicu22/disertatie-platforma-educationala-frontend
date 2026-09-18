@@ -8,10 +8,10 @@ export const DEFAULT_SETTINGS = {
     feedbackType: 'instant',
     behaviorOnFail: 'retry',
     hint: null,
+    hints: [],
     explanation: null,
     showGroupAverage: false,
 };
-
 export const DEFAULT_SOLUTION = {
     correctElementIds: [],
     correctAnswers: {},

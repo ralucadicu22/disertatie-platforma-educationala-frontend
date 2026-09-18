@@ -6,9 +6,14 @@ import { EXERCISE_TYPES } from '../constants/exerciseTypes';
 import { ELEMENT_TYPES } from '../constants/elementTypes';
 import { DEFAULT_SETTINGS, DEFAULT_SOLUTION } from '../utils/configFactory';
 
-
 const EditorContext = createContext(null);
 const MAX_HISTORY = 50;
+const SOLUTION_ITEM_H = 72;
+const SOLUTION_ITEM_GAP = 10;
+const SOLUTION_PADDING = 16;
+const SOLUTION_IMG_W = 64;
+const SOLUTION_INPUT_W = 80;
+const SOLUTION_TEXT_W = 160;
 
 export function EditorProvider({ children }) {
     const [elements, setElements] = useState([]);
@@ -25,6 +30,7 @@ export function EditorProvider({ children }) {
     const [mode, setMode] = useState('editor');
     const [history, setHistory] = useState([[]]);
     const [historyIndex, setHistoryIndex] = useState(0);
+    const historyIndexRef = useRef(0);
     const clipboardRef = useRef(null);
 
     const [zoom, setZoom] = useState(1);
@@ -48,25 +54,27 @@ export function EditorProvider({ children }) {
     const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
     const lastSavedRef = useRef(null);
 
+    useEffect(() => {
+        historyIndexRef.current = historyIndex;
+    }, [historyIndex]);
+
     const generateId = () => `el_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
     const pushHistory = useCallback((newElements) => {
         setHistory(prev => {
-            const truncated = prev.slice(0, historyIndex + 1);
+            const truncated = prev.slice(0, historyIndexRef.current + 1);
             const next = [...truncated, JSON.parse(JSON.stringify(newElements))];
             if (next.length > MAX_HISTORY) next.shift();
             return next;
         });
         setHistoryIndex(prev => Math.min(prev + 1, MAX_HISTORY - 1));
-    }, [historyIndex]);
+    }, []);
 
     const commitElements = useCallback((newElements) => {
         setElements(newElements);
         pushHistory(newElements);
     }, [pushHistory]);
 
-    // Helper intern: calculeaza parentId, coordonate si slotIndex pentru un element nou
-    // pe baza selectiei curente
     const resolveInsertContext = (type) => {
         let parentId = null;
         let finalX = 100;
@@ -80,6 +88,7 @@ export function EditorProvider({ children }) {
                     parentId = selected.id;
                     finalX = 20;
                     finalY = 20;
+                    return { parentId, finalX, finalY, slotIndex };
                 } else if (selected.type === ELEMENT_TYPES.GRID) {
                     parentId = selected.id;
                     const usedSlots = new Set(
@@ -92,7 +101,35 @@ export function EditorProvider({ children }) {
                     if (slotIndex === undefined) return null; // Grid plin
                     finalX = 0;
                     finalY = 0;
+                    return { parentId, finalX, finalY, slotIndex };
                 }
+            }
+        }
+
+        if (type === ELEMENT_TYPES.HOTSPOT || type === ELEMENT_TYPES.IMAGE) {
+            const imageZone = elements.find(el =>
+                el.type === ELEMENT_TYPES.BOX && el.role === 'image-zone'
+            );
+            if (imageZone) {
+                parentId = imageZone.id;
+
+                const elWidth = type === ELEMENT_TYPES.HOTSPOT ? 120 : 200;
+                const elHeight = type === ELEMENT_TYPES.HOTSPOT ? 80 : 150;
+                finalX = Math.max(20, (imageZone.width - elWidth) / 2);
+                finalY = Math.max(20, (imageZone.height - elHeight) / 2);
+                return { parentId, finalX, finalY, slotIndex };
+            }
+        }
+
+        if (type === ELEMENT_TYPES.TEXT) {
+            const textZone = elements.find(el =>
+                el.type === ELEMENT_TYPES.BOX && el.role === 'text-zone'
+            );
+            if (textZone) {
+                parentId = textZone.id;
+                finalX = 20;
+                finalY = 20;
+                return { parentId, finalX, finalY, slotIndex };
             }
         }
 
@@ -101,7 +138,7 @@ export function EditorProvider({ children }) {
 
     const addElement = useCallback((type, x = 100, y = 100) => {
         const ctx = resolveInsertContext(type);
-        if (ctx === null) return null; // Grid plin
+        if (ctx === null) return null;
 
         const id = generateId();
         const defaults = getDefaultElementProps(type);
@@ -115,7 +152,6 @@ export function EditorProvider({ children }) {
         commitElements(newElements);
         setSelectedIds([id]);
         return id;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [elements, commitElements, selectedIds]);
 
     const addElementWithProps = useCallback((type, extraProps = {}) => {
@@ -138,7 +174,7 @@ export function EditorProvider({ children }) {
         commitElements(newElements);
         setSelectedIds([id]);
         return id;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, [elements, commitElements, selectedIds]);
 
     const updateElement = useCallback((id, updates) => {
@@ -559,6 +595,283 @@ export function EditorProvider({ children }) {
         }
     }, []);
 
+    const findSolutionsZoneId = (els) =>
+        els.find(el => el.type === ELEMENT_TYPES.BOX && el.role === 'solutions-zone')?.id ?? null;
+
+    const makeSolutionRowElements = (target, index, zoneId) => {
+        const y = SOLUTION_PADDING + index * (SOLUTION_ITEM_H + SOLUTION_ITEM_GAP);
+        const imgX = SOLUTION_PADDING;
+        const labelX = imgX + SOLUTION_IMG_W + 10;
+        const inputX = labelX + SOLUTION_TEXT_W + 8;
+
+        return [
+            {
+                id: `sol_img_${target.id}`,
+                type: ELEMENT_TYPES.SHAPE,
+                shapeType: 'rect',
+                x: imgX,
+                y,
+                width: SOLUTION_IMG_W,
+                height: SOLUTION_ITEM_H,
+                fill: '#e0e7ff',
+                stroke: '#a5b4fc',
+                strokeWidth: 2,
+                cornerRadius: 8,
+                opacity: 1,
+                rotation: 0,
+                shadowEnabled: false,
+                shadowColor: '#000000',
+                shadowBlur: 4,
+                shadowOpacity: 0.1,
+                behavior: 'static',
+                locked: true,
+                hidden: false,
+                parentId: zoneId,
+                _solutionTargetId: target.id,
+                _solutionRole: 'img-placeholder',
+            },
+
+            {
+                id: `sol_label_${target.id}`,
+                type: ELEMENT_TYPES.TEXT,
+                x: labelX,
+                y: y + SOLUTION_ITEM_H / 2 - 18,
+                width: SOLUTION_TEXT_W,
+                height: 36,
+                text: target.label || 'Obiect țintă',
+                fontFamily: 'Nunito',
+                fontSize: 16,
+                fontStyle: 'normal',
+                textDecoration: '',
+                fill: '#374151',
+                align: 'left',
+                verticalAlign: 'middle',
+                letterSpacing: 0,
+                lineHeight: 1.2,
+                padding: 4,
+                bgFill: 'transparent',
+                bgStroke: 'transparent',
+                bgStrokeWidth: 0,
+                bgCornerRadius: 0,
+                shadowEnabled: false,
+                shadowColor: '#000000',
+                shadowBlur: 4,
+                shadowOpacity: 0.3,
+                listStyle: 'none',
+                rotation: 0,
+                locked: true,
+                hidden: false,
+                parentId: zoneId,
+                _solutionTargetId: target.id,
+                _solutionRole: 'label',
+            },
+
+            {
+                id: `sol_count_${target.id}`,
+                type: ELEMENT_TYPES.SHAPE,
+                shapeType: 'rect',
+                x: inputX,
+                y: y + SOLUTION_ITEM_H / 2 - 20,
+                width: SOLUTION_INPUT_W,
+                height: 40,
+                fill: '#ffffff',
+                stroke: '#6366f1',
+                strokeWidth: 2,
+                cornerRadius: 8,
+                opacity: 1,
+                rotation: 0,
+                shadowEnabled: false,
+                shadowColor: '#000000',
+                shadowBlur: 4,
+                shadowOpacity: 0.1,
+                behavior: 'static',
+                locked: true,
+                hidden: false,
+                parentId: zoneId,
+                _solutionTargetId: target.id,
+                _solutionRole: 'count-box',
+            },
+
+            {
+                id: `sol_count_text_${target.id}`,
+                type: ELEMENT_TYPES.TEXT,
+                x: inputX,
+                y: y + SOLUTION_ITEM_H / 2 - 20,
+                width: SOLUTION_INPUT_W,
+                height: 40,
+                text: String(target.count ?? 1),
+                fontFamily: 'Nunito',
+                fontSize: 20,
+                fontStyle: 'bold',
+                textDecoration: '',
+                fill: '#4F6BF6',
+                align: 'center',
+                verticalAlign: 'middle',
+                letterSpacing: 0,
+                lineHeight: 1.2,
+                padding: 4,
+                bgFill: 'transparent',
+                bgStroke: 'transparent',
+                bgStrokeWidth: 0,
+                bgCornerRadius: 0,
+                shadowEnabled: false,
+                shadowColor: '#000000',
+                shadowBlur: 4,
+                shadowOpacity: 0.3,
+                listStyle: 'none',
+                rotation: 0,
+                locked: true,
+                hidden: false,
+                parentId: zoneId,
+                _solutionTargetId: target.id,
+                _solutionRole: 'count-text',
+            },
+        ];
+    };
+
+
+    const syncSolutionElements = useCallback((newTargets, currentElements) => {
+        const zoneId = findSolutionsZoneId(currentElements);
+        if (!zoneId) return currentElements;
+
+        // Elimină toate elementele generate anterior și hint-ul italic
+        const cleaned = currentElements.filter(el =>
+            !el._solutionTargetId &&
+            !(el.parentId === zoneId && el.type === ELEMENT_TYPES.TEXT
+                && el.fontStyle === 'italic' && el.fill === '#9ca3af')
+        );
+
+
+        const newSolutionEls = newTargets.flatMap((target, index) =>
+            makeSolutionRowElements(target, index, zoneId)
+        );
+
+
+        const neededH = newTargets.length > 0
+            ? SOLUTION_PADDING * 2 + newTargets.length * (SOLUTION_ITEM_H + SOLUTION_ITEM_GAP) - SOLUTION_ITEM_GAP
+            : 80;
+
+        const withUpdatedZone = cleaned.map(el =>
+            el.id === zoneId
+                ? { ...el, height: Math.max(neededH, el.height) }
+                : el
+        );
+
+        return [...withUpdatedZone, ...newSolutionEls];
+    }, []);
+
+
+    const addTarget = useCallback(() => {
+        const newTarget = {
+            id: `target_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+            label: '',
+            count: 1,
+            linkedElementIds: [],
+        };
+        setSolution(prev => ({
+            ...prev,
+            targets: [...(prev.targets || []), newTarget],
+        }));
+    }, []);
+
+    const updateTarget = useCallback((targetId, updates) => {
+        setSolution(prev => ({
+            ...prev,
+            targets: (prev.targets || []).map(t =>
+                t.id === targetId ? { ...t, ...updates } : t
+            ),
+        }));
+    }, []);
+
+    const removeTarget = useCallback((targetId) => {
+        setSolution(prev => {
+            const target = (prev.targets || []).find(t => t.id === targetId);
+            const linkedIds = target?.linkedElementIds || [];
+            return {
+                ...prev,
+                targets: (prev.targets || []).filter(t => t.id !== targetId),
+                correctElementIds: prev.correctElementIds.filter(id => !linkedIds.includes(id)),
+            };
+        });
+    }, []);
+
+    const reorderTargets = useCallback((fromIndex, toIndex) => {
+        setSolution(prev => {
+            const arr = [...(prev.targets || [])];
+            const [moved] = arr.splice(fromIndex, 1);
+            arr.splice(toIndex, 0, moved);
+            return { ...prev, targets: arr };
+        });
+    }, []);
+
+    const linkElementToTarget = useCallback((targetId, elementId) => {
+        setSolution(prev => {
+            const target = (prev.targets || []).find(t => t.id === targetId);
+            const isLinked = target?.linkedElementIds?.includes(elementId);
+
+            const newTargets = (prev.targets || []).map(t => {
+                if (t.id !== targetId) return t;
+                return {
+                    ...t,
+                    linkedElementIds: isLinked
+                        ? t.linkedElementIds.filter(id => id !== elementId)
+                        : [...(t.linkedElementIds || []), elementId],
+                };
+            });
+
+            const newCorrectIds = isLinked
+                ? prev.correctElementIds.filter(id => id !== elementId)
+                : prev.correctElementIds.includes(elementId)
+                    ? prev.correctElementIds
+                    : [...prev.correctElementIds, elementId];
+
+            return {
+                ...prev,
+                targets: newTargets,
+                correctElementIds: newCorrectIds,
+            };
+        });
+    }, []);
+
+    const addHint = useCallback(() => {
+        const newHint = {
+            id: `hint_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+            type: 'TEXT',
+            text: '',
+            targetElementId: null,
+            order: 0,
+        };
+        setSettings(prev => ({
+            ...prev,
+            hints: [...(prev.hints || []), newHint],
+        }));
+    }, []);
+
+    const updateHint = useCallback((hintId, updates) => {
+        setSettings(prev => ({
+            ...prev,
+            hints: (prev.hints || []).map(h =>
+                h.id === hintId ? { ...h, ...updates } : h
+            ),
+        }));
+    }, []);
+
+    const removeHint = useCallback((hintId) => {
+        setSettings(prev => ({
+            ...prev,
+            hints: (prev.hints || []).filter(h => h.id !== hintId),
+        }));
+    }, []);
+
+    const reorderHints = useCallback((fromIndex, toIndex) => {
+        setSettings(prev => {
+            const arr = [...(prev.hints || [])];
+            const [moved] = arr.splice(fromIndex, 1);
+            arr.splice(toIndex, 0, moved);
+            return { ...prev, hints: arr };
+        });
+    }, []);
+
     useEffect(() => {
         const handleKeyDown = (e) => {
             const tag = e.target.tagName;
@@ -596,6 +909,7 @@ export function EditorProvider({ children }) {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [undo, redo, copy, paste, duplicate, deleteSelected, selectedIds, elements, clearSelection, fullscreenMode]);
+
 
     useEffect(() => {
         if (!autoSaveEnabled || !exerciseId || draftStatus !== 'DRAFT') return;
@@ -669,6 +983,7 @@ export function EditorProvider({ children }) {
         toggleCorrect, isCorrect: (id) => solution.correctElementIds.includes(id),
         draftVersionId, draftStatus, submitForReview,
         autoSaveEnabled, setAutoSaveEnabled,
+        addTarget, updateTarget, removeTarget, reorderTargets, linkElementToTarget,addHint, updateHint, removeHint, reorderHints,
     };
 
     return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;
@@ -757,6 +1072,18 @@ function getDefaultElementProps(type) {
                 shadowEnabled: false, shadowColor: '#000000',
                 shadowBlur: 8, shadowOpacity: 0.15,
                 locked: false, hidden: false,
+            };
+        case ELEMENT_TYPES.HOTSPOT:
+            return {
+                fill: 'rgba(255, 200, 0, 0.25)',
+                stroke: '#f59e0b',
+                strokeWidth: 2,
+                cornerRadius: 8,
+                opacity: 1,
+                behavior: 'clickable',
+                label: '',
+                width: 120,
+                height: 80,
             };
         default:
             return {};

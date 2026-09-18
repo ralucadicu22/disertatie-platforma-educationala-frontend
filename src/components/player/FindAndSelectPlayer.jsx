@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Stage, Layer, Rect } from 'react-konva';
+import { Stage, Layer, Rect,Group } from 'react-konva';
 import api from '../../api/axios';
 import PlayerText from './PlayerText';
 import PlayerImage from './PlayerImage';
 import PlayerShape from './PlayerShape';
+import PlayerHotspot from './PlayerHotspot';
 import ParticleBurst from './ParticleBurst';
 import { ELEMENT_TYPES } from '../../constants/elementTypes';
 import { ThemeProvider } from '../../contexts/ThemeContext';
@@ -11,9 +12,10 @@ import { getTheme } from '../../constants/themes.js';
 import ExerciseFeedbackWidget from '../feedback/ExerciseFeedbackWidget';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
+
 const CONTAINER_PADDING = 40;
 
-export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
+export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPreview = false }) {
     const containerRef = useRef(null);
     const [scale, setScale] = useState(1);
 
@@ -33,6 +35,10 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
     const [highlightedIds, setHighlightedIds] = useState(new Set());
     const [animatingIds, setAnimatingIds] = useState(new Set());
 
+    const [wrongClicks, setWrongClicks] = useState(0);
+    const [wrongBanner, setWrongBanner] = useState(false);
+    const wrongBannerTimeoutRef = useRef(null);
+
     const canvasWidth = config.canvas.width;
     const canvasHeight = config.canvas.height;
 
@@ -41,7 +47,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
         [config.solution]
     );
     const totalCorrect = correctElementIds.size;
-    const maxAttempts = config.settings?.maxAttempts || 0;
     const theme = getTheme(config.meta?.themeId || 'formal');
 
     useEffect(() => {
@@ -49,7 +54,10 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
         if (!el) return;
         const resize = () => {
             const availableWidth = el.clientWidth - CONTAINER_PADDING;
-            setScale(Math.min(1, availableWidth / canvasWidth));
+            const availableHeight = el.clientHeight - CONTAINER_PADDING;
+            const scaleByWidth = availableWidth / canvasWidth;
+            const scaleByHeight = availableHeight / canvasHeight;
+            setScale(Math.min(1, scaleByWidth, scaleByHeight));
         };
         resize();
         const observer = new ResizeObserver(resize);
@@ -58,11 +66,9 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
     }, [canvasWidth]);
 
     useEffect(() => {
-        api.get(`/exercises/${exerciseId}/hints/available`)
-            .then(res => setHintsAvailable(res.data || []))
-            .catch(() => {});
-    }, [exerciseId]);
-
+        const hints = config.settings?.hints || [];
+        setHintsAvailable(hints);
+    }, [config.settings]);
     const shakeTimeoutRef = useRef(null);
 
     const handleElementClick = (element) => {
@@ -83,14 +89,64 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
             clearTimeout(shakeTimeoutRef.current);
             setShakingId(element.id);
             shakeTimeoutRef.current = setTimeout(() => setShakingId(null), 320);
+
+            clearTimeout(wrongBannerTimeoutRef.current);
+            setWrongBanner(true);
+            wrongBannerTimeoutRef.current = setTimeout(() => setWrongBanner(false), 1500);
+
+            setWrongClicks(prev => {
+                const next = prev + 1;
+                if (next % 3 === 0) {
+                    setTimeout(() => triggerSmartHint(next), 400);
+                }
+                return next;
+            });
         }
+
+        const triggerSmartHint = (wrongCount) => {
+            const round = Math.floor(wrongCount / 3); // 1, 2, 3...
+
+            if (round === 1) {
+                const textHint = hintsAvailable.find(h => h.type === 'TEXT');
+                if (textHint) {
+                    setCurrentHint(textHint);
+                }
+                return;
+            }
+
+
+            const notFoundYet = [...correctElementIds].filter(id => !foundIds.has(id));
+            if (notFoundYet.length === 0) return;
+
+
+            const targetId = notFoundYet[Math.floor(Math.random() * notFoundYet.length)];
+
+            const highlightHint = hintsAvailable.find(
+                h => h.type === 'HIGHLIGHT' && h.targetElementId === targetId
+            ) || {
+                id: `auto_${targetId}`,
+                type: 'HIGHLIGHT',
+                targetElementId: targetId,
+                text: 'Uită-te la elementul evidențiat!',
+            };
+
+            setCurrentHint(highlightHint);
+            setHighlightedIds(prev => new Set([...prev, targetId]));
+            setTimeout(() => {
+                setHighlightedIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(targetId);
+                    return next;
+                });
+                setCurrentHint(null);
+            }, 3000);
+        };
     };
 
     const removeBurst = (id) => setBursts(prev => prev.filter(b => b.id !== id));
 
     const handleHint = () => {
         if (!hintsAvailable || hintsUsed >= hintsAvailable.length) return;
-
         const hint = hintsAvailable[hintsUsed];
         setHintsUsed(prev => prev + 1);
         setCurrentHint(hint);
@@ -119,6 +175,17 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
     };
 
     const handleFinish = async () => {
+        if (isPreview) {
+            setResult({
+                correct: foundIds.size === totalCorrect && totalCorrect > 0,
+                score: totalCorrect > 0 ? foundIds.size / totalCorrect : 0,
+                attemptsRemaining: null,
+                newBadges: [],
+            });
+            setPhase('result');
+            return;
+        }
+
         setPhase('submitting');
         setSubmitError('');
         try {
@@ -144,7 +211,26 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
             setPhase('playing');
         }
     };
+    const handleStageClick = (e) => {
+        if (phase !== 'playing') return;
+        const clickedOnStage = e.target === e.target.getStage();
+        const clickedOnRect = e.target.getClassName() === 'Rect' && !e.target.id();
+        const clickedOnImage = e.target.getClassName() === 'Image';
 
+        if (clickedOnStage || clickedOnRect || clickedOnImage) {
+            clearTimeout(wrongBannerTimeoutRef.current);
+            setWrongBanner(true);
+            wrongBannerTimeoutRef.current = setTimeout(() => setWrongBanner(false), 1500);
+
+            setWrongClicks(prev => {
+                const next = prev + 1;
+                if (next % 3 === 0 && hintsAvailable.length > 0 && hintsUsed < hintsAvailable.length) {
+                    setTimeout(() => handleHint(), 400);
+                }
+                return next;
+            });
+        }
+    };
     const handleRetry = () => {
         setFoundIds(new Set());
         setResult(null);
@@ -154,15 +240,89 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
         setHighlightedIds(new Set());
         setAnimatingIds(new Set());
         setNewBadges([]);
+        setWrongClicks(0);
+        setWrongBanner(false);
+        setHintsUsed(0);
     };
 
     const attemptsExhausted = result && !result.correct && result.attemptsRemaining === 0;
-    const canShowHint = hintsAvailable.length > 0 && hintsUsed < hintsAvailable.length && phase === 'playing';
+    const canShowHint = !isPreview && hintsAvailable.length > 0 && hintsUsed < hintsAvailable.length && phase === 'playing';
+
+    const topLevelElements = config.elements.filter(el => !el.parentId);
+    const getChildren = (parentId) => config.elements.filter(el => el.parentId === parentId);
+
+    const renderElement = (element) => {
+        const interactionState =
+            foundIds.has(element.id) ? 'found'
+                : shakingId === element.id ? 'shake'
+                    : highlightedIds.has(element.id) ? 'highlight'
+                        : animatingIds.has(element.id) ? 'animate'
+                            : undefined;
+
+        if (element.type === ELEMENT_TYPES.BOX) {
+            const children = getChildren(element.id);
+            return (
+                <Group
+                    key={element.id}
+                    x={element.x}
+                    y={element.y}
+                    rotation={element.rotation || 0}
+                >
+                    <Rect
+                        width={element.width}
+                        height={element.height}
+                        fill={element.bgFill !== 'transparent' ? element.bgFill : undefined}
+                        stroke={element.bgStroke !== 'transparent' ? element.bgStroke : undefined}
+                        strokeWidth={element.bgStrokeWidth}
+                        cornerRadius={element.bgCornerRadius}
+                        listening={false}
+                    />
+                    {children.map(child => renderElement(child))}
+                </Group>
+            );
+        }
+
+        if (element.type === ELEMENT_TYPES.TEXT) {
+            return <PlayerText key={element.id} element={element} />;
+        }
+        if (element.type === ELEMENT_TYPES.IMAGE) {
+            return (
+                <PlayerImage
+                    key={element.id}
+                    element={element}
+                    interactionState={interactionState}
+                    onElementClick={handleElementClick}
+                />
+            );
+        }
+        if (element.type === ELEMENT_TYPES.SHAPE) {
+            return (
+                <PlayerShape
+                    key={element.id}
+                    element={element}
+                    interactionState={interactionState}
+                    onElementClick={handleElementClick}
+                />
+            );
+        }
+        if (element.type === ELEMENT_TYPES.HOTSPOT) {
+            return (
+                <PlayerHotspot
+                    key={element.id}
+                    element={element}
+                    interactionState={interactionState}
+                    onElementClick={handleElementClick}
+                />
+            );
+        }
+        return null;
+    };
 
     return (
         <ThemeProvider themeId={config.meta?.themeId}>
             <div style={{
-                minHeight: '100vh',
+                height: '100vh',
+                overflow: 'hidden',
                 background: theme.colors.surface,
                 display: 'flex',
                 flexDirection: 'column',
@@ -170,7 +330,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                 paddingBottom: 32,
                 fontFamily: theme.font.family,
             }}>
-                {/* Header */}
+
                 <div style={styles.header}>
                     <button style={styles.backBtn} onClick={onExit}>← Ieși</button>
                     <div style={styles.progress}>
@@ -179,9 +339,16 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                     <div style={{ width: 80 }} />
                 </div>
 
+                {isPreview && (
+                    <div style={styles.previewBanner}>
+                        🔍 PREVIZUALIZARE — răspunsurile nu se salvează
+                    </div>
+                )}
+
                 {config.meta?.description && (
                     <p style={styles.description}>{config.meta.description}</p>
                 )}
+
 
                 <div ref={containerRef} style={styles.canvasContainer}>
                     <div style={{ width: canvasWidth * scale, height: canvasHeight * scale }}>
@@ -190,6 +357,8 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                             height={canvasHeight * scale}
                             scaleX={scale}
                             scaleY={scale}
+                            onClick={handleStageClick}
+                            onTap={handleStageClick}
                         >
                             <Layer>
                                 <Rect
@@ -199,39 +368,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                                     fill={config.canvas.background || '#ffffff'}
                                     listening={false}
                                 />
-                                {config.elements.map(element => {
-                                    const interactionState =
-                                        foundIds.has(element.id) ? 'found'
-                                            : shakingId === element.id ? 'shake'
-                                                : highlightedIds.has(element.id) ? 'highlight'
-                                                    : animatingIds.has(element.id) ? 'animate'
-                                                        : undefined;
-
-                                    switch (element.type) {
-                                        case ELEMENT_TYPES.TEXT:
-                                            return <PlayerText key={element.id} element={element} />;
-                                        case ELEMENT_TYPES.IMAGE:
-                                            return (
-                                                <PlayerImage
-                                                    key={element.id}
-                                                    element={element}
-                                                    interactionState={interactionState}
-                                                    onElementClick={handleElementClick}
-                                                />
-                                            );
-                                        case ELEMENT_TYPES.SHAPE:
-                                            return (
-                                                <PlayerShape
-                                                    key={element.id}
-                                                    element={element}
-                                                    interactionState={interactionState}
-                                                    onElementClick={handleElementClick}
-                                                />
-                                            );
-                                        default:
-                                            return null;
-                                    }
-                                })}
+                                {topLevelElements.map(el => renderElement(el))}
                                 {bursts.map(burst => (
                                     <ParticleBurst
                                         key={burst.id}
@@ -245,6 +382,11 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                     </div>
                 </div>
 
+                {wrongBanner && (
+                    <div style={styles.wrongBanner}>
+                        ❌ Nu e obiectul căutat. Încearcă altundeva!
+                    </div>
+                )}
                 {currentHint && (
                     <div style={{
                         ...styles.hintBox,
@@ -272,14 +414,12 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
 
                 {submitError && <p style={styles.errorText}>{submitError}</p>}
 
+
                 {phase !== 'result' && (
                     <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
                         {canShowHint && (
                             <button
-                                style={{
-                                    ...styles.hintBtn,
-                                    borderRadius: theme.borderRadius,
-                                }}
+                                style={{ ...styles.hintBtn, borderRadius: theme.borderRadius }}
                                 onClick={handleHint}
                             >
                                 💡 Hint ({hintsAvailable.length - hintsUsed} rămas)
@@ -316,7 +456,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                             {!result.correct && result.attemptsRemaining !== null &&
                                 ` · Încercări rămase: ${result.attemptsRemaining}`}
                         </p>
-
 
                         {classAverage !== null && config.settings?.showGroupAverage && (
                             <div style={{
@@ -373,7 +512,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                                 }}
                                 onClick={onExit}
                             >
-                                Înapoi la quiz
+                                {isPreview ? 'Închide preview' : 'Înapoi la quiz'}
                             </button>
                         </div>
 
@@ -383,7 +522,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                     </div>
                 )}
 
-                {newBadges.length > 0 && (
+                {!isPreview && newBadges.length > 0 && (
                     <div style={{
                         marginTop: 16, background: 'white', border: '2px solid #fbbf24',
                         borderRadius: 14, padding: '18px 24px', textAlign: 'center', minWidth: 280,
@@ -407,7 +546,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit }) {
                     </div>
                 )}
 
-                {showFeedback && (
+                {!isPreview && showFeedback && (
                     <ExerciseFeedbackWidget
                         exerciseId={exerciseId}
                         onDismiss={() => setShowFeedback(false)}
@@ -428,13 +567,25 @@ const styles = {
         padding: '7px 14px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#6b7280',
     },
     progress: { fontWeight: 800, fontSize: '0.95rem', color: '#1a1d23' },
+    previewBanner: {
+        width: '100%', background: '#fef3c7', borderBottom: '1px solid #fde68a',
+        padding: '8px 20px', textAlign: 'center', fontSize: '0.82rem',
+        fontWeight: 700, color: '#92400e',
+    },
     description: {
         maxWidth: 640, textAlign: 'center', color: '#6b7280', fontWeight: 600,
         fontSize: '0.9rem', margin: '16px 20px 0',
     },
     canvasContainer: {
-        width: '100%', maxWidth: 1240, display: 'flex', justifyContent: 'center',
-        padding: '20px', boxSizing: 'border-box',
+        width: '100%',
+        maxWidth: 1240,
+        display: 'flex',
+        justifyContent: 'center',
+        padding: '20px',
+        boxSizing: 'border-box',
+        flex: 1,
+        minHeight: 0,
+        overflowY: 'auto',
     },
     hintBox: {
         display: 'flex', alignItems: 'center', gap: 10,
@@ -447,8 +598,7 @@ const styles = {
     errorText: { color: '#dc2626', fontWeight: 700, fontSize: '0.85rem', marginTop: 8 },
     hintBtn: {
         padding: '10px 20px', background: '#fffbeb', color: '#92400e',
-        border: '2px solid #fde68a', fontSize: '0.9rem', fontWeight: 700,
-        cursor: 'pointer',
+        border: '2px solid #fde68a', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer',
     },
     finishBtn: {
         padding: '12px 28px', color: 'white', border: 'none',
@@ -470,4 +620,16 @@ const styles = {
         fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
     },
     exhaustedText: { fontSize: '0.85rem', fontWeight: 700, color: '#ef4444', margin: '12px 0 0 0' },
+    wrongBanner: {
+        background: '#fee2e2',
+        border: '2px solid #fca5a5',
+        borderRadius: 12,
+        padding: '10px 20px',
+        marginTop: 12,
+        fontSize: '0.9rem',
+        fontWeight: 800,
+        color: '#b91c1c',
+        maxWidth: 480,
+        textAlign: 'center',
+    },
 };

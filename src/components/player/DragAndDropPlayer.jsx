@@ -1,418 +1,336 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Stage, Layer, Rect, Circle, RegularPolygon, Line, Image as KonvaImage, Group, Text } from 'react-konva';
+import { useMemo, useRef, useState, useEffect } from 'react';
+import { Stage, Layer, Rect, Group, Text, Image as KonvaImage } from 'react-konva';
 import useImage from 'use-image';
-import Matter from 'matter-js';
 import Konva from 'konva';
-import { apiWithOverride as api } from '../../api/axios';
+import api from '../../api/axios';
 import PlayerText from './PlayerText';
 import PlayerImage from './PlayerImage';
 import PlayerShape from './PlayerShape';
 import ParticleBurst from './ParticleBurst';
 import { ELEMENT_TYPES } from '../../constants/elementTypes';
-import { getAbsolutePosition } from '../../utils/elementPosition';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import { getTheme } from '../../constants/themes.js';
 import ExerciseFeedbackWidget from '../feedback/ExerciseFeedbackWidget';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const CONTAINER_PADDING = 40;
-const MAGNET_RADIUS = 110;
-const SNAP_RADIUS = 70;
+const SNAP_RADIUS = 80;
 
-const noop = () => {};
-
-const audioCtxRef = { current: null };
-const getAudioCtx = () => {
-    if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    return audioCtxRef.current;
+const audioCtx = { current: null };
+const getCtx = () => {
+    if (!audioCtx.current) audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx.current;
 };
-
-const playTone = (freq, duration = 0.15, type = 'sine', gain = 0.1) => {
+const playTone = (freq, dur = 0.15, type = 'sine', gain = 0.1) => {
     try {
-        const ctx = getAudioCtx();
+        const ctx = getCtx();
         const osc = ctx.createOscillator();
         const g = ctx.createGain();
-        osc.type = type;
-        osc.frequency.value = freq;
+        osc.type = type; osc.frequency.value = freq;
         g.gain.setValueAtTime(gain, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-        osc.connect(g);
-        g.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+        osc.connect(g); g.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + dur);
     } catch {}
 };
-
-const soundGrab = () => playTone(220, 0.08, 'sine', 0.05);
 const soundCorrect = () => {
     playTone(523, 0.12, 'sine', 0.12);
     setTimeout(() => playTone(784, 0.15, 'sine', 0.1), 100);
 };
 const soundWrong = () => playTone(150, 0.2, 'sawtooth', 0.08);
 
-export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
+export default function DragAndDropPlayer({ exerciseId, config, onExit, isPreview = false }) {
     const containerRef = useRef(null);
-    const stageRef = useRef(null);
-    const layerRef = useRef(null);
     const [scale, setScale] = useState(1);
-    const [bgImage] = useImage(config.canvas.backgroundImage || '', 'anonymous');
 
+    const theme = getTheme(config.meta?.themeId || 'formal');
     const canvasWidth = config.canvas.width;
     const canvasHeight = config.canvas.height;
+    const allElements = config.elements;
 
-    const draggableElements = useMemo(() => {
-        return config.elements
-            .filter(el => el.behavior === 'draggable' && !el.hidden)
-            .map(el => {
-                const abs = getAbsolutePosition(el, config.elements);
-                return { ...el, x: abs.x, y: abs.y, parentId: null };
-            });
-    }, [config.elements]);
-
-    const targetElements = useMemo(() => {
-        return config.elements
-            .filter(el => el.behavior === 'dropTarget' && !el.hidden)
-            .map(el => {
-                const abs = getAbsolutePosition(el, config.elements);
-                return { ...el, x: abs.x, y: abs.y, parentId: null };
-            });
-    }, [config.elements]);
-
-    const staticElements = useMemo(
-        () => config.elements.filter(el => el.behavior !== 'draggable' && el.behavior !== 'dropTarget'),
-        [config.elements]
+    const draggableDefs = useMemo(() =>
+            allElements.filter(el => el.behavior === 'draggable' && !el.hidden),
+        [allElements]
     );
 
-    const totalCorrect = useMemo(() => config.solution?.correctCount ?? 0, [config.solution]);
+    const targetDefs = useMemo(() =>
+            allElements.filter(el => el.behavior === 'dropTarget' && !el.hidden),
+        [allElements]
+    );
 
-    const engineRef = useRef(null);
-    const runnerRef = useRef(null);
-    const bodiesRef = useRef({});
-    const konvaNodeRefs = useRef({});
-    const targetNodeRefs = useRef({});
-    const draggingIdRef = useRef(null);
-    const placedCorrectlyRef = useRef(new Set());
+    const staticElements = useMemo(() =>
+            allElements.filter(el => el.behavior !== 'draggable' && el.behavior !== 'dropTarget'),
+        [allElements]
+    );
 
-    const [placedCount, setPlacedCount] = useState(0);
+    const dropMapping = config.solution?.dropMapping || {};
+    const totalCorrect = Object.keys(dropMapping).length;
+
+    const [positions, setPositions] = useState(() => {
+        const init = {};
+        draggableDefs.forEach(el => { init[el.id] = { x: el.x, y: el.y }; });
+        return init;
+    });
+
+    const originPositions = useMemo(() => {
+        const orig = {};
+        draggableDefs.forEach(el => { orig[el.id] = { x: el.x, y: el.y }; });
+        return orig;
+    }, [draggableDefs]);
+
+    const [placed, setPlaced] = useState({});
     const [activeTargetId, setActiveTargetId] = useState(null);
-    const [hoveredId, setHoveredId] = useState(null);
+    const draggingRef = useRef(null);
     const [bursts, setBursts] = useState([]);
     const [phase, setPhase] = useState('playing');
     const [result, setResult] = useState(null);
     const [submitError, setSubmitError] = useState('');
     const [showFeedback, setShowFeedback] = useState(false);
-    const [classAverage, setClassAverage] = useState(null);
-    const [newBadges, setNewBadges] = useState([]);
-
+    const [wrongId, setWrongId] = useState(null);
+    const wrongTimeoutRef = useRef(null);
+    const [wrongClicks, setWrongClicks] = useState(0);
     const [hintsAvailable, setHintsAvailable] = useState([]);
     const [hintsUsed, setHintsUsed] = useState(0);
     const [currentHint, setCurrentHint] = useState(null);
     const [highlightedIds, setHighlightedIds] = useState(new Set());
-    const [animatingIds, setAnimatingIds] = useState(new Set());
-
-    const theme = getTheme(config.meta?.themeId || 'formal');
 
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
         const resize = () => {
             const availableWidth = el.clientWidth - CONTAINER_PADDING;
-            setScale(Math.min(1, availableWidth / canvasWidth));
+            const availableHeight = el.clientHeight - CONTAINER_PADDING;
+            setScale(Math.min(1, availableWidth / canvasWidth, availableHeight / canvasHeight));
         };
         resize();
         const observer = new ResizeObserver(resize);
         observer.observe(el);
         return () => observer.disconnect();
-    }, [canvasWidth]);
+    }, [canvasWidth, canvasHeight]);
 
     useEffect(() => {
+        const hints = config.settings?.hints || [];
+        if (hints.length > 0) { setHintsAvailable(hints); return; }
+        if (isPreview || !exerciseId || exerciseId === -1) return;
         api.get(`/exercises/${exerciseId}/hints/available`)
             .then(res => setHintsAvailable(res.data || []))
             .catch(() => {});
-    }, [exerciseId]);
-
-    useEffect(() => {
-        if (!activeTargetId) return;
-        const node = targetNodeRefs.current[activeTargetId];
-        if (!node) return;
-        const tween = new Konva.Tween({
-            node, duration: 0.4, scaleX: 1.08, scaleY: 1.08,
-            easing: Konva.Easings.EaseInOut, yoyo: true,
-            onFinish: () => { node.scaleX(1); node.scaleY(1); },
-        });
-        tween.play();
-        return () => tween.destroy();
-    }, [activeTargetId]);
-
-    useEffect(() => {
-        if (!stageRef.current) return;
-        const engine = Matter.Engine.create({ gravity: { x: 0, y: 0 } });
-        const world = engine.world;
-        const wallThickness = 60;
-        const walls = [
-            Matter.Bodies.rectangle(canvasWidth / 2, -wallThickness / 2, canvasWidth + wallThickness * 2, wallThickness, { isStatic: true }),
-            Matter.Bodies.rectangle(canvasWidth / 2, canvasHeight + wallThickness / 2, canvasWidth + wallThickness * 2, wallThickness, { isStatic: true }),
-            Matter.Bodies.rectangle(-wallThickness / 2, canvasHeight / 2, wallThickness, canvasHeight + wallThickness * 2, { isStatic: true }),
-            Matter.Bodies.rectangle(canvasWidth + wallThickness / 2, canvasHeight / 2, wallThickness, canvasHeight + wallThickness * 2, { isStatic: true }),
-        ];
-        Matter.World.add(world, walls);
-
-        const draggableBodies = {};
-        draggableElements.forEach(el => {
-            const body = Matter.Bodies.rectangle(
-                el.x + el.width / 2, el.y + el.height / 2, el.width, el.height,
-                { restitution: 0.7, friction: 0.05, frictionAir: 0.06, label: el.id }
-            );
-            draggableBodies[el.id] = body;
-            Matter.World.add(world, body);
-        });
-        bodiesRef.current = draggableBodies;
-
-        const mouse = Matter.Mouse.create(stageRef.current.container());
-        Matter.Mouse.setScale(mouse, { x: 1 / scale, y: 1 / scale });
-
-        const mouseConstraint = Matter.MouseConstraint.create(engine, {
-            mouse,
-            constraint: { stiffness: 0.3, damping: 0.15, render: { visible: false } },
-        });
-        Matter.World.add(world, mouseConstraint);
-
-        Matter.Events.on(mouseConstraint, 'startdrag', (event) => {
-            draggingIdRef.current = event.body?.label ?? null;
-            if (event.body) soundGrab();
-        });
-
-        Matter.Events.on(mouseConstraint, 'enddrag', (event) => {
-            draggingIdRef.current = null;
-            setActiveTargetId(null);
-            if (event.body) handleDragEnd(event.body);
-        });
-
-        Matter.Events.on(engine, 'beforeUpdate', () => {
-            const draggedId = draggingIdRef.current;
-            if (!draggedId) return;
-            const body = draggableBodies[draggedId];
-            if (!body || body.isStatic) return;
-
-            let nearest = null;
-            let nearestDist = Infinity;
-            targetElements.forEach(t => {
-                if (Object.values(placedCorrectlyRef.current).includes(t.id)) return;
-                const cx = t.x + t.width / 2;
-                const cy = t.y + t.height / 2;
-                const dist = Math.hypot(body.position.x - cx, body.position.y - cy);
-                if (dist < nearestDist) { nearestDist = dist; nearest = t; }
-            });
-
-            if (nearest && nearestDist < MAGNET_RADIUS) {
-                const cx = nearest.x + nearest.width / 2;
-                const cy = nearest.y + nearest.height / 2;
-                const dx = cx - body.position.x;
-                const dy = cy - body.position.y;
-                const len = Math.hypot(dx, dy) || 1;
-                const strength = 0.0006 * (1 - nearestDist / MAGNET_RADIUS);
-                Matter.Body.applyForce(body, body.position, { x: (dx / len) * strength, y: (dy / len) * strength });
-                setActiveTargetId(prev => prev === nearest.id ? prev : nearest.id);
-            } else {
-                setActiveTargetId(prev => prev === null ? prev : null);
-            }
-        });
-
-        const runner = Matter.Runner.create();
-        Matter.Runner.run(runner, engine);
-        engineRef.current = engine;
-        runnerRef.current = runner;
-
-        let rafId;
-        const syncLoop = () => {
-            Object.entries(draggableBodies).forEach(([id, body]) => {
-                const node = konvaNodeRefs.current[id];
-                if (node) {
-                    node.x(body.position.x);
-                    node.y(body.position.y);
-                    node.rotation((body.angle * 180) / Math.PI);
-                }
-            });
-            layerRef.current?.batchDraw();
-            rafId = requestAnimationFrame(syncLoop);
-        };
-        syncLoop();
-
-        return () => {
-            cancelAnimationFrame(rafId);
-            Matter.Runner.stop(runner);
-            Matter.World.clear(world, false);
-            Matter.Engine.clear(engine);
-        };
-    }, [scale, draggableElements, targetElements]);
-
-    const handleDragEnd = async (body) => {
-        const draggableId = body.label;
-        if (placedCorrectlyRef.current.has(draggableId)) return;
-        if (phase !== 'playing') return;
-
-        let nearestTargetId = null;
-        let nearestDist = Infinity;
-        targetElements.forEach(t => {
-            const cx = t.x + t.width / 2;
-            const cy = t.y + t.height / 2;
-            const dist = Math.hypot(body.position.x - cx, body.position.y - cy);
-            if (dist < nearestDist) { nearestDist = dist; nearestTargetId = t.id; }
-        });
-
-        if (!nearestTargetId || nearestDist > SNAP_RADIUS) return;
-
-        try {
-            const res = await api.post('/exercises/check-placement', {
-                exerciseId, draggableId, targetId: nearestTargetId,
-            });
-
-            if (res.data.correct) {
-                const target = targetElements.find(t => t.id === nearestTargetId);
-                const cx = target.x + target.width / 2;
-                const cy = target.y + target.height / 2;
-                Matter.Body.setPosition(body, { x: cx, y: cy });
-                Matter.Body.setVelocity(body, { x: 0, y: 0 });
-                Matter.Body.setAngle(body, 0);
-                Matter.Body.setStatic(body, true);
-                placedCorrectlyRef.current.add(draggableId);
-                setPlacedCount(placedCorrectlyRef.current.size);
-                setBursts(prev => [...prev, { id: `${draggableId}_${Date.now()}`, x: cx, y: cy }]);
-                soundCorrect();
-            } else {
-                const angle = Math.random() * Math.PI * 2;
-                const force = 0.03;
-                Matter.Body.applyForce(body, body.position, {
-                    x: Math.cos(angle) * force,
-                    y: Math.sin(angle) * force - 0.02,
-                });
-                Matter.Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.4);
-                soundWrong();
-            }
-        } catch (err) {
-            console.error('Eroare la verificarea plasarii:', err);
-        }
-    };
-
-    const removeBurst = (id) => setBursts(prev => prev.filter(b => b.id !== id));
+    }, [exerciseId, isPreview, config.settings]);
 
     const handleHint = () => {
-        if (!hintsAvailable || hintsUsed >= hintsAvailable.length) return;
+        if (hintsUsed >= hintsAvailable.length) return;
         const hint = hintsAvailable[hintsUsed];
-        setHintsUsed(prev => prev + 1);
+        setHintsUsed(p => p + 1);
         setCurrentHint(hint);
-
-        if (hint.type === 'HIGHLIGHT' && hint.targetElementId) {
+        if (hint.targetElementId) {
             setHighlightedIds(prev => new Set([...prev, hint.targetElementId]));
-            setTimeout(() => {
-                setHighlightedIds(prev => {
-                    const next = new Set(prev);
-                    next.delete(hint.targetElementId);
-                    return next;
-                });
-            }, 3000);
-        }
-
-        if (hint.type === 'ANIMATION' && hint.targetElementId) {
-            setAnimatingIds(prev => new Set([...prev, hint.targetElementId]));
-            setTimeout(() => {
-                setAnimatingIds(prev => {
-                    const next = new Set(prev);
-                    next.delete(hint.targetElementId);
-                    return next;
-                });
-            }, 1500);
+            setTimeout(() => setHighlightedIds(prev => {
+                const n = new Set(prev); n.delete(hint.targetElementId); return n;
+            }), 3000);
         }
     };
+    const triggerSmartHint = (wrongCount) => {
+        const round = Math.floor(wrongCount / 3);
 
-    const buildCurrentMapping = () => {
-        const mapping = {};
-        Object.entries(bodiesRef.current).forEach(([id, body]) => {
-            let nearestTargetId = null;
-            let nearestDist = Infinity;
-            targetElements.forEach(t => {
-                const cx = t.x + t.width / 2;
-                const cy = t.y + t.height / 2;
-                const dist = Math.hypot(body.position.x - cx, body.position.y - cy);
-                if (dist < nearestDist) { nearestDist = dist; nearestTargetId = t.id; }
-            });
-            if (nearestTargetId && nearestDist <= SNAP_RADIUS) {
-                mapping[id] = nearestTargetId;
+        if (round === 1) {
+            const textHint = hintsAvailable.find(h => h.type === 'TEXT');
+            if (textHint) {
+                setCurrentHint(textHint);
+                setTimeout(() => setCurrentHint(null), 4000);
             }
-        });
-        return mapping;
+            return;
+        }
+
+        // Runde 2+ — HIGHLIGHT pe un draggable neplas at încă
+        const notPlacedYet = draggableDefs.filter(el => !placed[el.id]);
+        if (notPlacedYet.length === 0) return;
+
+        const target = notPlacedYet[Math.floor(Math.random() * notPlacedYet.length)];
+
+        const highlightHint = hintsAvailable.find(
+            h => h.type === 'HIGHLIGHT' && h.targetElementId === target.id
+        ) || {
+            id: `auto_${target.id}`,
+            type: 'HIGHLIGHT',
+            targetElementId: target.id,
+            text: 'Încearcă să plasezi elementul evidențiat!',
+        };
+
+        setCurrentHint(highlightHint);
+        setHighlightedIds(prev => new Set([...prev, target.id]));
+        setTimeout(() => {
+            setHighlightedIds(prev => {
+                const n = new Set(prev);
+                n.delete(target.id);
+                return n;
+            });
+            setCurrentHint(null);
+        }, 3000);
     };
+
+    const getAbsPos = (el) => {
+        if (!el.parentId) return { x: el.x, y: el.y };
+        const parent = allElements.find(p => p.id === el.parentId);
+        if (!parent) return { x: el.x, y: el.y };
+        const parentAbs = getAbsPos(parent);
+        return { x: parentAbs.x + el.x, y: parentAbs.y + el.y };
+    };
+
+    const getNearestTarget = (x, y, w, h) => {
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        let nearest = null;
+        let nearestDist = Infinity;
+        targetDefs.forEach(t => {
+            const tAbs = getAbsPos(t);
+            const tcx = tAbs.x + t.width / 2;
+            const tcy = tAbs.y + t.height / 2;
+            const dist = Math.hypot(cx - tcx, cy - tcy);
+            if (dist < nearestDist) { nearestDist = dist; nearest = { ...t, absX: tAbs.x, absY: tAbs.y }; }
+        });
+        return nearestDist <= SNAP_RADIUS ? nearest : null;
+    };
+
+    const snapToTarget = (el, target, node) => {
+        soundCorrect();
+        const targetX = target.absX;
+        const targetY = target.absY;
+        new Konva.Tween({
+            node, duration: 0.25,
+            x: targetX, y: targetY,
+            easing: Konva.Easings.ElasticEaseOut,
+        }).play();
+        setPositions(prev => ({ ...prev, [el.id]: { x: targetX, y: targetY } }));
+        setPlaced(prev => ({ ...prev, [el.id]: target.id }));
+        setBursts(prev => [...prev, {
+            id: `${el.id}_${Date.now()}`,
+            x: targetX + el.width / 2,
+            y: targetY + el.height / 2,
+        }]);
+    };
+
+    const snapBack = (elId, node) => {
+        const origin = originPositions[elId];
+        new Konva.Tween({
+            node, duration: 0.4,
+            x: origin.x, y: origin.y,
+            easing: Konva.Easings.ElasticEaseOut,
+        }).play();
+        setPositions(prev => ({ ...prev, [elId]: origin }));
+    };
+
+    const handleWrong = (elId, node) => {
+        soundWrong();
+        setWrongId(elId);
+        clearTimeout(wrongTimeoutRef.current);
+        wrongTimeoutRef.current = setTimeout(() => setWrongId(null), 600);
+        snapBack(elId, node);
+        setWrongClicks(prev => {
+            const next = prev + 1;
+            if (next % 3 === 0) setTimeout(() => triggerSmartHint(next), 400);
+            return next;
+        });
+    };
+
+    const handleDragMove = (el, e) => {
+        if (placed[el.id]) return;
+        const node = e.target;
+        const nearest = getNearestTarget(node.x(), node.y(), el.width, el.height);
+        setActiveTargetId(nearest ? nearest.id : null);
+    };
+
+    const handleDragEnd = (el, e) => {
+        if (placed[el.id]) return;
+        draggingRef.current = null;
+        setActiveTargetId(null);
+
+        const node = e.target;
+        const nearest = getNearestTarget(node.x(), node.y(), el.width, el.height);
+
+        if (!nearest) {
+            snapBack(el.id, node);
+            return;
+        }
+
+        if (isPreview) {
+            if (dropMapping[el.id] === nearest.id) {
+                snapToTarget(el, nearest, node);
+            } else {
+                handleWrong(el.id, node);
+            }
+        } else {
+            api.post('/exercises/check-placement', {
+                exerciseId, draggableId: el.id, targetId: nearest.id,
+            }).then(res => {
+                if (res.data.correct) {
+                    snapToTarget(el, nearest, node);
+                } else {
+                    handleWrong(el.id, node);
+                }
+            }).catch(() => snapBack(el.id, node));
+        }
+    };
+
 
     const handleFinish = async () => {
+        if (isPreview) {
+            const correctCount = Object.entries(placed).filter(
+                ([dId, tId]) => dropMapping[dId] === tId
+            ).length;
+            setResult({
+                correct: correctCount === totalCorrect && totalCorrect > 0,
+                score: totalCorrect > 0 ? correctCount / totalCorrect : 0,
+                attemptsRemaining: null,
+                newBadges: [],
+            });
+            setPhase('result');
+            return;
+        }
         setPhase('submitting');
-        setSubmitError('');
         try {
             const res = await api.post('/exercises/submit', {
                 exerciseId,
-                answer: buildCurrentMapping(),
+                answer: placed,
             });
             setResult(res.data);
             setPhase('result');
             setShowFeedback(true);
-
-            if (res.data.newBadges?.length > 0) {
-                setNewBadges(res.data.newBadges);
-            }
-
-            if (config.settings?.showGroupAverage) {
-                api.get(`/progress/exercise/${exerciseId}/class-average`)
-                    .then(r => setClassAverage(r.data))
-                    .catch(() => {});
-            }
         } catch (err) {
-            setSubmitError(err.response?.data?.message || 'Eroare la trimiterea răspunsului');
+            setSubmitError(err.response?.data?.message || 'Eroare la trimitere');
             setPhase('playing');
         }
     };
 
     const handleRetry = () => {
-        placedCorrectlyRef.current = new Set();
-        setPlacedCount(0);
+        setPositions(() => {
+            const init = {};
+            draggableDefs.forEach(el => { init[el.id] = { x: el.x, y: el.y }; });
+            return init;
+        });
+        setPlaced({});
         setResult(null);
         setSubmitError('');
         setPhase('playing');
         setCurrentHint(null);
         setHighlightedIds(new Set());
-        setAnimatingIds(new Set());
-        setNewBadges([]);
-        Object.values(bodiesRef.current).forEach(body => {
-            Matter.Body.setStatic(body, false);
-        });
-        draggableElements.forEach(el => {
-            const body = bodiesRef.current[el.id];
-            if (body) {
-                Matter.Body.setPosition(body, { x: el.x + el.width / 2, y: el.y + el.height / 2 });
-                Matter.Body.setVelocity(body, { x: 0, y: 0 });
-                Matter.Body.setAngle(body, 0);
-                Matter.Body.setAngularVelocity(body, 0);
-            }
-        });
+        setHintsUsed(0);
+        setWrongId(null);
+        setWrongClicks(0);
+        setBursts([]);
     };
 
-    const attemptsExhausted = result && !result.correct && result.attemptsRemaining === 0;
-    const canShowHint = hintsAvailable.length > 0 && hintsUsed < hintsAvailable.length && phase === 'playing';
+    const topLevel = staticElements.filter(el => !el.parentId);
+    const getChildren = (parentId) => staticElements.filter(el => el.parentId === parentId);
 
-    const topLevelStatic = staticElements.filter(el => !el.parentId);
-    const getStaticChildren = (parentId) => staticElements.filter(el => el.parentId === parentId);
-
-    const renderStaticElement = (el) => {
+    const renderStatic = (el) => {
         if (el.hidden) return null;
         if (el.type === ELEMENT_TYPES.TEXT) return <PlayerText key={el.id} element={el} />;
         if (el.type === ELEMENT_TYPES.IMAGE) return (
-            <PlayerImage key={el.id} element={el} interactionState={undefined} onElementClick={noop} />
+            <PlayerImage key={el.id} element={el} interactionState={undefined} onElementClick={() => {}} />
         );
         if (el.type === ELEMENT_TYPES.SHAPE) return (
-            <PlayerShape key={el.id} element={el} interactionState={undefined} onElementClick={noop} />
+            <PlayerShape key={el.id} element={el} interactionState={undefined} onElementClick={() => {}} />
         );
         if (el.type === ELEMENT_TYPES.BOX) {
-            const children = getStaticChildren(el.id).map(child => renderStaticElement(child));
             return (
                 <Group key={el.id} x={el.x} y={el.y} rotation={el.rotation || 0}>
                     <Rect
@@ -421,88 +339,122 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                         stroke={el.bgStroke !== 'transparent' ? el.bgStroke : undefined}
                         strokeWidth={el.bgStrokeWidth}
                         cornerRadius={el.bgCornerRadius}
-                        shadowEnabled={el.shadowEnabled}
-                        shadowColor={el.shadowColor}
-                        shadowBlur={el.shadowBlur}
-                        shadowOpacity={el.shadowOpacity}
                         listening={false}
                     />
-                    {children}
+                    {getChildren(el.id).map(child => renderStatic(child))}
                 </Group>
             );
         }
         return null;
     };
 
+    const placedCount = Object.keys(placed).length;
+    const attemptsExhausted = result && !result.correct && result.attemptsRemaining === 0;
+    const canShowHint = hintsAvailable.length > 0 && hintsUsed < hintsAvailable.length && phase === 'playing';
+
     return (
         <ThemeProvider themeId={config.meta?.themeId}>
             <div style={{
-                minHeight: '100vh',
+                height: '100vh', overflow: 'hidden',
                 background: theme.colors.surface,
-                display: 'flex',
-                flexDirection: 'column',
+                display: 'flex', flexDirection: 'column',
                 alignItems: 'center',
-                paddingBottom: 32,
                 fontFamily: theme.font.family,
                 color: theme.colors.text,
             }}>
-                {/* Header */}
+
                 <div style={styles.header}>
-                    <button style={styles.backBtn} onClick={onExit}>← Înapoi la quiz</button>
+                    <button style={styles.backBtn} onClick={onExit}>← Ieși</button>
                     <div style={styles.progress}>
                         {totalCorrect > 0 ? `${placedCount}/${totalCorrect} plasate` : ''}
                     </div>
-                    <div style={{ width: 120 }} />
+                    <div style={{ width: 80 }} />
                 </div>
 
-                {config.meta?.description && (
-                    <p style={styles.description}>{config.meta.description}</p>
+                {isPreview && (
+                    <div style={styles.previewBanner}>
+                        🔍 PREVIZUALIZARE — răspunsurile nu se salvează
+                    </div>
                 )}
+
 
                 <div ref={containerRef} style={styles.canvasContainer}>
                     <div style={{ width: canvasWidth * scale, height: canvasHeight * scale }}>
                         <Stage
-                            ref={stageRef}
                             width={canvasWidth * scale}
                             height={canvasHeight * scale}
-                            scaleX={scale}
-                            scaleY={scale}
+                            scaleX={scale} scaleY={scale}
                         >
-                            <Layer ref={layerRef}>
+                            <Layer>
                                 <Rect
                                     x={0} y={0} width={canvasWidth} height={canvasHeight}
-                                    fill={config.canvas.background || '#ffffff'}
-                                    listening={false}
+                                    fill={config.canvas.background || '#ffffff'} listening={false}
                                 />
-                                {bgImage && (
-                                    <KonvaImage image={bgImage} x={0} y={0} width={canvasWidth} height={canvasHeight} listening={false} />
-                                )}
-                                {topLevelStatic.map(el => renderStaticElement(el))}
-                                {targetElements.map(target => (
-                                    <TargetSlot
-                                        key={target.id}
-                                        element={target}
-                                        isActive={activeTargetId === target.id}
-                                        registerRef={(node) => { targetNodeRefs.current[target.id] = node; }}
-                                    />
-                                ))}
-                                {draggableElements.map(element => (
-                                    <DraggableItem
-                                        key={element.id}
-                                        element={element}
-                                        isPlaced={placedCorrectlyRef.current.has(element.id)}
-                                        isHovered={hoveredId === element.id}
-                                        onHover={() => setHoveredId(element.id)}
-                                        onUnhover={() => setHoveredId(prev => prev === element.id ? null : prev)}
-                                        registerRef={(node) => { konvaNodeRefs.current[element.id] = node; }}
-                                    />
-                                ))}
+
+                                {topLevel.map(el => renderStatic(el))}
+
+
+                                {targetDefs.map(target => {
+                                    const abs = getAbsPos(target);
+                                    const isActive = activeTargetId === target.id;
+                                    const isOccupied = Object.values(placed).includes(target.id);
+                                    return (
+                                        <Group key={target.id} x={abs.x} y={abs.y}>
+                                            <Rect
+                                                width={target.width} height={target.height}
+                                                fill={isOccupied ? 'rgba(34,197,94,0.15)'
+                                                    : isActive ? 'rgba(79,107,246,0.15)'
+                                                        : 'rgba(0,0,0,0.03)'}
+                                                stroke={isOccupied ? '#22c55e'
+                                                    : isActive ? '#4F6BF6'
+                                                        : '#d1d5db'}
+                                                strokeWidth={isActive ? 3 : 2}
+                                                dash={isOccupied ? undefined : [10, 6]}
+                                                cornerRadius={target.cornerRadius || 12}
+                                                shadowEnabled={isActive}
+                                                shadowColor="#4F6BF6"
+                                                shadowBlur={isActive ? 20 : 0}
+                                                shadowOpacity={0.4}
+                                                listening={false}
+                                            />
+                                            {!isOccupied && (
+                                                <Text
+                                                    text="↓"
+                                                    width={target.width} height={target.height}
+                                                    align="center" verticalAlign="middle"
+                                                    fontSize={24}
+                                                    fill={isActive ? '#4F6BF6' : '#d1d5db'}
+                                                    listening={false}
+                                                />
+                                            )}
+                                        </Group>
+                                    );
+                                })}
+
+
+                                {draggableDefs.map(el => {
+                                    const pos = positions[el.id] || { x: el.x, y: el.y };
+                                    return (
+                                        <DraggableItem
+                                            key={el.id}
+                                            element={el}
+                                            x={pos.x}
+                                            y={pos.y}
+                                            isPlaced={!!placed[el.id]}
+                                            isWrong={wrongId === el.id}
+                                            isHighlighted={highlightedIds.has(el.id)}
+                                            onDragMove={(e) => handleDragMove(el, e)}
+                                            onDragEnd={(e) => handleDragEnd(el, e)}
+                                        />
+                                    );
+                                })}
+
+                                {/* Particle bursts */}
                                 {bursts.map(burst => (
                                     <ParticleBurst
                                         key={burst.id}
-                                        x={burst.x}
-                                        y={burst.y}
-                                        onComplete={() => removeBurst(burst.id)}
+                                        x={burst.x} y={burst.y}
+                                        onComplete={() => setBursts(prev => prev.filter(b => b.id !== burst.id))}
                                     />
                                 ))}
                             </Layer>
@@ -514,25 +466,13 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                 {currentHint && (
                     <div style={{
                         ...styles.hintBox,
-                        borderColor: currentHint.type === 'HIGHLIGHT' ? '#f59e0b'
-                            : currentHint.type === 'ANIMATION' ? '#8b5cf6'
-                                : '#4F6BF6',
-                        background: currentHint.type === 'HIGHLIGHT' ? '#fffbeb'
-                            : currentHint.type === 'ANIMATION' ? '#f5f3ff'
-                                : '#f0f4ff',
+                        borderColor: currentHint.type === 'HIGHLIGHT' ? '#f59e0b' : '#4F6BF6',
+                        background: currentHint.type === 'HIGHLIGHT' ? '#fffbeb' : '#f0f4ff',
                     }}>
                         <span style={styles.hintIcon}>
-                            {currentHint.type === 'HIGHLIGHT' ? '🔦'
-                                : currentHint.type === 'ANIMATION' ? '✨'
-                                    : '💡'}
+                            {currentHint.type === 'HIGHLIGHT' ? '🔦' : '💡'}
                         </span>
-                        <span style={styles.hintText}>
-                            {currentHint.text || (
-                                currentHint.type === 'HIGHLIGHT' ? 'Uită-te la elementele evidențiate!'
-                                    : currentHint.type === 'ANIMATION' ? 'Urmărește elementul animat!'
-                                        : 'Hint disponibil'
-                            )}
-                        </span>
+                        <span style={styles.hintText}>{currentHint.text || 'Hint disponibil'}</span>
                     </div>
                 )}
 
@@ -564,65 +504,25 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                     </div>
                 )}
 
+                {/* Result */}
                 {phase === 'result' && result && (
                     <div style={{
                         ...styles.resultPanel,
                         borderColor: result.correct ? '#22c55e' : '#ef4444',
                         borderRadius: theme.borderRadius,
                         background: theme.colors.surface,
-                        color: theme.colors.text,
                     }}>
                         <p style={styles.resultTitle}>
                             {result.correct ? '🎉 Corect!' : '❌ Nu e chiar corect'}
                         </p>
-                        <p style={{ ...styles.resultDetail, color: theme.colors.text + 'aa' }}>
+                        <p style={styles.resultDetail}>
                             Scor: {Math.round(result.score * 100)}%
                             {!result.correct && result.attemptsRemaining !== null &&
                                 ` · Încercări rămase: ${result.attemptsRemaining}`}
                         </p>
-
-                        {classAverage !== null && config.settings?.showGroupAverage && (
-                            <div style={{
-                                marginTop: 12, background: '#f8faff',
-                                border: '1.5px solid #e0e7ff',
-                                borderRadius: 12, padding: '14px 16px',
-                            }}>
-                                <p style={{
-                                    fontSize: '0.82rem', fontWeight: 800,
-                                    color: '#4F6BF6', margin: '0 0 10px 0', textAlign: 'center',
-                                }}>
-                                    📊 Comparație cu grupa
-                                </p>
-                                <ResponsiveContainer width="100%" height={140}>
-                                    <BarChart
-                                        data={[
-                                            { name: 'Scorul tău', value: Math.round(result.score * 100) },
-                                            { name: 'Media clasei', value: Math.round(classAverage.classAverage) },
-                                            { name: 'Media globală', value: Math.round(classAverage.globalAverage) },
-                                        ]}
-                                        margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                                        <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700, fill: '#6b7280' }} />
-                                        <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#6b7280' }} tickFormatter={v => `${v}%`} />
-                                        <Tooltip
-                                            formatter={value => [`${value}%`, 'Scor']}
-                                            contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }}
-                                        />
-                                        <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                                            <Cell fill="#4F6BF6" />
-                                            <Cell fill="#a78bfa" />
-                                            <Cell fill="#d1d5db" />
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        )}
-
-                        {result.correct && config.settings?.explanation && (
+                        {config.settings?.explanation && result.correct && (
                             <p style={styles.explanationText}>{config.settings.explanation}</p>
                         )}
-
                         <div style={styles.resultActions}>
                             {!result.correct && !attemptsExhausted && (
                                 <button
@@ -630,28 +530,6 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                                     onClick={handleRetry}
                                 >
                                     Încearcă din nou
-                                </button>
-                            )}
-                            {!result.correct && config.settings?.behaviorOnFail === 'showSolution' && (
-                                <button
-                                    style={{ ...styles.solutionBtn, borderRadius: theme.borderRadius }}
-                                    onClick={() => {
-                                        const correctMapping = config.solution?.dropMapping || {};
-                                        Object.entries(correctMapping).forEach(([draggableId, targetId]) => {
-                                            const targetNode = targetNodeRefs.current[targetId];
-                                            if (targetNode) {
-                                                new Konva.Tween({
-                                                    node: targetNode,
-                                                    duration: 0.4,
-                                                    scaleX: 1.15, scaleY: 1.15,
-                                                    easing: Konva.Easings.BounceEaseOut,
-                                                    onFinish: () => { targetNode.scaleX(1.05); targetNode.scaleY(1.05); },
-                                                }).play();
-                                            }
-                                        });
-                                    }}
-                                >
-                                    Arată soluția
                                 </button>
                             )}
                             <button
@@ -662,41 +540,16 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
                                 }}
                                 onClick={onExit}
                             >
-                                Înapoi la quiz
+                                {isPreview ? 'Închide preview' : 'Înapoi la quiz'}
                             </button>
                         </div>
-
                         {attemptsExhausted && (
                             <p style={styles.exhaustedText}>Ai epuizat numărul de încercări.</p>
                         )}
                     </div>
                 )}
 
-                {newBadges.length > 0 && (
-                    <div style={{
-                        marginTop: 16, background: 'white', border: '2px solid #fbbf24',
-                        borderRadius: 14, padding: '18px 24px', textAlign: 'center', minWidth: 280,
-                    }}>
-                        <p style={{ fontSize: '1rem', fontWeight: 900, color: '#92400e', marginBottom: 12 }}>
-                            🎉 Badge-uri noi câștigate!
-                        </p>
-                        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                            {newBadges.map(badge => (
-                                <div key={badge.id} style={{
-                                    background: '#fffbeb', border: '1.5px solid #fde68a',
-                                    borderRadius: 10, padding: '10px 14px', textAlign: 'center',
-                                }}>
-                                    <div style={{ fontSize: '2rem', marginBottom: 4 }}>{badge.icon}</div>
-                                    <p style={{ fontSize: '0.8rem', fontWeight: 800, color: '#92400e' }}>
-                                        {badge.name}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {showFeedback && (
+                {!isPreview && showFeedback && (
                     <ExerciseFeedbackWidget
                         exerciseId={exerciseId}
                         onDismiss={() => setShowFeedback(false)}
@@ -707,135 +560,163 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit }) {
     );
 }
 
-function TargetSlot({ element, isActive, registerRef }) {
-    const commonShape = {
-        fill: isActive ? '#dbeafe' : '#f9fafb',
-        stroke: isActive ? '#4F6BF6' : '#d1d5db',
-        strokeWidth: isActive ? 4 : 2,
-        dash: isActive ? undefined : [10, 6],
-        shadowEnabled: isActive,
-        shadowColor: '#4F6BF6',
-        shadowBlur: isActive ? 25 : 0,
-        shadowOpacity: 0.5,
-        listening: false,
-    };
+function DraggableItem({ element, x, y, isPlaced, isWrong, isHighlighted, onDragMove, onDragEnd }) {
+    const [image] = useImage(
+        element.type === ELEMENT_TYPES.IMAGE ? (element.src || '') : '',
+        'anonymous'
+    );
+    const groupRef = useRef(null);
+
+
+    useEffect(() => {
+        if (!isWrong || !groupRef.current) return;
+        const node = groupRef.current;
+        const origX = node.x();
+        const tween = new Konva.Tween({
+            node, duration: 0.06, x: origX + 10, yoyo: true,
+            easing: Konva.Easings.EaseInOut,
+        });
+        let count = 0;
+        tween.onFinish = () => {
+            if (count++ < 4) { tween.reset(); tween.play(); }
+            else node.x(origX);
+        };
+        tween.play();
+        return () => tween.destroy();
+    }, [isWrong]);
+
+    useEffect(() => {
+        if (!isHighlighted || !groupRef.current) return;
+        const node = groupRef.current;
+        const tween = new Konva.Tween({
+            node, duration: 0.5, scaleX: 1.1, scaleY: 1.1,
+            easing: Konva.Easings.EaseInOut, yoyo: true,
+            onFinish: () => { node.scaleX(1); node.scaleY(1); },
+        });
+        tween.play();
+        return () => tween.destroy();
+    }, [isHighlighted]);
+
+    const w = element.width;
+    const h = element.height;
 
     return (
         <Group
-            ref={registerRef}
-            x={element.x + element.width / 2}
-            y={element.y + element.height / 2}
-            offsetX={element.width / 2}
-            offsetY={element.height / 2}
+            ref={groupRef}
+            x={x} y={y}
+            draggable={!isPlaced}
+            onDragMove={onDragMove}
+            onDragEnd={onDragEnd}
+            onMouseEnter={(e) => {
+                if (!isPlaced) e.target.getStage().container().style.cursor = 'grab';
+            }}
+            onMouseLeave={(e) => {
+                e.target.getStage().container().style.cursor = 'default';
+            }}
+            onMouseDown={(e) => {
+                if (!isPlaced) e.target.getStage().container().style.cursor = 'grabbing';
+            }}
+            onMouseUp={(e) => {
+                e.target.getStage().container().style.cursor = 'grab';
+            }}
+            opacity={isPlaced ? 0.85 : 1}
         >
-            {element.shapeType === 'circle' && (
-                <Circle {...commonShape} x={element.width / 2} y={element.height / 2} radius={Math.min(element.width, element.height) / 2} />
-            )}
-            {element.shapeType === 'polygon' && (
-                <RegularPolygon {...commonShape} x={element.width / 2} y={element.height / 2} sides={6} radius={Math.min(element.width, element.height) / 2} />
-            )}
-            {(!element.shapeType || element.shapeType === 'rect') && (
-                <Rect {...commonShape} width={element.width} height={element.height} cornerRadius={element.cornerRadius || 12} />
-            )}
-        </Group>
-    );
-}
 
-function DraggableItem({ element, isPlaced, isHovered, onHover, onUnhover, registerRef }) {
-    const [image] = useImage(element.type === ELEMENT_TYPES.IMAGE ? (element.src || '') : '', 'anonymous');
-    const hoverScale = isHovered && !isPlaced ? 1.06 : 1;
-
-    const groupProps = {
-        ref: registerRef,
-        x: element.x + element.width / 2,
-        y: element.y + element.height / 2,
-        offsetX: element.width / 2,
-        offsetY: element.height / 2,
-        scaleX: hoverScale,
-        scaleY: hoverScale,
-        onMouseEnter: (e) => {
-            e.target.getStage().container().style.cursor = isPlaced ? 'default' : 'grab';
-            if (!isPlaced) onHover();
-        },
-        onMouseLeave: (e) => {
-            e.target.getStage().container().style.cursor = 'default';
-            onUnhover();
-        },
-        onMouseDown: (e) => { e.target.getStage().container().style.cursor = 'grabbing'; },
-        onMouseUp: (e) => { e.target.getStage().container().style.cursor = 'grab'; },
-    };
-
-    const shadowProps = {
-        shadowEnabled: true,
-        shadowColor: '#000000',
-        shadowBlur: isHovered && !isPlaced ? 18 : 10,
-        shadowOpacity: isHovered && !isPlaced ? 0.35 : 0.2,
-        shadowOffsetY: isHovered && !isPlaced ? 6 : 3,
-    };
-
-    if (element.type === ELEMENT_TYPES.IMAGE) {
-        return (
-            <Group {...groupProps}>
-                <Rect width={element.width} height={element.height} fill={image ? undefined : '#e5e7eb'} cornerRadius={element.cornerRadius || 12} {...shadowProps} />
-                {image && <KonvaImage image={image} width={element.width} height={element.height} cornerRadius={element.cornerRadius || 12} />}
-                {isPlaced && (
-                    <Text text="✓" width={element.width} height={element.height} align="center" verticalAlign="middle" fontSize={element.width * 0.4} fontStyle="bold" fill="#16a34a" />
-                )}
-            </Group>
-        );
-    }
-
-    const shapeCommonProps = {
-        fill: element.fill || '#4F6BF6',
-        stroke: element.stroke || '#1a1d23',
-        strokeWidth: element.strokeWidth || 2,
-        ...shadowProps,
-    };
-
-    return (
-        <Group {...groupProps}>
-            {element.shapeType === 'circle' && (
-                <Circle {...shapeCommonProps} x={element.width / 2} y={element.height / 2} radius={Math.min(element.width, element.height) / 2} />
+            {isHighlighted && (
+                <Rect
+                    x={-6} y={-6} width={w + 12} height={h + 12}
+                    fill="transparent" stroke="#f59e0b" strokeWidth={4}
+                    cornerRadius={10} dash={[8, 4]} listening={false}
+                />
             )}
-            {element.shapeType === 'polygon' && (
-                <RegularPolygon {...shapeCommonProps} x={element.width / 2} y={element.height / 2} sides={6} radius={Math.min(element.width, element.height) / 2} />
+
+
+            {isWrong && (
+                <Rect
+                    x={-4} y={-4} width={w + 8} height={h + 8}
+                    fill="rgba(239,68,68,0.15)" stroke="#ef4444" strokeWidth={3}
+                    cornerRadius={10} listening={false}
+                />
             )}
-            {element.shapeType === 'line' && (
-                <Line {...shapeCommonProps} points={[0, element.height / 2, element.width, element.height / 2]} fill={undefined} stroke={element.fill || '#4F6BF6'} strokeWidth={Math.max(element.strokeWidth || 4, 4)} />
+
+
+            <Rect
+                width={w} height={h}
+                fill={element.type === ELEMENT_TYPES.SHAPE
+                    ? (element.fill || '#4F6BF6')
+                    : (image ? undefined : '#e5e7eb')}
+                stroke={isPlaced ? '#22c55e' : (isWrong ? '#ef4444' : (element.stroke || '#e5e7eb'))}
+                strokeWidth={isPlaced || isWrong ? 3 : (element.strokeWidth || 1)}
+                cornerRadius={element.cornerRadius || 12}
+                shadowEnabled={!isPlaced}
+                shadowColor="#000"
+                shadowBlur={12}
+                shadowOpacity={0.15}
+                shadowOffsetY={4}
+            />
+
+            {element.type === ELEMENT_TYPES.IMAGE && image && (
+                <KonvaImage
+                    image={image} width={w} height={h}
+                    cornerRadius={element.cornerRadius || 12}
+                    listening={false}
+                />
             )}
-            {(!element.shapeType || element.shapeType === 'rect') && (
-                <Rect {...shapeCommonProps} width={element.width} height={element.height} cornerRadius={element.cornerRadius || 12} />
+
+
+            {element.type === ELEMENT_TYPES.TEXT && (
+                <Text
+                    text={element.text || ''}
+                    width={w} height={h}
+                    align="center" verticalAlign="middle"
+                    fontSize={element.fontSize || 18}
+                    fontFamily={element.fontFamily || 'Nunito'}
+                    fill={element.fill || '#1a1d23'}
+                    listening={false}
+                />
             )}
+
+
             {isPlaced && (
-                <Text text="✓" width={element.width} height={element.height} align="center" verticalAlign="middle" fontSize={Math.min(element.width, element.height) * 0.4} fontStyle="bold" fill="#16a34a" />
+                <Text
+                    text="✓" width={w} height={h}
+                    align="center" verticalAlign="middle"
+                    fontSize={Math.min(w, h) * 0.4}
+                    fontStyle="bold" fill="#22c55e"
+                    listening={false}
+                />
             )}
         </Group>
     );
 }
+
 
 const styles = {
     header: {
         width: '100%', background: 'white', borderBottom: '1px solid #e5e7eb',
         padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexShrink: 0,
     },
     backBtn: {
         background: 'none', border: '1.5px solid #e5e7eb', borderRadius: 10,
         padding: '7px 14px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#6b7280',
     },
     progress: { fontWeight: 800, fontSize: '0.95rem', color: '#1a1d23' },
-    description: {
-        maxWidth: 640, textAlign: 'center', color: '#6b7280', fontWeight: 600,
-        fontSize: '0.9rem', margin: '16px 20px 0',
+    previewBanner: {
+        width: '100%', background: '#fef3c7', borderBottom: '1px solid #fde68a',
+        padding: '8px 20px', textAlign: 'center', fontSize: '0.82rem',
+        fontWeight: 700, color: '#92400e', flexShrink: 0,
     },
     canvasContainer: {
-        width: '100%', maxWidth: 1240, display: 'flex', justifyContent: 'center',
+        flex: 1, minHeight: 0, width: '100%', maxWidth: 1240,
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
         padding: '20px', boxSizing: 'border-box',
     },
     hintBox: {
         display: 'flex', alignItems: 'center', gap: 10,
         border: '2px solid', borderRadius: 12,
-        padding: '10px 16px', marginTop: 12,
-        maxWidth: 480, width: '90%',
+        padding: '10px 16px', marginTop: 8,
+        maxWidth: 480, width: '90%', flexShrink: 0,
     },
     hintIcon: { fontSize: '1.2rem', flexShrink: 0 },
     hintText: { fontSize: '0.88rem', fontWeight: 600, color: '#374151' },
@@ -851,6 +732,7 @@ const styles = {
     resultPanel: {
         marginTop: 16, border: '2px solid', borderRadius: 14,
         padding: '18px 24px', textAlign: 'center', minWidth: 280, maxWidth: 460,
+        flexShrink: 0,
     },
     resultTitle: { fontSize: '1.1rem', fontWeight: 900, margin: '0 0 6px 0', color: '#1a1d23' },
     resultDetail: { fontSize: '0.85rem', fontWeight: 600, color: '#6b7280', margin: '0 0 12px 0' },
@@ -861,10 +743,6 @@ const styles = {
     resultActions: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 12 },
     retryBtn: {
         padding: '9px 20px', background: '#1a1d23', color: 'white',
-        border: 'none', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
-    },
-    solutionBtn: {
-        padding: '9px 20px', background: '#f59e0b', color: 'white',
         border: 'none', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
     },
     quizBtn: {

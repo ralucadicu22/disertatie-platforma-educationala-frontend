@@ -54,6 +54,10 @@ function App() {
                     element={isAuthenticated ? <Navigate to="/" /> : <LoginPage />}
                 />
 
+                <Route path="/register" element={<Navigate to="/login" />} />
+
+                <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} />} />
+
                 <Route path="/" element={<PrivateRoute><ModulesPage /></PrivateRoute>} />
                 <Route path="/product/:productId" element={<PrivateRoute><ProductDetailPage /></PrivateRoute>} />
                 <Route path="/module/:moduleId" element={<PrivateRoute><QuizzesPage /></PrivateRoute>} />
