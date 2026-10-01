@@ -12,8 +12,8 @@ import { cn } from '../../design-system/cn';
 const TAGS = [
     { value: 'PRAISE',             label: '🎉 Felicitare' },
     { value: 'ENCOURAGEMENT',      label: '💪 Incurajare' },
-    { value: 'IMPROVEMENT_NEEDED', label: '📈 De imbunatatit' },
-    { value: 'WARNING',            label: '⚠️ Atentie' },
+    { value: 'IMPROVEMENT_NEEDED', label: '📈 De imbunătățit' },
+    { value: 'WARNING',            label: '⚠️ Atenție' },
 ];
 
 const RATINGS = [1, 2, 3, 4, 5];
@@ -55,7 +55,7 @@ const SendFeedbackModal = ({ open, onClose, prefilledStudentId, onSent }) => {
                 setLoading(false);
             })
             .catch(() => {
-                notify.error('Nu am putut incarca datele');
+                notify.error('Nu am putut încarcă datele');
                 setLoading(false);
             });
     }, [open, prefilledStudentId]);
@@ -65,7 +65,7 @@ const SendFeedbackModal = ({ open, onClose, prefilledStudentId, onSent }) => {
 
     const validate = () => {
         const e = {};
-        if (!form.studentId) e.studentId = 'Selecteaza un elev';
+        if (!form.studentId) e.studentId = 'Selectează un elev';
         if (!form.message.trim()) e.message = 'Mesajul este obligatoriu';
         setErrors(e);
         return Object.keys(e).length === 0;
@@ -100,12 +100,12 @@ const SendFeedbackModal = ({ open, onClose, prefilledStudentId, onSent }) => {
             open={open}
             onClose={onClose}
             title="Trimite feedback"
-            description="Lasa un mesaj personalizat pentru un elev."
+            description="Lasă un mesaj personalizat pentru un elev."
             size="md"
             footer={
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={saving}>
-                        Anuleaza
+                        Anulează
                     </Button>
                     <Button
                         variant="primary"
@@ -121,7 +121,7 @@ const SendFeedbackModal = ({ open, onClose, prefilledStudentId, onSent }) => {
             <div className="space-y-4">
                 <Select
                     label="Elev"
-                    placeholder="Selecteaza elevul"
+                    placeholder="Selectează elevul"
                     value={form.studentId}
                     onChange={set('studentId')}
                     options={studentOptions}
@@ -130,8 +130,8 @@ const SendFeedbackModal = ({ open, onClose, prefilledStudentId, onSent }) => {
                 />
 
                 <Select
-                    label="Clasa (optional)"
-                    placeholder="Selecteaza clasa"
+                    label="Clasa (opțional)"
+                    placeholder="Selectează clasa"
                     value={form.classroomId}
                     onChange={set('classroomId')}
                     options={classroomOptions}
@@ -139,7 +139,7 @@ const SendFeedbackModal = ({ open, onClose, prefilledStudentId, onSent }) => {
 
                 <div>
                     <label className="block text-caption text-neutral-700 mb-2">
-                        Tip feedback (optional)
+                        Tip feedback (opțional)
                     </label>
                     <div className="flex flex-wrap gap-2">
                         {TAGS.map((t) => (

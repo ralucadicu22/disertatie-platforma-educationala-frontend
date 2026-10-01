@@ -48,7 +48,6 @@ export default function ProductsPage() {
                             )}
                         </div>
 
-                        {/* Body */}
                         <div className="p-4">
                             <div className="flex gap-1.5 mb-2 flex-wrap">
                                 {p.subject && (

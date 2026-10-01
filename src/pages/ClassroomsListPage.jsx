@@ -41,12 +41,12 @@ const ClassroomsListPage = () => {
                     </h1>
                     <p className="text-body-lg text-neutral-600 mt-1">
                         {isAdmin
-                            ? 'Gestionati clasele, profesorii si elevii.'
-                            : 'Clasele in care sunteti profesor.'}
+                            ? 'Gestionați clasele, profesorii și elevii.'
+                            : 'Clasele în care sunteți profesor.'}
                     </p>
                 </div>
                 <Button variant="primary" icon={Plus} onClick={() => setCreateOpen(true)}>
-                    Clasa noua
+                    Clasă nouă
                 </Button>
             </div>
 

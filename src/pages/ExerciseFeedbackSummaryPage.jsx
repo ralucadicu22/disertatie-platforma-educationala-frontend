@@ -13,11 +13,11 @@ import { getFeedbackTag } from '../utils/feedbackHelpers';
 import { timeAgo } from '../utils/formatters';
 
 const REACTION_LABELS = {
-    LOVED_IT:          { emoji: '😍', label: 'Mi-a placut mult' },
-    LIKED_IT:          { emoji: '🙂', label: 'Mi-a placut' },
-    NEUTRAL:           { emoji: '😐', label: 'Asa si asa' },
+    LOVED_IT:          { emoji: '😍', label: 'Mi-a plăcut mult' },
+    LIKED_IT:          { emoji: '🙂', label: 'Mi-a plăcut' },
+    NEUTRAL:           { emoji: '😐', label: 'Așa și așa' },
     TOO_HARD:          { emoji: '😰', label: 'Prea greu' },
-    CONFUSING:         { emoji: '😕', label: 'Nu am inteles' },
+    CONFUSING:         { emoji: '😕', label: 'Nu am înțeles' },
     BORING:            { emoji: '😴', label: 'Plictisitor' },
 };
 
@@ -56,7 +56,7 @@ const ExerciseFeedbackSummaryPage = () => {
             <div className="mb-6">
                 <h1 className="text-h1 text-neutral-900">Feedback elevi</h1>
                 <p className="text-body-lg text-neutral-600 mt-1">
-                    Ce parere au elevii despre acest exercitiu.
+                    Ce părere au elevii despre acest exercițiu.
                 </p>
             </div>
 
@@ -73,7 +73,7 @@ const ExerciseFeedbackSummaryPage = () => {
                 <EmptyState
                     icon={AlertCircle}
                     variant="warm"
-                    title="A aparut o eroare"
+                    title="A apărut o eroare"
                     description={error}
                 />
             )}

@@ -23,6 +23,10 @@ export default function AdminUsersPage() {
     const [roleModal, setRoleModal] = useState(null);
     const [selectedRole, setSelectedRole] = useState('');
 
+    const [createModal, setCreateModal] = useState(false);
+    const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', role: 'ELEV' });
+    const [creating, setCreating] = useState(false);
+
     const load = () => {
         setLoading(true);
         adminUsersApi.getAll(filterRole || undefined)
@@ -78,6 +82,21 @@ export default function AdminUsersPage() {
         }
     };
 
+    const handleCreate = async () => {
+        if (!createForm.name.trim() || !createForm.email.trim() || !createForm.password.trim()) return;
+        setCreating(true);
+        try {
+            const created = await adminUsersApi.createUser(createForm);
+            setUsers(prev => [created, ...prev]);
+            setCreateModal(false);
+            setCreateForm({ name: '', email: '', password: '', role: 'ELEV' });
+        } catch {
+            setError('Eroare la crearea utilizatorului');
+        } finally {
+            setCreating(false);
+        }
+    };
+
     const handleDelete = async (user) => {
         if (!window.confirm(`Ștergi definitiv contul lui ${user.name}?`)) return;
         setActioningId(user.id);
@@ -91,10 +110,17 @@ export default function AdminUsersPage() {
         }
     };
 
-    const formatDate = (d) => d
-        ? new Date(d).toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' })
-        : '—';
-
+    const formatDate = (d) => {
+        if (!d) return '—';
+        const date = Array.isArray(d)
+            ? new Date(d[0], d[1] - 1, d[2], d[3] || 0, d[4] || 0)
+            : new Date(d);
+        if (isNaN(date.getTime())) return '—';
+        return date.toLocaleDateString('ro-RO', {
+            day: 'numeric', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    };
     return (
         <div className="animate-fade-in">
             <div className="mb-6">
@@ -131,6 +157,12 @@ export default function AdminUsersPage() {
                         <option key={r} value={r}>{r}</option>
                     ))}
                 </select>
+                <button
+                    onClick={() => setCreateModal(true)}
+                    className="px-4 py-2.5 bg-success-600 text-white rounded-lg text-body font-bold hover:bg-success-700 transition-colors"
+                >
+                    + Utilizator nou
+                </button>
                 <button
                     onClick={load}
                     className="px-4 py-2.5 bg-primary-600 text-white rounded-lg text-body font-bold hover:bg-primary-700 transition-colors"
@@ -211,8 +243,6 @@ export default function AdminUsersPage() {
                                     {user.active ? 'Activ' : 'Inactiv'}
                                 </span>
                             </div>
-
-                            {/* Creat */}
                             <div className="col-span-2 text-caption text-neutral-500">
                                 {formatDate(user.createdAt)}
                             </div>
@@ -334,6 +364,62 @@ export default function AdminUsersPage() {
                                 className="flex-1 py-2.5 bg-warning-600 text-white rounded-lg text-body font-bold hover:bg-warning-700 disabled:opacity-60"
                             >
                                 Resetează
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {createModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+                        <h2 className="text-h3 font-bold text-neutral-900 mb-4">
+                            Utilizator nou
+                        </h2>
+                        <div className="flex flex-col gap-3 mb-5">
+                            <input
+                                type="text"
+                                value={createForm.name}
+                                onChange={e => setCreateForm(p => ({ ...p, name: e.target.value }))}
+                                placeholder="Nume complet *"
+                                className="w-full px-4 py-2.5 rounded-lg border-2 border-neutral-200 text-body focus:outline-none focus:border-primary-400"
+                            />
+                            <input
+                                type="email"
+                                value={createForm.email}
+                                onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
+                                placeholder="Email *"
+                                className="w-full px-4 py-2.5 rounded-lg border-2 border-neutral-200 text-body focus:outline-none focus:border-primary-400"
+                            />
+                            <input
+                                type="password"
+                                value={createForm.password}
+                                onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
+                                placeholder="Parolă *"
+                                className="w-full px-4 py-2.5 rounded-lg border-2 border-neutral-200 text-body focus:outline-none focus:border-primary-400"
+                            />
+                            <select
+                                value={createForm.role}
+                                onChange={e => setCreateForm(p => ({ ...p, role: e.target.value }))}
+                                className="w-full px-4 py-2.5 rounded-lg border-2 border-neutral-200 text-body focus:outline-none focus:border-primary-400 bg-white"
+                            >
+                                {ROLES.map(r => (
+                                    <option key={r} value={r}>{r}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => { setCreateModal(false); setCreateForm({ name: '', email: '', password: '', role: 'ELEV' }); }}
+                                className="flex-1 py-2.5 border border-neutral-200 rounded-lg text-body font-semibold text-neutral-600 hover:bg-neutral-50"
+                            >
+                                Anulează
+                            </button>
+                            <button
+                                onClick={handleCreate}
+                                disabled={creating || !createForm.name.trim() || !createForm.email.trim() || !createForm.password.trim()}
+                                className="flex-1 py-2.5 bg-success-600 text-white rounded-lg text-body font-bold hover:bg-success-700 disabled:opacity-60"
+                            >
+                                {creating ? 'Se creează...' : 'Creează'}
                             </button>
                         </div>
                     </div>

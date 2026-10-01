@@ -369,8 +369,6 @@ export default function EditorCanvas() {
         if (el.type === ELEMENT_TYPES.VIDEO) elementNode = <CanvasVideo key={el.id} {...common} />;
         if (el.type === ELEMENT_TYPES.PDF) elementNode = <CanvasPdf key={el.id} {...common} />;
         if (!elementNode) return null;
-
-        // Hotspot-ul are deja outline propriu in solution mode, deci nu adaugam al doilea chenar
         if (isMarkedCorrect && el.type !== ELEMENT_TYPES.HOTSPOT) {
             const abs = getAbsolutePosition(el, elements);
             return (

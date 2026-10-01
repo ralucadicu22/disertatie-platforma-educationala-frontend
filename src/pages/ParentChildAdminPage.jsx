@@ -30,7 +30,7 @@ const ParentChildAdminPage = () => {
         parentChildApi.getAll()
             .then((data) => { setParents(data || []); setLoading(false); })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Nu am putut incarca datele');
+                setError(err?.response?.data?.message || 'Nu am putut încărca datele');
                 setLoading(false);
             });
     };
@@ -50,7 +50,7 @@ const ParentChildAdminPage = () => {
         setRemovingKey(key);
         try {
             await parentChildApi.unlink(parentId, childId);
-            notify.success(`Asocierea cu "${childName}" a fost eliminata`);
+            notify.success(`Asocierea cu "${childName}" a fost eliminată`);
             setParents((prev) =>
                 prev.map((p) =>
                     p.parentId === parentId
@@ -76,16 +76,16 @@ const ParentChildAdminPage = () => {
     }, [parents, search]);
 
     return (
-        <div user={user} title="Asocieri parinte-copil">
+        <div user={user} title="Asocieri părinte-copil">
             <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
                 <div>
-                    <h1 className="text-h1 text-neutral-900">Asocieri parinte-copil</h1>
+                    <h1 className="text-h1 text-neutral-900">Asocieri părinte-copil</h1>
                     <p className="text-body-lg text-neutral-600 mt-1">
-                        Gestioneaza legaturile dintre conturi de parinte si elevi.
+                        Gestionează legăturile dintre conturi de parinte și elevi.
                     </p>
                 </div>
                 <Button variant="primary" icon={Link2} onClick={() => setLinkModal(true)}>
-                    Asociaza parinte-copil
+                    Asociază parinte-copil
                 </Button>
             </div>
 
@@ -93,7 +93,7 @@ const ParentChildAdminPage = () => {
             {!loading && !error && parents.length > 0 && (
                 <div className="mb-4">
                     <Input
-                        placeholder="Cauta dupa parinte sau elev..."
+                        placeholder="Caută după parinte sau elev..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         icon={Search}
@@ -152,7 +152,7 @@ const ParentChildAdminPage = () => {
                                 transition={{ delay: index * 0.04 }}
                             >
                                 <Card padding="none">
-                                    {/* Header parinte */}
+
                                     <div className="p-4 flex items-center gap-4">
                                         <Avatar name={parent.parentName} size="md" />
                                         <div className="flex-1 min-w-0">
@@ -238,7 +238,7 @@ const ParentChildAdminPage = () => {
                                     {childCount === 0 && (
                                         <div className="px-4 pb-4 pt-1">
                                             <p className="text-caption text-neutral-400 italic">
-                                                Niciun copil asociat inca.
+                                                Niciun copil asociat încă.
                                             </p>
                                         </div>
                                     )}
@@ -255,7 +255,7 @@ const ParentChildAdminPage = () => {
                         icon={Search}
                         variant="neutral"
                         title="Niciun rezultat"
-                        description="Incearca alt termen de cautare."
+                        description="Incearcă alt termen de căutare."
                         size="sm"
                     />
                 </Card>
@@ -297,15 +297,15 @@ const LinkParentChildModal = ({ open, onClose, onLinked }) => {
                 setLoading(false);
             })
             .catch(() => {
-                notify.error('Nu am putut incarca utilizatorii');
+                notify.error('Nu am putut încărca utilizatorii');
                 setLoading(false);
             });
     }, [open]);
 
     const validate = () => {
         const e = {};
-        if (!selectedParent) e.parent = 'Selecteaza un parinte';
-        if (!selectedChild) e.child = 'Selecteaza un elev';
+        if (!selectedParent) e.parent = 'Selectează un parinte';
+        if (!selectedChild) e.child = 'Selectează un elev';
         setErrors(e);
         return Object.keys(e).length === 0;
     };
@@ -337,13 +337,13 @@ const LinkParentChildModal = ({ open, onClose, onLinked }) => {
         <Modal
             open={open}
             onClose={onClose}
-            title="Asociaza parinte-copil"
-            description="Creeaza o legatura intre un cont de parinte si un elev."
+            title="Asociază părinte-copil"
+            description="Creează o legatură între un părinte și copilul/copiii său/săi."
             size="sm"
             footer={
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={saving}>
-                        Anuleaza
+                        Anulează
                     </Button>
                     <Button
                         variant="primary"
@@ -351,7 +351,7 @@ const LinkParentChildModal = ({ open, onClose, onLinked }) => {
                         onClick={handleSubmit}
                         loading={saving}
                     >
-                        Asociaza
+                        Asociază
                     </Button>
                 </>
             }
@@ -364,8 +364,8 @@ const LinkParentChildModal = ({ open, onClose, onLinked }) => {
             ) : (
                 <div className="space-y-4">
                     <Select
-                        label="Parinte"
-                        placeholder="Selecteaza parintele"
+                        label="Părinte"
+                        placeholder="Selectează părintele"
                         value={selectedParent}
                         onChange={(e) => setSelectedParent(e.target.value)}
                         options={parentOptions}
@@ -373,7 +373,7 @@ const LinkParentChildModal = ({ open, onClose, onLinked }) => {
                     />
                     <Select
                         label="Elev"
-                        placeholder="Selecteaza elevul"
+                        placeholder="Selectează elevul"
                         value={selectedChild}
                         onChange={(e) => setSelectedChild(e.target.value)}
                         options={studentOptions}

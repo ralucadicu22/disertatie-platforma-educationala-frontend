@@ -301,7 +301,6 @@ function TextPropertyTabs({ el, update,updateElement}) {
                 <NumField label="Spațiere rânduri" value={el.lineHeight} onChange={v => update('lineHeight', parseFloat(v) || 1)} step={0.1} />
                 <NumField label="Padding" value={el.padding} onChange={v => update('padding', v)} />
 
-                {/* Indentare */}
                 <div style={styles.field}>
                     <label style={styles.fieldLabel}>Indentare</label>
                     <div style={styles.btnGroup}>
@@ -323,7 +322,6 @@ function TextPropertyTabs({ el, update,updateElement}) {
                     </div>
                 </div>
 
-                {/* Liste */}
                 <div style={styles.field}>
                     <label style={styles.fieldLabel}>Listă</label>
                     <div style={styles.btnGroup}>
@@ -335,7 +333,6 @@ function TextPropertyTabs({ el, update,updateElement}) {
                     </div>
                 </div>
 
-                {/* Auto-expand */}
                 <div style={styles.field}>
                     <label style={styles.fieldLabel}>Auto-expand</label>
                     <ToggleBtn

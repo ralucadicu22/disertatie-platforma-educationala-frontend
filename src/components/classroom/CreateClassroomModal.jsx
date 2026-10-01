@@ -35,7 +35,7 @@ const CreateClassroomModal = ({ open, onClose, onCreated }) => {
                 schoolYear: form.schoolYear.trim() || null,
                 gradeLevel: form.gradeLevel || null,
             });
-            notify.success(`Clasa "${created.name}" a fost creata`);
+            notify.success(`Clasa "${created.name}" a fost creată`);
             onCreated?.(created);
             onClose();
             setForm({ name: '', description: '', schoolYear: '2024-2025', gradeLevel: '' });
@@ -52,15 +52,15 @@ const CreateClassroomModal = ({ open, onClose, onCreated }) => {
             open={open}
             onClose={onClose}
             title="Clasa noua"
-            description="Adauga o clasa pentru a organiza elevi si quiz-uri."
+            description="Adaugă o clasă pentru a organiza elevi și quiz-uri."
             size="md"
             footer={
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={loading}>
-                        Anuleaza
+                        Anulează
                     </Button>
                     <Button variant="primary" icon={Sparkles} onClick={handleSubmit} loading={loading}>
-                        Creeaza clasa
+                        Creează clasa
                     </Button>
                 </>
             }
@@ -83,7 +83,7 @@ const CreateClassroomModal = ({ open, onClose, onCreated }) => {
                         options={GRADE_LEVEL_OPTIONS}
                     />
                     <Input
-                        label="An scolar"
+                        label="An școlar"
                         placeholder="2024-2025"
                         value={form.schoolYear}
                         onChange={set('schoolYear')}
@@ -91,7 +91,7 @@ const CreateClassroomModal = ({ open, onClose, onCreated }) => {
                 </div>
                 <Textarea
                     label="Descriere"
-                    placeholder="Descriere scurta (optional)"
+                    placeholder="Descriere scurtă (opțional)"
                     value={form.description}
                     onChange={set('description')}
                     rows={3}

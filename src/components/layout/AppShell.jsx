@@ -3,7 +3,7 @@ import { LogOut, ChevronLeft } from 'lucide-react';
 import { Avatar, Button } from '../../design-system/components';
 import { cn } from '../../design-system/cn';
 
-const AppShell = ({ user, title, back, children, maxWidth = '4xl' }) => {
+const AppShell = ({ user, title, back, children, maxWidth = '4xl', showLogout = false }) =>  {
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -54,10 +54,13 @@ const AppShell = ({ user, title, back, children, maxWidth = '4xl' }) => {
                                 </div>
                             </div>
                         )}
-                        <Button variant="ghost" size="sm" icon={LogOut} onClick={handleLogout}>
-                            <span className="hidden md:inline">Iesire</span>
-                        </Button>
+                        {showLogout && (
+                            <Button variant="ghost" size="sm" icon={LogOut} onClick={handleLogout}>
+                                <span className="hidden md:inline">Ieșire</span>
+                            </Button>
+                        )}
                     </div>
+
                 </div>
             </header>
             <main className={cn('mx-auto px-4 md:px-6 py-6 md:py-8', maxWidthClass)}>

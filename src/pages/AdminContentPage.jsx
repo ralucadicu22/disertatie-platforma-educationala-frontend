@@ -119,7 +119,6 @@ export default function AdminContentPage() {
 
             <div className="grid grid-cols-3 gap-4">
 
-                {/* Column 1: Products */}
                 <ContentColumn
                     title="Produse"
                     onAdd={() => openModal('product', 'create')}
@@ -286,11 +285,11 @@ function ContentModal({ modal, onSave, onClose }) {
         title: modal.data.title || '',
         description: modal.data.description || '',
         orderIndex: modal.data.orderIndex ?? 0,
-        // product fields
+
         coverImageUrl: modal.data.coverImageUrl || '',
         targetAgeGroup: modal.data.targetAgeGroup || '',
         subject: modal.data.subject || '',
-        // quiz fields
+
         maxAttempts: modal.data.maxAttempts ?? 0,
         maxReplays: modal.data.maxReplays ?? 0,
     });

@@ -49,7 +49,6 @@ export default function EditorToolbar() {
                     <span style={styles.toolLabel}>Formă</span>
                 </button>
 
-                {/* --- Adăugat: Butonul Hotspot --- */}
                 <button onClick={() => addElement(ELEMENT_TYPES.HOTSPOT)} style={styles.tool}>
                     <span style={styles.toolIcon}>🎯</span>
                     <span style={styles.toolLabel}>Hotspot</span>

@@ -43,7 +43,7 @@ const TeacherFeedbackPage = () => {
                 <div>
                     <h1 className="text-h1 text-neutral-900">Feedback pentru elevi</h1>
                     <p className="text-body-lg text-neutral-600 mt-1">
-                        Trimite mesaje personalizate si monitorizeaza progresul elevilor.
+                        Trimite mesaje personalizate și monitorizează progresul elevilor.
                     </p>
                 </div>
                 <Button variant="primary" icon={Plus} onClick={() => setSendOpen(true)}>

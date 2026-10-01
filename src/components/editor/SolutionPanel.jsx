@@ -165,7 +165,6 @@ export default function SolutionPanel() {
                     </Section>
                 )}
 
-                {/* ── ZONA DE SOLUȚII ── */}
                 {isFindAndSelect && (
                     <Section title="Zona de soluții — Obiecte țintă">
                         <TargetsList

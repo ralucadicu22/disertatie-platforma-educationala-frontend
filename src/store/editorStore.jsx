@@ -529,39 +529,55 @@ export function EditorProvider({ children }) {
         }
     }, [draftVersionId]);
 
-    const initNewExercise = useCallback(async (quizId, type = EXERCISE_TYPES.CUSTOM) => {
+    const initNewExercise = useCallback(async (quizId, type = 'CUSTOM') => {
         setLoadStatus('loading');
-        setLoadMessage('Se creeaza exercitiu nou...');
-
-        const emptyCanvas = createDefaultConfig({ type });
-
+        setLoadMessage('Se pregătește editorul...');
         try {
-            const res = await api.post(`/exercises/draft/new?quizId=${quizId}`, {
-                config: JSON.stringify(emptyCanvas),
-                type: type,
-                changeNote: 'Exercitiu creat din editor',
-            });
-            setExerciseId(res.data.exerciseId);
-            setElements(emptyCanvas.elements);
-            setCanvas(emptyCanvas.canvas || { ...DEFAULT_CANVAS });
-            setMeta(emptyCanvas.meta);
-            setSettings(emptyCanvas.settings);
-            setSolution(emptyCanvas.solution);
-            setHistory([JSON.parse(JSON.stringify(emptyCanvas.elements))]);
-            setHistoryIndex(0);
-            setDraftVersionId(res.data.id);
-            setDraftStatus(res.data.status);
-            setLoadStatus('loaded');
+            const existingRes = await api.get(`/exercises/quiz/${quizId}`);
+            const existing = existingRes.data?.find(
+                ex => ex.status === 'DRAFT' || ex.status === 'PENDING_REVIEW'
+            );
+
+            if (existing) {
+                const draftRes = await api.get(`/exercises/${existing.id}/draft`);
+                const cfg = JSON.parse(draftRes.data.config);
+                setExerciseId(existing.id);
+                setDraftStatus(draftRes.data.status?.toString() || 'DRAFT');
+                setElements(cfg.elements || []);
+                setCanvas(cfg.canvas || DEFAULT_CANVAS);
+                setMeta(cfg.meta || { type });
+                setSettings(cfg.settings || DEFAULT_SETTINGS);
+                setSolution(cfg.solution || DEFAULT_SOLUTION);
+                setLoadStatus('ready');
+                setLoadMessage('');
+                return existing.id;
+            }
+            const defaultConfig = buildDefaultConfig(type);
+            const res = await api.post('/exercises/draft/new', {
+                type,
+                config: JSON.stringify(defaultConfig),
+                changeNote: 'Draft inițial',
+            }, { params: { quizId } });
+
+            const newId = res.data.exerciseId ?? res.data.id;
+            const cfg = JSON.parse(res.data.config);
+            setExerciseId(newId);
+            setDraftStatus('DRAFT');
+            setElements(cfg.elements || []);
+            setCanvas(cfg.canvas || DEFAULT_CANVAS);
+            setMeta(cfg.meta || { type });
+            setSettings(cfg.settings || DEFAULT_SETTINGS);
+            setSolution(cfg.solution || DEFAULT_SOLUTION);
+            setLoadStatus('ready');
             setLoadMessage('');
-            return res.data.exerciseId;
+            return newId;
+
         } catch (err) {
-            console.error('Eroare la creare:', err);
             setLoadStatus('error');
-            setLoadMessage(err.response?.data?.message || 'Eroare la creare exercitiu');
+            setLoadMessage('Eroare la crearea exercițiului.');
             return null;
         }
     }, []);
-
     const loadDraft = useCallback(async (id) => {
         setLoadStatus('loading');
         setLoadMessage('Se incarca exercitiu...');
@@ -572,26 +588,54 @@ export function EditorProvider({ children }) {
             const canvasState = migrateConfig(rawConfig);
 
             setExerciseId(id);
-            setElements(canvasState.elements);
+            setElements(canvasState.elements || []);
             setCanvas(canvasState.canvas || { ...DEFAULT_CANVAS });
-            setMeta(canvasState.meta);
-            setSettings(canvasState.settings);
-            setSolution(canvasState.solution);
-            setHistory([JSON.parse(JSON.stringify(canvasState.elements))]);
+            setMeta(canvasState.meta || {});
+            setSettings(canvasState.settings || DEFAULT_SETTINGS);
+            setSolution(canvasState.solution || DEFAULT_SOLUTION);
+            setHistory([JSON.parse(JSON.stringify(canvasState.elements || []))]);
             setHistoryIndex(0);
             setSelectedIds([]);
             setDraftVersionId(res.data.id);
             setDraftStatus(res.data.status);
+            if (res.data.status === 'PUBLISHED') {
+                const versionsRes = await api.get(`/exercises/${id}/versions`);
+                const publishedVersion = versionsRes.data?.find(v => v.status === 'PUBLISHED');
+                setIsTemplate(publishedVersion?.isTemplate || false);
+            }
             setLoadStatus('loaded');
             setLoadMessage('');
         } catch (err) {
+            if (err.response?.status === 500 || err.response?.data?.message?.includes('Nu exista draft')) {
+                try {
+                    const versionsRes = await api.get(`/exercises/${id}/versions`);
+                    const publishedVersion = versionsRes.data?.find(v => v.status === 'PUBLISHED');
+                    if (publishedVersion) {
+                        const cfg = JSON.parse(publishedVersion.config);
+                        const canvasState = migrateConfig(cfg);
+                        setExerciseId(id);
+                        setElements(canvasState.elements || []);
+                        setCanvas(canvasState.canvas || { ...DEFAULT_CANVAS });
+                        setMeta(canvasState.meta || {});
+                        setSettings(canvasState.settings || DEFAULT_SETTINGS);
+                        setSolution(canvasState.solution || DEFAULT_SOLUTION);
+                        setHistory([JSON.parse(JSON.stringify(canvasState.elements || []))]);
+                        setHistoryIndex(0);
+                        setSelectedIds([]);
+                        setDraftVersionId(publishedVersion.id);
+                        setDraftStatus('PUBLISHED');
+                        setIsTemplate(publishedVersion.isTemplate || false);
+                        setLoadStatus('loaded');
+                        setLoadMessage('');
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Eroare la încărcarea versiunii publicate:', e);
+                }
+            }
             console.error('Eroare la incarcare:', err);
             setLoadStatus('error');
-            setLoadMessage(
-                err.response?.status === 500 || err.response?.data?.message?.includes('Nu exista draft')
-                    ? 'Nu exista draft pentru acest exercitiu'
-                    : err.response?.data?.message || 'Eroare la incarcare'
-            );
+            setLoadMessage(err.response?.data?.message || 'Eroare la incarcare');
         }
     }, []);
 
@@ -733,8 +777,6 @@ export function EditorProvider({ children }) {
     const syncSolutionElements = useCallback((newTargets, currentElements) => {
         const zoneId = findSolutionsZoneId(currentElements);
         if (!zoneId) return currentElements;
-
-        // Elimină toate elementele generate anterior și hint-ul italic
         const cleaned = currentElements.filter(el =>
             !el._solutionTargetId &&
             !(el.parentId === zoneId && el.type === ELEMENT_TYPES.TEXT
@@ -994,7 +1036,15 @@ export function useEditor() {
     if (!ctx) throw new Error('useEditor trebuie folosit în interiorul EditorProvider');
     return ctx;
 }
-
+function buildDefaultConfig(type) {
+    return {
+        canvas: { ...DEFAULT_CANVAS },
+        meta: { type, name: 'Exercițiu nou', description: '', themeId: 'formal' },
+        elements: [],
+        settings: { ...DEFAULT_SETTINGS },
+        solution: { ...DEFAULT_SOLUTION },
+    };
+}
 function getDefaultElementProps(type) {
     switch (type) {
         case ELEMENT_TYPES.TEXT:

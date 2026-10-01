@@ -89,7 +89,7 @@ const FeedbackCard = ({
                                 onClick={() => onMarkRead(feedback.id)}
                                 className="text-primary-600"
                             >
-                                Marcheaza ca citit
+                                Marchează ca citit
                             </Button>
                         )}
                         {!isStudentPerspective && onDelete && (

@@ -56,7 +56,7 @@ const ParentOverviewPage = () => {
                     Salut, {user?.name || 'parinte'}!
                 </h1>
                 <p className="text-body-lg text-neutral-600 mt-1">
-                    Uite cum se descurca copiii tai in aceasta perioada.
+                    Uite cum se descurcă copiii tăi în această perioadă.
                 </p>
             </div>
 
@@ -92,8 +92,8 @@ const ParentOverviewPage = () => {
                     <EmptyState
                         icon={UserRound}
                         variant="primary"
-                        title="Nu ai copii asociati inca"
-                        description="Contacteaza administratorul scolii pentru a asocia copiii tai la contul tau."
+                        title="Nu ai copii asociați încă"
+                        description="Contactează administratorul pentru a asocia copiii tăi la contul tau."
                     />
                 </Card>
             )}
@@ -108,7 +108,7 @@ const ParentOverviewPage = () => {
                             variant="primary"
                         />
                         <StatCard
-                            label="Exercitii totale"
+                            label="Exerciții totale"
                             value={formatNumber(totals.attempts)}
                             icon={Target}
                             variant="accent"
@@ -121,7 +121,7 @@ const ParentOverviewPage = () => {
                             variant="warm"
                         />
                         <StatCard
-                            label="Rata succes"
+                            label="Rată succes"
                             value={overallSuccess}
                             suffix="%"
                             icon={TrendingUp}
@@ -132,7 +132,7 @@ const ParentOverviewPage = () => {
 
                     <div>
                         <h2 className="text-h2 text-neutral-900 mb-4">
-                            Copiii tai
+                            Copiii tăi
                         </h2>
                         <div className="space-y-3">
                             {data.children.map((child, index) => (
@@ -187,7 +187,7 @@ const ChildCard = ({ child, index, onClick }) => {
                                 <span className="font-semibold text-neutral-800">
                                     {child.correctAttempts}
                                 </span>
-                                <span>exercitii corecte</span>
+                                <span>exercții corecte</span>
                             </div>
                             <div className="flex items-center gap-1.5 text-caption text-neutral-600">
                                 <Trophy className="w-4 h-4 text-warm-500" />

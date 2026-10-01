@@ -105,7 +105,6 @@ export default function CreateExercisePage() {
 
     return (
         <div className="min-h-screen bg-neutral-100">
-            {/* Top bar */}
             <div className="bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
                 <button
                     onClick={() => navigate(-1)}
@@ -119,7 +118,6 @@ export default function CreateExercisePage() {
 
             <div className="max-w-2xl mx-auto px-4 py-10">
 
-                {/* Tabs */}
                 <div className="flex bg-neutral-200 rounded-lg p-1 mb-8 w-fit">
                     {['scratch', 'template'].map(tab => (
                         <button
@@ -143,7 +141,6 @@ export default function CreateExercisePage() {
                     </div>
                 )}
 
-                {/* De la zero */}
                 {activeTab === 'scratch' && (
                     <div className="flex flex-col gap-3">
                         {EXERCISE_OPTIONS.map(opt => (
@@ -160,7 +157,6 @@ export default function CreateExercisePage() {
                                     creating && creating !== opt.type && 'opacity-40 cursor-not-allowed',
                                 )}
                             >
-                                {/* Icon */}
                                 <div className={cn(
                                     'w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0',
                                     'bg-gradient-to-br',
@@ -174,7 +170,6 @@ export default function CreateExercisePage() {
                                     )}
                                 </div>
 
-                                {/* Text */}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
                                         <span className="text-body-lg font-bold text-neutral-900">
@@ -191,7 +186,6 @@ export default function CreateExercisePage() {
                                     </p>
                                 </div>
 
-                                {/* Arrow */}
                                 <div className="text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-1 transition-all text-lg flex-shrink-0">
                                     →
                                 </div>
@@ -200,7 +194,6 @@ export default function CreateExercisePage() {
                     </div>
                 )}
 
-                {/* Din template */}
                 {activeTab === 'template' && (
                     <>
                         {loadingTemplates ? (
@@ -257,12 +250,9 @@ function TemplateRow({ template, onSelect, disabled, loading }) {
                 disabled && 'opacity-50 cursor-not-allowed'
             )}
         >
-            {/* Preview icon */}
             <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary-100 to-accent-100 flex items-center justify-center text-xl flex-shrink-0">
                 🎨
             </div>
-
-            {/* Info */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-body font-bold text-neutral-900">
@@ -279,7 +269,6 @@ function TemplateRow({ template, onSelect, disabled, loading }) {
                 </div>
             </div>
 
-            {/* Action */}
             <div className={cn(
                 'px-4 py-2 rounded-lg text-body font-bold transition-all flex-shrink-0',
                 'bg-primary-50 text-primary-700 group-hover:bg-primary-600 group-hover:text-white'

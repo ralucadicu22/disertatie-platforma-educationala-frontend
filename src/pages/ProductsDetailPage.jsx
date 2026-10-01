@@ -47,7 +47,6 @@ export default function ProductDetailPage() {
                 ← Înapoi la produse
             </button>
 
-            {/* Hero card */}
             <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden mb-8 flex">
                 <div className="w-48 flex-shrink-0">
                     {product.coverImageUrl ? (
@@ -80,7 +79,6 @@ export default function ProductDetailPage() {
                 </div>
             </div>
 
-            {/* Modules */}
             <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
                 Module disponibile
             </p>

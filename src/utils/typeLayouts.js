@@ -39,10 +39,6 @@ function makeText({ id, x, y, width, height, text, fontSize = 24, fontStyle = 'n
     };
 }
 
-// ─── FIND & SELECT + FIND & COUNT ─────────────────────────────────────────────
-// Layout curat: 2 zone verticale — text sus (compact), imagine dedesubt (mare).
-// Zona de soluții e complet în UI (SolutionPanel), NU pe canvas.
-
 function findAndSelectLayout() {
     const W = DEFAULT_CANVAS.width;
     const H = DEFAULT_CANVAS.height;
@@ -60,7 +56,7 @@ function findAndSelectLayout() {
     const imageZoneId = generateId('box_image_zone');
 
     return [
-        // ── ZONA TEXT (enunț) ──
+
         makeBox({
             id: textZoneId,
             x: marginX,
@@ -84,7 +80,6 @@ function findAndSelectLayout() {
             locked: false, // textul din interior e editabil
         }),
 
-        // ── ZONA IMAGINE (scena) ──
         makeBox({
             id: imageZoneId,
             x: marginX,
@@ -102,14 +97,13 @@ function findAndSelectLayout() {
 }
 
 function findAndCountLayout() {
-    // Identic ca layout, doar textul default diferă
+
     const layout = findAndSelectLayout();
     const titleEl = layout.find(el => el.type === ELEMENT_TYPES.TEXT);
     if (titleEl) titleEl.text = 'Găsește și numără [obiectele indicate]';
     return layout;
 }
 
-// ─── DRAG & DROP ──────────────────────────────────────────────────────────────
 
 function dragAndDropLayout() {
     const W = DEFAULT_CANVAS.width;

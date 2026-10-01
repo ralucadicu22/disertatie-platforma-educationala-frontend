@@ -6,6 +6,7 @@ export default function PlayerHotspot({ element, interactionState, onElementClic
     const groupRef = useRef(null);
 
     const isFound = interactionState === 'found';
+    const isWrong = interactionState === 'wrong';
     const isShaking = interactionState === 'shake';
     const isHighlighted = interactionState === 'highlight';
 
@@ -45,14 +46,14 @@ export default function PlayerHotspot({ element, interactionState, onElementClic
 
     const getFill = () => {
         if (isFound) return 'rgba(34, 197, 94, 0.4)';
-        if (isShaking) return 'rgba(239, 68, 68, 0.35)';
+        if (isWrong || isShaking) return 'rgba(239, 68, 68, 0.35)';
         if (isHighlighted) return 'rgba(245, 158, 11, 0.3)';
         return 'rgba(0, 0, 0, 0.001)';
     };
 
     const getStroke = () => {
         if (isFound) return '#16a34a';
-        if (isShaking) return '#ef4444';
+        if (isWrong || isShaking) return '#ef4444';
         if (isHighlighted) return '#f59e0b';
         return 'transparent';
     };
@@ -88,7 +89,8 @@ export default function PlayerHotspot({ element, interactionState, onElementClic
                     listening={false}
                 />
             )}
-            {isShaking && (
+
+            {(isShaking || isWrong) && (
                 <Text
                     text="✗"
                     width={element.width}

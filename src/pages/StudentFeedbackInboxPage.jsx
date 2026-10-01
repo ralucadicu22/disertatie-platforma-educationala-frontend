@@ -67,7 +67,7 @@ const StudentFeedbackInboxPage = () => {
                         Mesaje de la profesori
                     </h1>
                     <p className="text-body-lg text-neutral-600 mt-1">
-                        Feedback-ul primit de la profesorii tai.
+                        Feedback-ul primit de la profesorii tăi.
                     </p>
                 </div>
                 {unreadCount > 0 && (
@@ -77,7 +77,7 @@ const StudentFeedbackInboxPage = () => {
                         onClick={handleMarkAllRead}
                         loading={markingAllRead}
                     >
-                        Marcheaza toate citite
+                        Marchează toate mesajele ca citite
                     </Button>
                 )}
             </div>
@@ -120,8 +120,8 @@ const StudentFeedbackInboxPage = () => {
                 <EmptyState
                     icon={Inbox}
                     variant="primary"
-                    title="Niciun mesaj inca"
-                    description="Cand un profesor iti trimite feedback, il vei vedea aici."
+                    title="Niciun mesaj încă"
+                    description="Cand un profesor îti trimite feedback, îl vei vedea aici."
                 />
             )}
 
@@ -130,7 +130,7 @@ const StudentFeedbackInboxPage = () => {
                     icon={CheckCheck}
                     variant="success"
                     title="Toate mesajele sunt citite!"
-                    description="Nu ai mesaje necitite in acest moment."
+                    description="Nu ai mesaje necitite în acest moment."
                     size="sm"
                 />
             )}

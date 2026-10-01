@@ -11,7 +11,7 @@ import { cn } from '../../design-system/cn';
 
 const NAV_LINKS = {
     ELEV: [
-        { to: '/',                  icon: Home,          label: 'Acasa' },
+        { to: '/',                  icon: Home,          label: 'Acasă' },
         { to: '/progres',           icon: BarChart3,     label: 'Progresul meu' },
         { to: '/feedback-inbox',    icon: Inbox,         label: 'Mesaje' },
     ],
@@ -26,12 +26,12 @@ const NAV_LINKS = {
     ],
     EDITOR: [
         { to: '/',                  icon: Home,          label: 'Produse' },
-        { to: '/editor/create',     icon: ClipboardList, label: 'Exercitii noi' },
+
     ],
     ADMIN: [
         { to: '/clase',             icon: School,        label: 'Clase' },
         { to: '/asignare-quizuri',  icon: BookOpen,      label: 'Quiz-uri' },
-        { to: '/admin/parinti',     icon: Link2,         label: 'Parinti-Copii' },
+        { to: '/admin/parinti',     icon: Link2,         label: 'Părinți-Copii' },
         { to: '/admin/review',      icon: UserCheck,     label: 'Review' },
         { to: '/profesor',          icon: BarChart3,     label: 'Dashboard' },
         { to: '/admin/content', icon: Settings, label: 'Conținut' },
@@ -203,7 +203,7 @@ const Navbar = ({ unreadCount = 0 }) => {
                                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-body font-semibold text-danger-600 hover:bg-danger-50 transition-colors mt-2"
                                 >
                                     <LogOut className="w-5 h-5" />
-                                    Iesire
+                                    Ieșire
                                 </button>
                             </div>
                         </motion.div>

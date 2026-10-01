@@ -11,7 +11,7 @@ export default function LayersPanel() {
     } = useEditor();
 
     const [dragOverId, setDragOverId] = useState(null);
-    const [dragOverZone, setDragOverZone] = useState(null); // 'before' | 'inside' | 'after'
+    const [dragOverZone, setDragOverZone] = useState(null);
 
     if (!layersPanelOpen) return null;
 

@@ -11,4 +11,6 @@ export const adminUsersApi = {
         api.put(`/users/${id}/reset-password`, { newPassword }),
     deleteUser: (id) =>
         api.delete(`/users/${id}`),
+    createUser: (data) =>
+        api.post('/auth/register', data).then(res => res.data),
 };

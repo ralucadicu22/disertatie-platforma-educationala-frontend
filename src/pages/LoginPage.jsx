@@ -4,8 +4,8 @@ import { cn } from '../design-system/cn';
 
 const ROLE_REDIRECTS = {
     PARINTE:  '/parinte',
-    PROFESOR: '/clase',
-    ADMIN:    '/clase',
+    PROFESOR: '/',
+    ADMIN:    '/',
     EDITOR:   '/',
     ELEV:     '/',
 };
@@ -40,7 +40,6 @@ export default function LoginPage() {
 
             <div className="relative z-10 w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex">
 
-                {/* Brand side */}
                 <div className="hidden md:flex flex-col justify-center w-80 flex-shrink-0 bg-gradient-to-br from-neutral-900 to-neutral-700 p-10">
                     <div className="text-5xl mb-4">🎓</div>
                     <h1 className="text-h1 font-bold text-white mb-3 leading-tight">EduPlatform</h1>
@@ -63,7 +62,6 @@ export default function LoginPage() {
                     </div>
                 </div>
 
-                {/* Form side */}
                 <div className="flex-1 p-8 md:p-10 flex flex-col justify-center">
                     <div className="mb-8">
                         <h2 className="text-h2 font-bold text-neutral-900 mb-1">

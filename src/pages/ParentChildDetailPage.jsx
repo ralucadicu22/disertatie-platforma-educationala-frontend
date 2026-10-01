@@ -107,14 +107,14 @@ const ParentChildDetailPage = () => {
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                         <StatCard
-                            label="Exercitii"
+                            label="Exerciții"
                             value={formatNumber(data.totalAttempts)}
                             icon={Target}
                             variant="primary"
                             hint={`${data.correctAttempts} corecte`}
                         />
                         <StatCard
-                            label="Exercitii distincte"
+                            label="Exerciții distincte"
                             value={data.distinctExercisesCompleted}
                             icon={BookOpen}
                             variant="accent"
@@ -169,8 +169,8 @@ const ClassroomProgressList = ({ classrooms }) => {
                 <EmptyState
                     icon={Users}
                     variant="primary"
-                    title="Nu e inscris in nicio clasa inca"
-                    description="Contacteaza administratorul scolii pentru a-l inscrie intr-o clasa."
+                    title="Nu e înscris în nicio clasă încă."
+                    description="Contactează administratorul pentru a-l înscrie într-o clasă."
                     size="sm"
                 />
             </Card>
@@ -223,8 +223,8 @@ const RecentAttemptsList = ({ attempts }) => {
                 <EmptyState
                     icon={Clock}
                     variant="neutral"
-                    title="Nicio activitate inca"
-                    description="Pe masura ce copilul rezolva exercitii, activitatea va aparea aici."
+                    title="Nicio activitate încă"
+                    description="Pe masura ce copilul rezolvă exercitii, activitatea va apărea aici."
                     size="sm"
                 />
             </Card>
@@ -285,8 +285,8 @@ const TimeSessionsList = ({ sessions }) => {
                 <EmptyState
                     icon={Clock}
                     variant="neutral"
-                    title="Nicio sesiune finalizata"
-                    description="Timpul petrecut apare dupa ce copilul finalizeaza un quiz."
+                    title="Nicio sesiune finalizată"
+                    description="Timpul petrecut apare dupa ce copilul finalizează un quiz."
                     size="sm"
                 />
             </Card>

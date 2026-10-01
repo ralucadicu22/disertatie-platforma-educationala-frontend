@@ -92,6 +92,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit, isPrevie
     const [hintsUsed, setHintsUsed] = useState(0);
     const [currentHint, setCurrentHint] = useState(null);
     const [highlightedIds, setHighlightedIds] = useState(new Set());
+    const startTime = useRef(Date.now());
 
     useEffect(() => {
         const el = containerRef.current;
@@ -140,7 +141,6 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit, isPrevie
             return;
         }
 
-        // Runde 2+ — HIGHLIGHT pe un draggable neplas at încă
         const notPlacedYet = draggableDefs.filter(el => !placed[el.id]);
         if (notPlacedYet.length === 0) return;
 
@@ -287,9 +287,11 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit, isPrevie
         }
         setPhase('submitting');
         try {
+            const durationSeconds = Math.floor((Date.now() - startTime.current) / 1000);
             const res = await api.post('/exercises/submit', {
                 exerciseId,
                 answer: placed,
+                durationSeconds,
             });
             setResult(res.data);
             setPhase('result');
@@ -316,6 +318,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit, isPrevie
         setWrongId(null);
         setWrongClicks(0);
         setBursts([]);
+        startTime.current = Date.now();
     };
 
     const topLevel = staticElements.filter(el => !el.parentId);
@@ -449,7 +452,6 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit, isPrevie
                                     );
                                 })}
 
-                                {/* Particle bursts */}
                                 {bursts.map(burst => (
                                     <ParticleBurst
                                         key={burst.id}
@@ -478,7 +480,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit, isPrevie
 
                 {submitError && <p style={styles.errorText}>{submitError}</p>}
 
-                {/* Butoane */}
+
                 {phase !== 'result' && (
                     <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
                         {canShowHint && (
@@ -504,7 +506,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit, isPrevie
                     </div>
                 )}
 
-                {/* Result */}
+
                 {phase === 'result' && result && (
                     <div style={{
                         ...styles.resultPanel,

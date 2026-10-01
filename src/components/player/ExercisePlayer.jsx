@@ -1,27 +1,28 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { migrateConfig } from '../../utils/configFactory';
 import { EXERCISE_TYPES } from '../../constants/exerciseTypes';
 import FindAndSelectPlayer from './FindAndSelectPlayer';
 import DragAndDropPlayer from './DragAndDropPlayer';
 
-
 const PLAYERS_BY_TYPE = {
     [EXERCISE_TYPES.FIND_AND_SELECT]: FindAndSelectPlayer,
     [EXERCISE_TYPES.DRAG_AND_DROP]: DragAndDropPlayer,
 };
 
-export default function ExercisePlayer() {
-    const { exerciseId } = useParams();
+export default function ExercisePlayer({ exerciseId, onComplete }) {
     const navigate = useNavigate();
-    const [exercise, setExercise] = useState(null);
     const [config, setConfig] = useState(null);
     const [status, setStatus] = useState('loading');
     const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
+        if (!exerciseId) return;
         let cancelled = false;
+
+        setStatus('loading');
+        setConfig(null);
 
         api.get(`/exercises/${exerciseId}`)
             .then(res => {
@@ -31,14 +32,7 @@ export default function ExercisePlayer() {
                     setErrorMessage('Acest exercițiu nu are o versiune publicată.');
                     return;
                 }
-
-
-
                 const parsed = migrateConfig(JSON.parse(res.data.config));
-
-
-
-                setExercise(res.data); // pe asta o poti sterge daca nu o folosesti
                 setConfig(parsed);
                 setStatus('ready');
             })
@@ -71,7 +65,7 @@ export default function ExercisePlayer() {
         );
     }
 
-    const type = config.meta?.type;
+    const type = config?.meta?.type;
     const PlayerComponent = PLAYERS_BY_TYPE[type];
 
     if (!PlayerComponent) {
@@ -90,7 +84,7 @@ export default function ExercisePlayer() {
         <PlayerComponent
             exerciseId={Number(exerciseId)}
             config={config}
-            onExit={() => navigate(-1)}
+            onExit={onComplete || (() => navigate(-1))}
         />
     );
 }
@@ -98,7 +92,8 @@ export default function ExercisePlayer() {
 const styles = {
     centered: {
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        gap: 16, minHeight: '100vh', background: '#f0f2f5', padding: 20, textAlign: 'center',
+        gap: 16, minHeight: '60vh', background: '#f0f2f5', padding: 20, textAlign: 'center',
+        borderRadius: 16,
     },
     spinner: {
         width: 40, height: 40, border: '3px solid #e5e7eb', borderTop: '3px solid #4F6BF6',

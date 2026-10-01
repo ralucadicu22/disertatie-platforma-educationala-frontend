@@ -100,10 +100,10 @@ const ClassroomDetailPage = () => {
         setDeleting(true);
         try {
             await classroomApi.delete(id);
-            notify.success('Clasa a fost stearsa');
+            notify.success('Clasa a fost ștearsă');
             navigate('/clase');
         } catch (err) {
-            notify.error(err?.response?.data?.message || 'Nu am putut sterge clasa');
+            notify.error(err?.response?.data?.message || 'Nu am putut șterge clasa');
             setDeleting(false);
         }
     };
@@ -126,19 +126,17 @@ const ClassroomDetailPage = () => {
                 variant="warm"
                 title="A aparut o eroare"
                 description={error}
-                action={<Button variant="primary" onClick={load}>Reincarca</Button>}
+                action={<Button variant="primary" onClick={load}>Reîncarcă</Button>}
             />
         </Card>
     );
 
     if (!classroom) return null;
 
-    // ── VIEW ELEV ──────────────────────────────────────────────────────────────
     if (isElev) {
         const quizzes = classroom.assignedQuizzes || [];
         return (
             <div className="animate-fade-in">
-                {/* Header clasă */}
                 <button
                     onClick={() => navigate('/')}
                     className="flex items-center gap-1.5 text-body font-semibold text-neutral-500 hover:text-neutral-800 transition-colors mb-6"
@@ -165,7 +163,7 @@ const ClassroomDetailPage = () => {
                     )}
                 </div>
 
-                {/* Quiz-uri asignate */}
+
                 <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
                     Quiz-uri disponibile ({quizzes.length})
                 </p>
@@ -215,7 +213,6 @@ const ClassroomDetailPage = () => {
         );
     }
 
-    // ── VIEW PROFESOR / ADMIN ──────────────────────────────────────────────────
     return (
         <div>
             <motion.div
@@ -244,7 +241,7 @@ const ClassroomDetailPage = () => {
                                 <p className="text-body-lg text-neutral-700 mt-2">{classroom.description}</p>
                             )}
                             <p className="text-caption text-neutral-500 mt-3">
-                                Creata pe {formatDate(classroom.createdAt)}
+                                Creată pe {formatDate(classroom.createdAt)}
                             </p>
                         </div>
                         {isAdmin && (
@@ -254,7 +251,7 @@ const ClassroomDetailPage = () => {
                                 onClick={() => setDeleteOpen(true)}
                                 className="text-danger-600 hover:bg-danger-50"
                             >
-                                <span className="hidden md:inline">Sterge</span>
+                                <span className="hidden md:inline">Șterge</span>
                             </Button>
                         )}
                     </div>
@@ -282,7 +279,7 @@ const ClassroomDetailPage = () => {
                     </Button>
                 ) : (isAdmin || tab === 'students') && (
                     <Button variant="primary" icon={Plus} onClick={() => setAddOpen(true)}>
-                        {tab === 'teachers' ? 'Adauga profesor' : 'Adauga elev'}
+                        {tab === 'teachers' ? 'Adaugă profesor' : 'Adaugă elev'}
                     </Button>
                 )}
             </div>
@@ -291,8 +288,8 @@ const ClassroomDetailPage = () => {
                 <MemberList
                     members={classroom.students}
                     emptyIcon={Users}
-                    emptyTitle="Nu exista elevi inca"
-                    emptyDescription="Adauga primul elev in aceasta clasa."
+                    emptyTitle="Nu există elevi încă"
+                    emptyDescription="Adaugă primul elev in aceasta clasă."
                     onRemove={(uid) => handleRemoveMember(uid, 'student')}
                     removingId={removingId}
                 />
@@ -301,8 +298,8 @@ const ClassroomDetailPage = () => {
                 <MemberList
                     members={classroom.teachers}
                     emptyIcon={GraduationCap}
-                    emptyTitle="Nu exista profesori inca"
-                    emptyDescription="Doar administratorii pot adauga profesori."
+                    emptyTitle="Nu există profesori încă"
+                    emptyDescription="Doar administratorii pot adăuga profesori."
                     onRemove={isAdmin ? (uid) => handleRemoveMember(uid, 'teacher') : null}
                     removingId={removingId}
                 />
@@ -326,15 +323,15 @@ const ClassroomDetailPage = () => {
             <Modal
                 open={deleteOpen}
                 onClose={() => setDeleteOpen(false)}
-                title="Sterge clasa?"
-                description={`Aceasta actiune va sterge definitiv clasa "${classroom?.name}".`}
+                title="Șterge clasa?"
+                description={`Această acțiune va șterge definitiv clasa "${classroom?.name}".`}
                 footer={
                     <>
                         <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>
-                            Anuleaza
+                            Anulează
                         </Button>
                         <Button variant="danger" icon={Trash2} onClick={handleDelete} loading={deleting}>
-                            Sterge definitiv
+                            Șterge definitiv
                         </Button>
                     </>
                 }
@@ -377,7 +374,7 @@ const MemberList = ({ members, emptyIcon, emptyTitle, emptyDescription, onRemove
                                 disabled={removingId != null && removingId !== m.id}
                                 className="text-danger-600 hover:bg-danger-50"
                             >
-                                <span className="hidden md:inline">Elimina</span>
+                                <span className="hidden md:inline">Elimină</span>
                             </Button>
                         )}
                     </motion.div>

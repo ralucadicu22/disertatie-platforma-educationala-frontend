@@ -71,7 +71,7 @@ const QuizStartScreen = ({ quiz, onStart }) => {
                             <div className="bg-white/20 rounded-full px-3 py-1.5 flex items-center gap-1.5">
                                 <CheckCircle2 className="w-4 h-4 text-white" />
                                 <span className="text-body text-white font-semibold">
-                                    {quiz.exercises.length} exercitii
+                                    {quiz.exercises.length} exerciții
                                 </span>
                             </div>
                         )}
@@ -79,7 +79,7 @@ const QuizStartScreen = ({ quiz, onStart }) => {
                             <div className="bg-white/20 rounded-full px-3 py-1.5 flex items-center gap-1.5">
                                 <RotateCcw className="w-4 h-4 text-white" />
                                 <span className="text-body text-white font-semibold">
-                                    {history.replaysRemaining} incercari ramase
+                                    {history.replaysRemaining} Încercări rămase
                                 </span>
                             </div>
                         )}
@@ -87,7 +87,7 @@ const QuizStartScreen = ({ quiz, onStart }) => {
                             <div className="bg-white/20 rounded-full px-3 py-1.5 flex items-center gap-1.5">
                                 <RotateCcw className="w-4 h-4 text-white" />
                                 <span className="text-body text-white font-semibold">
-                                    Incercari nelimitate
+                                    Incercări nelimitate
                                 </span>
                             </div>
                         )}
@@ -113,7 +113,7 @@ const QuizStartScreen = ({ quiz, onStart }) => {
                                         Cel mai bun rezultat
                                     </div>
                                     <div className="text-h3 text-neutral-900 mt-0.5">
-                                        {bestAttempt.correctExercises}/{bestAttempt.totalExercises} exercitii corecte
+                                        {bestAttempt.correctExercises}/{bestAttempt.totalExercises} exerciții corecte
                                     </div>
                                 </div>
                             </div>
@@ -137,7 +137,6 @@ const QuizStartScreen = ({ quiz, onStart }) => {
                 </motion.div>
             )}
 
-            {/* Buton start / locked */}
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -153,7 +152,7 @@ const QuizStartScreen = ({ quiz, onStart }) => {
                                     Ai atins limita de tentative
                                 </div>
                                 <div className="text-caption text-warm-700 mt-0.5">
-                                    Ai folosit toate cele {history?.maxReplays} incercari disponibile.
+                                    Ai folosit toate cele {history?.maxReplays} încercări disponibile.
                                 </div>
                             </div>
                         </div>
@@ -167,7 +166,7 @@ const QuizStartScreen = ({ quiz, onStart }) => {
                         onClick={handleStart}
                         loading={starting}
                     >
-                        {hasActiveAttempt ? 'Continua quiz-ul' : 'Incepe quiz-ul'}
+                        {hasActiveAttempt ? 'Continuă quiz-ul' : 'Începe quiz-ul'}
                     </Button>
                 )}
             </motion.div>
@@ -237,13 +236,13 @@ const AttemptRow = ({ attempt, index }) => {
                         variant={isCompleted ? 'success' : isInProgress ? 'primary' : 'neutral'}
                         size="sm"
                     >
-                        {isCompleted ? 'Completata' : isInProgress ? 'In progres' : 'Abandonata'}
+                        {isCompleted ? 'Completată' : isInProgress ? 'În progres' : 'Abandonată'}
                     </Badge>
                 </div>
                 <div className="text-caption text-neutral-500 mt-0.5">
                     {isCompleted
                         ? `${attempt.correctExercises}/${attempt.totalExercises} corecte · ${timeAgo(attempt.finishedAt)}`
-                        : `Inceput ${timeAgo(attempt.startedAt)}`
+                        : `Început ${timeAgo(attempt.startedAt)}`
                     }
                 </div>
                 {isCompleted && attempt.totalExercises > 0 && (

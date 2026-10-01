@@ -15,7 +15,7 @@ const AddMemberModal = ({ open, onClose, role, excludeIds = [], onAdd }) => {
         setLoading(true);
         userApi.getByRole(role)
             .then((data) => { setUsers(data || []); setLoading(false); })
-            .catch(() => { notify.error('Nu am putut incarca utilizatorii'); setLoading(false); });
+            .catch(() => { notify.error('Nu am putut încărca utilizatorii'); setLoading(false); });
     }, [open, role]);
 
     const filtered = useMemo(() => {
@@ -38,12 +38,12 @@ const AddMemberModal = ({ open, onClose, role, excludeIds = [], onAdd }) => {
         <Modal
             open={open}
             onClose={onClose}
-            title={role === 'PROFESOR' ? 'Adauga profesor' : 'Adauga elev'}
+            title={role === 'PROFESOR' ? 'Adaugă profesor' : 'Adaugă elev'}
             size="md"
         >
             <div className="space-y-4">
                 <Input
-                    placeholder="Cauta dupa nume sau email"
+                    placeholder="Caută după nume sau email"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     icon={Search}
@@ -57,8 +57,8 @@ const AddMemberModal = ({ open, onClose, role, excludeIds = [], onAdd }) => {
                     <EmptyState
                         icon={UserPlus}
                         variant="neutral"
-                        title={role === 'PROFESOR' ? 'Nu am gasit profesori' : 'Nu am gasit elevi'}
-                        description={search ? 'Incearca alt termen.' : 'Toti sunt deja in clasa.'}
+                        title={role === 'PROFESOR' ? 'Nu am găsit profesori' : 'Nu am găsit elevi'}
+                        description={search ? 'încearcă alt termen.' : 'Toți sunt deja în clasă.'}
                         size="sm"
                     />
                 ) : (

@@ -7,17 +7,17 @@ import { notify } from '../../design-system/toast';
 import { cn } from '../../design-system/cn';
 
 const REACTIONS = [
-    { value: 'LOVED_IT',   emoji: '😍', label: 'Mi-a placut mult' },
-    { value: 'LIKED_IT',   emoji: '🙂', label: 'Mi-a placut' },
-    { value: 'NEUTRAL',    emoji: '😐', label: 'Asa si asa' },
+    { value: 'LOVED_IT',   emoji: '😍', label: 'Mi-a plăcut mult' },
+    { value: 'LIKED_IT',   emoji: '🙂', label: 'Mi-a plăcut' },
+    { value: 'NEUTRAL',    emoji: '😐', label: 'Așa și așa' },
     { value: 'TOO_HARD',   emoji: '😰', label: 'Prea greu' },
-    { value: 'CONFUSING',  emoji: '😕', label: 'Nu am inteles' },
+    { value: 'CONFUSING',  emoji: '😕', label: 'Nu am ințeles' },
     { value: 'BORING',     emoji: '😴', label: 'Plictisitor' },
 ];
 
 const DIFFICULTY = [
-    { value: 1, label: 'Foarte usor' },
-    { value: 2, label: 'Usor' },
+    { value: 1, label: 'Foarte ușor' },
+    { value: 2, label: 'Ușor' },
     { value: 3, label: 'Mediu' },
     { value: 4, label: 'Greu' },
     { value: 5, label: 'Foarte greu' },
@@ -42,7 +42,7 @@ const ExerciseFeedbackWidget = ({ exerciseId, onDismiss }) => {
                     setStep('done');
                 }
             })
-            .catch(() => {}); // 204 = nu are feedback, ignoram eroarea
+            .catch(() => {});
     }, [exerciseId]);
 
     const handleReactionSelect = (reaction) => {
@@ -52,7 +52,7 @@ const ExerciseFeedbackWidget = ({ exerciseId, onDismiss }) => {
 
     const handleSubmit = async () => {
         if (!form.reaction && !form.difficultyRating) {
-            notify.warning('Selecteaza cel putin o reactie sau un nivel de dificultate');
+            notify.warning('Selectează cel puțin o reacție sau un nivel de dificultate');
             return;
         }
         setSaving(true);
@@ -65,7 +65,7 @@ const ExerciseFeedbackWidget = ({ exerciseId, onDismiss }) => {
                 comment: form.comment.trim() || null,
             });
             setStep('done');
-            notify.success('Multumim pentru feedback!');
+            notify.success('Mulțumim pentru feedback!');
         } catch (err) {
             notify.error(err?.response?.data?.message || 'Nu am putut salva feedback-ul');
         } finally {
@@ -92,7 +92,7 @@ const ExerciseFeedbackWidget = ({ exerciseId, onDismiss }) => {
                             <div className="flex items-center gap-2">
                                 <MessageSquarePlus className="w-5 h-5 text-primary-500" />
                                 <span className="text-body font-semibold text-neutral-800">
-                                    Ce parere ai despre acest exercitiu?
+                                    Ce părere ai despre acest exercițiu?
                                 </span>
                             </div>
                             <button
@@ -138,7 +138,7 @@ const ExerciseFeedbackWidget = ({ exerciseId, onDismiss }) => {
                     >
                         <div className="flex items-center justify-between">
                             <span className="text-body font-semibold text-neutral-800">
-                                Spune-ne mai multe (optional)
+                                Spune-ne mai multe (opțional)
                             </span>
                             <span className="text-2xl">
                                 {REACTIONS.find((r) => r.value === form.reaction)?.emoji}
@@ -169,13 +169,13 @@ const ExerciseFeedbackWidget = ({ exerciseId, onDismiss }) => {
                                 ))}
                             </div>
                             <div className="flex justify-between mt-1">
-                                <span className="text-[10px] text-neutral-400">Usor</span>
+                                <span className="text-[10px] text-neutral-400">Ușor</span>
                                 <span className="text-[10px] text-neutral-400">Greu</span>
                             </div>
                         </div>
 
                         <Textarea
-                            placeholder="Vrei sa adaugi ceva? (optional)"
+                            placeholder="Vrei să adaugi ceva? (opțional)"
                             value={form.comment}
                             onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))}
                             rows={2}
@@ -190,7 +190,7 @@ const ExerciseFeedbackWidget = ({ exerciseId, onDismiss }) => {
                                 onClick={() => setStep('reaction')}
                                 className="flex-1"
                             >
-                                Inapoi
+                                Înapoi
                             </Button>
                             <Button
                                 variant="primary"
@@ -217,8 +217,8 @@ const ExerciseFeedbackWidget = ({ exerciseId, onDismiss }) => {
                             </div>
                             <span className="text-body font-semibold text-neutral-700">
                                 {existingFeedback
-                                    ? 'Ai lasat deja feedback pentru acest exercitiu'
-                                    : 'Multumim pentru feedback!'}
+                                    ? 'Ai lăsat deja feedback pentru acest exercițiu'
+                                    : 'Mulțumim pentru feedback!'}
                             </span>
                         </div>
                         <button

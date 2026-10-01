@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import ProductsPage from './ProductsPage.jsx';
 import { StatCard } from '../design-system/components';
-import { Users, BookOpen, FileText, CheckCircle, BarChart3 } from 'lucide-react';
+import { Users, BookOpen, FileText, CheckCircle, BarChart3, School } from 'lucide-react';
 import { cn } from '../design-system/cn';
 import {classroomApi} from "../api/classroomApi.js";
 
@@ -21,6 +21,17 @@ export default function ModulesPage() {
     const [loading, setLoading] = useState(true);
     const [classroomsWithQuizzes, setClassroomsWithQuizzes] = useState([]);
     const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+
+    const [userCount, setUserCount] = useState(null);
+    const [exerciseCount, setExerciseCount] = useState(null);
+    const [classroomCount, setClassroomCount] = useState(null);
+    const [quizCount, setQuizCount] = useState(null);
+    const [pendingReviewCount, setPendingReviewCount] = useState(null);
+
+    const [profesorStudentCount, setProfesorStudentCount] = useState(null);
+    const [profesorClassroomCount, setProfesorClassroomCount] = useState(null);
+    const [profesorQuizCount, setProfesorQuizCount] = useState(null);
+
     const navigate = useNavigate();
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -40,10 +51,51 @@ export default function ModulesPage() {
                 .then(data => setClassroomsWithQuizzes(data))
                 .catch(console.error)
                 .finally(() => setLoadingQuizzes(false));
-        }else {
+        } else {
             setLoading(false);
         }
+
+        if (role === 'ADMIN') {
+            api.get('/users/count')
+                .then(res => setUserCount(res.data))
+                .catch(console.error);
+            api.get('/exercises/count')
+                .then(res => setExerciseCount(res.data))
+                .catch(console.error);
+            api.get('/classrooms')
+                .then(res => setClassroomCount(res.data.length))
+                .catch(console.error);
+            api.get('/quizzes')
+                .then(res => setQuizCount(res.data.length))
+                .catch(console.error);
+            api.get('/exercises/filter?status=PENDING_REVIEW')
+                .then(res => setPendingReviewCount(res.data.length))
+                .catch(console.error);
+        }
+
+        if (role === 'PROFESOR') {
+            api.get('/classrooms/my')
+                .then(res => {
+                    const classrooms = res.data;
+                    setProfesorClassroomCount(classrooms.length);
+
+                    const studentIds = new Set();
+                    let totalQuizzes = 0;
+                    classrooms.forEach(c => {
+                        (c.studentIds || c.students || []).forEach(s => {
+                            const id = s.id ?? s;
+                            studentIds.add(id);
+                        });
+                        totalQuizzes += (c.quizCount ?? c.assignedQuizzes?.length ?? 0);
+                    });
+                    setProfesorStudentCount(studentIds.size);
+                    setProfesorQuizCount(totalQuizzes);
+                })
+                .catch(console.error);
+        }
     }, [role]);
+
+    const fmt = (val) => val !== null ? String(val) : '—';
 
     return (
         <div className="animate-fade-in">
@@ -121,9 +173,9 @@ export default function ModulesPage() {
                         </p>
                     </div>
                     <div className="grid grid-cols-3 gap-4 mb-8">
-                        <StatCard label="Elevi înscriși" value="—" icon={Users} />
-                        <StatCard label="Exerciții completate" value="—" icon={BookOpen} />
-                        <StatCard label="Scor mediu" value="—" icon={BarChart3} />
+                        <StatCard label="Elevi înscriși" value={fmt(profesorStudentCount)} icon={Users} />
+                        <StatCard label="Clase active" value={fmt(profesorClassroomCount)} icon={School} />
+                        <StatCard label="Quiz-uri atribuite" value={fmt(profesorQuizCount)} icon={CheckCircle} />
                     </div>
                     <ModuleList modules={modules} loading={loading} navigate={navigate} />
                 </>
@@ -142,6 +194,7 @@ export default function ModulesPage() {
                     <ModuleList modules={modules} loading={loading} navigate={navigate} />
                 </>
             )}
+
             {role === 'ADMIN' && (
                 <>
                     <div className="mb-6">
@@ -153,36 +206,16 @@ export default function ModulesPage() {
                         </p>
                     </div>
                     <div className="grid grid-cols-3 gap-4 mb-8">
-                        <StatCard label="Utilizatori totali" value="—" icon={Users} />
+                        <StatCard label="Utilizatori totali" value={fmt(userCount)} icon={Users} />
                         <StatCard label="Module active" value={String(modules.length)} icon={BookOpen} />
-                        <StatCard label="Exerciții totale" value="—" icon={FileText} />
-                    </div>
-                    <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
-                        Acțiuni rapide
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                        {[
-                            { label: 'Gestionare conținut', desc: 'Produse, module, quiz-uri', to: '/admin/content', icon: BookOpen },
-                            { label: 'Review exerciții', desc: 'Aprobă sau respinge', to: '/admin/review', icon: CheckCircle },
-                            { label: 'Clase', desc: 'Gestionează clasele', to: '/clase', icon: Users },
-                            { label: 'Părinți-Copii', desc: 'Asocieri conturi', to: '/admin/parinti', icon: FileText },
-                            { label: 'Utilizatori', desc: 'Gestionează conturi', to: '/admin/users', icon: Users },
-                        ].map(item => (
-                            <button
-                                key={item.to}
-                                onClick={() => navigate(item.to)}
-                                className="group flex items-center gap-4 bg-white rounded-xl border border-neutral-200 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 text-left"
-                            >
-                                <div className="w-11 h-11 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                                    <item.icon className="w-5 h-5 text-primary-600" />
-                                </div>
-                                <div>
-                                    <p className="text-body font-bold text-neutral-900">{item.label}</p>
-                                    <p className="text-caption text-neutral-500">{item.desc}</p>
-                                </div>
-                                <div className="ml-auto text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-1 transition-all">→</div>
-                            </button>
-                        ))}
+                        <StatCard label="Exerciții totale" value={fmt(exerciseCount)} icon={FileText} />
+                        <StatCard label="Clase active" value={fmt(classroomCount)} icon={School} />
+                        <StatCard label="Quiz-uri totale" value={fmt(quizCount)} icon={CheckCircle} />
+                        <StatCard
+                            label="Pending review"
+                            value={fmt(pendingReviewCount)}
+                            icon={BarChart3}
+                        />
                     </div>
                 </>
             )}

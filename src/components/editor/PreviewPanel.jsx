@@ -19,7 +19,7 @@ export default function PreviewPanel() {
         meta: { ...meta },
         canvas: { ...canvas },
         elements: JSON.parse(JSON.stringify(elements)),
-        settings: { ...settings }, // include hints, explanation etc.
+        settings: { ...settings },
         solution: {
             correctElementIds: Array.isArray(solution.correctElementIds)
                 ? solution.correctElementIds : [],

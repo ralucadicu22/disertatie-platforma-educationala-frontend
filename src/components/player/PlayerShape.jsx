@@ -7,9 +7,11 @@ export default function PlayerShape({ element, interactionState, onElementClick 
 
     const isInteractive = element.behavior && element.behavior !== 'static';
     const isFound = interactionState === 'found';
+    const isWrong = interactionState === 'wrong';
     const isShaking = interactionState === 'shake';
     const isHighlighted = interactionState === 'highlight';
     const isAnimating = interactionState === 'animate';
+
     useEffect(() => {
         if (!isShaking || !groupRef.current) return;
         const node = groupRef.current;
@@ -124,6 +126,18 @@ export default function PlayerShape({ element, interactionState, onElementClick 
             y={element.y}
             rotation={element.rotation || 0}
         >
+            {isWrong && (
+                <Rect
+                    x={-4} y={-4}
+                    width={element.width + 8}
+                    height={element.height + 8}
+                    fill="rgba(239, 68, 68, 0.18)"
+                    stroke="#ef4444"
+                    strokeWidth={3}
+                    cornerRadius={6}
+                    listening={false}
+                />
+            )}
 
             {isHighlighted && (
                 <Rect

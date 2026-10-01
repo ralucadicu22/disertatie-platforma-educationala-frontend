@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Stage, Layer, Rect,Group } from 'react-konva';
+import { Stage, Layer, Rect, Group, Image as KonvaImage } from 'react-konva';
 import api from '../../api/axios';
 import PlayerText from './PlayerText';
 import PlayerImage from './PlayerImage';
@@ -11,14 +11,13 @@ import { ThemeProvider } from '../../contexts/ThemeContext';
 import { getTheme } from '../../constants/themes.js';
 import ExerciseFeedbackWidget from '../feedback/ExerciseFeedbackWidget';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-
+import useImage from 'use-image';
 
 const CONTAINER_PADDING = 40;
 
 export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPreview = false }) {
     const containerRef = useRef(null);
     const [scale, setScale] = useState(1);
-
     const [foundIds, setFoundIds] = useState(() => new Set());
     const [shakingId, setShakingId] = useState(null);
     const [bursts, setBursts] = useState([]);
@@ -28,16 +27,19 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
     const [showFeedback, setShowFeedback] = useState(false);
     const [classAverage, setClassAverage] = useState(null);
     const [newBadges, setNewBadges] = useState([]);
-
+    const [bgImage] = useImage(config.canvas.backgroundImage || '', 'anonymous');
     const [hintsAvailable, setHintsAvailable] = useState([]);
     const [hintsUsed, setHintsUsed] = useState(0);
     const [currentHint, setCurrentHint] = useState(null);
     const [highlightedIds, setHighlightedIds] = useState(new Set());
     const [animatingIds, setAnimatingIds] = useState(new Set());
-
     const [wrongClicks, setWrongClicks] = useState(0);
     const [wrongBanner, setWrongBanner] = useState(false);
+    const [wrongIds, setWrongIds] = useState(() => new Set());
+
     const wrongBannerTimeoutRef = useRef(null);
+    const shakeTimeoutRef = useRef(null);
+    const hintTimeoutRef = useRef(null);
 
     const canvasWidth = config.canvas.width;
     const canvasHeight = config.canvas.height;
@@ -55,21 +57,51 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
         const resize = () => {
             const availableWidth = el.clientWidth - CONTAINER_PADDING;
             const availableHeight = el.clientHeight - CONTAINER_PADDING;
-            const scaleByWidth = availableWidth / canvasWidth;
-            const scaleByHeight = availableHeight / canvasHeight;
-            setScale(Math.min(1, scaleByWidth, scaleByHeight));
+            setScale(Math.min(1, availableWidth / canvasWidth, availableHeight / canvasHeight));
         };
         resize();
         const observer = new ResizeObserver(resize);
         observer.observe(el);
         return () => observer.disconnect();
-    }, [canvasWidth]);
+    }, [canvasWidth, canvasHeight]);
 
     useEffect(() => {
-        const hints = config.settings?.hints || [];
-        setHintsAvailable(hints);
+        setHintsAvailable(config.settings?.hints || []);
     }, [config.settings]);
-    const shakeTimeoutRef = useRef(null);
+
+    const triggerSmartHint = (wrongCount) => {
+        const round = Math.floor(wrongCount / 3);
+        if (round === 1) {
+            const textHint = hintsAvailable.find(h => h.type === 'TEXT');
+            if (textHint) {
+                setCurrentHint(textHint);
+                clearTimeout(hintTimeoutRef.current);
+                hintTimeoutRef.current = setTimeout(() => setCurrentHint(null), 4000);
+            }
+            return;
+        }
+        const notFoundYet = [...correctElementIds].filter(id => !foundIds.has(id));
+        if (notFoundYet.length === 0) return;
+        const targetId = notFoundYet[Math.floor(Math.random() * notFoundYet.length)];
+        const highlightHint = hintsAvailable.find(
+            h => h.type === 'HIGHLIGHT' && h.targetElementId === targetId
+        ) || {
+            id: `auto_${targetId}`,
+            type: 'HIGHLIGHT',
+            targetElementId: targetId,
+            text: 'Uită-te la elementul evidențiat!',
+        };
+        setCurrentHint(highlightHint);
+        setHighlightedIds(prev => new Set([...prev, targetId]));
+        setTimeout(() => {
+            setHighlightedIds(prev => {
+                const next = new Set(prev);
+                next.delete(targetId);
+                return next;
+            });
+            setCurrentHint(null);
+        }, 3000);
+    };
 
     const handleElementClick = (element) => {
         if (phase !== 'playing') return;
@@ -77,18 +109,25 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
 
         if (correctElementIds.has(element.id)) {
             setFoundIds(prev => new Set(prev).add(element.id));
-            setBursts(prev => [
-                ...prev,
-                {
-                    id: `${element.id}_${Date.now()}`,
-                    x: element.x + element.width / 2,
-                    y: element.y + element.height / 2,
-                },
-            ]);
+            setBursts(prev => [...prev, {
+                id: `${element.id}_${Date.now()}`,
+                x: element.x + element.width / 2,
+                y: element.y + element.height / 2,
+            }]);
         } else {
+            // Shake animation
             clearTimeout(shakeTimeoutRef.current);
             setShakingId(element.id);
             shakeTimeoutRef.current = setTimeout(() => setShakingId(null), 320);
+
+            setWrongIds(prev => new Set(prev).add(element.id));
+            setTimeout(() => {
+                setWrongIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(element.id);
+                    return next;
+                });
+            }, 60);
 
             clearTimeout(wrongBannerTimeoutRef.current);
             setWrongBanner(true);
@@ -96,51 +135,27 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
 
             setWrongClicks(prev => {
                 const next = prev + 1;
-                if (next % 3 === 0) {
-                    setTimeout(() => triggerSmartHint(next), 400);
-                }
+                if (next % 3 === 0) setTimeout(() => triggerSmartHint(next), 400);
                 return next;
             });
         }
+    };
 
-        const triggerSmartHint = (wrongCount) => {
-            const round = Math.floor(wrongCount / 3); // 1, 2, 3...
-
-            if (round === 1) {
-                const textHint = hintsAvailable.find(h => h.type === 'TEXT');
-                if (textHint) {
-                    setCurrentHint(textHint);
-                }
-                return;
-            }
-
-
-            const notFoundYet = [...correctElementIds].filter(id => !foundIds.has(id));
-            if (notFoundYet.length === 0) return;
-
-
-            const targetId = notFoundYet[Math.floor(Math.random() * notFoundYet.length)];
-
-            const highlightHint = hintsAvailable.find(
-                h => h.type === 'HIGHLIGHT' && h.targetElementId === targetId
-            ) || {
-                id: `auto_${targetId}`,
-                type: 'HIGHLIGHT',
-                targetElementId: targetId,
-                text: 'Uită-te la elementul evidențiat!',
-            };
-
-            setCurrentHint(highlightHint);
-            setHighlightedIds(prev => new Set([...prev, targetId]));
-            setTimeout(() => {
-                setHighlightedIds(prev => {
-                    const next = new Set(prev);
-                    next.delete(targetId);
-                    return next;
-                });
-                setCurrentHint(null);
-            }, 3000);
-        };
+    const handleStageClick = (e) => {
+        if (phase !== 'playing') return;
+        const clickedOnStage = e.target === e.target.getStage();
+        const clickedOnRect = e.target.getClassName() === 'Rect' && !e.target.id();
+        const clickedOnImage = e.target.getClassName() === 'Image';
+        if (clickedOnStage || clickedOnRect || clickedOnImage) {
+            clearTimeout(wrongBannerTimeoutRef.current);
+            setWrongBanner(true);
+            wrongBannerTimeoutRef.current = setTimeout(() => setWrongBanner(false), 1500);
+            setWrongClicks(prev => {
+                const next = prev + 1;
+                if (next % 3 === 0) setTimeout(() => triggerSmartHint(next), 400);
+                return next;
+            });
+        }
     };
 
     const removeBurst = (id) => setBursts(prev => prev.filter(b => b.id !== id));
@@ -151,6 +166,10 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
         setHintsUsed(prev => prev + 1);
         setCurrentHint(hint);
 
+        if (hint.type === 'TEXT') {
+            clearTimeout(hintTimeoutRef.current);
+            hintTimeoutRef.current = setTimeout(() => setCurrentHint(null), 4000);
+        }
         if (hint.type === 'HIGHLIGHT' && hint.targetElementId) {
             setHighlightedIds(prev => new Set([...prev, hint.targetElementId]));
             setTimeout(() => {
@@ -159,9 +178,9 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                     next.delete(hint.targetElementId);
                     return next;
                 });
+                setCurrentHint(null);
             }, 3000);
         }
-
         if (hint.type === 'ANIMATION' && hint.targetElementId) {
             setAnimatingIds(prev => new Set([...prev, hint.targetElementId]));
             setTimeout(() => {
@@ -170,6 +189,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                     next.delete(hint.targetElementId);
                     return next;
                 });
+                setCurrentHint(null);
             }, 1500);
         }
     };
@@ -185,7 +205,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
             setPhase('result');
             return;
         }
-
         setPhase('submitting');
         setSubmitError('');
         try {
@@ -196,11 +215,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
             setResult(res.data);
             setPhase('result');
             setShowFeedback(true);
-
-            if (res.data.newBadges?.length > 0) {
-                setNewBadges(res.data.newBadges);
-            }
-
+            if (res.data.newBadges?.length > 0) setNewBadges(res.data.newBadges);
             if (config.settings?.showGroupAverage) {
                 api.get(`/progress/exercise/${exerciseId}/class-average`)
                     .then(r => setClassAverage(r.data))
@@ -211,37 +226,19 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
             setPhase('playing');
         }
     };
-    const handleStageClick = (e) => {
-        if (phase !== 'playing') return;
-        const clickedOnStage = e.target === e.target.getStage();
-        const clickedOnRect = e.target.getClassName() === 'Rect' && !e.target.id();
-        const clickedOnImage = e.target.getClassName() === 'Image';
-
-        if (clickedOnStage || clickedOnRect || clickedOnImage) {
-            clearTimeout(wrongBannerTimeoutRef.current);
-            setWrongBanner(true);
-            wrongBannerTimeoutRef.current = setTimeout(() => setWrongBanner(false), 1500);
-
-            setWrongClicks(prev => {
-                const next = prev + 1;
-                if (next % 3 === 0 && hintsAvailable.length > 0 && hintsUsed < hintsAvailable.length) {
-                    setTimeout(() => handleHint(), 400);
-                }
-                return next;
-            });
-        }
-    };
     const handleRetry = () => {
         setFoundIds(new Set());
         setResult(null);
         setSubmitError('');
         setPhase('playing');
         setCurrentHint(null);
+        clearTimeout(hintTimeoutRef.current);
         setHighlightedIds(new Set());
         setAnimatingIds(new Set());
         setNewBadges([]);
         setWrongClicks(0);
         setWrongBanner(false);
+        setWrongIds(new Set());
         setHintsUsed(0);
     };
 
@@ -254,20 +251,16 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
     const renderElement = (element) => {
         const interactionState =
             foundIds.has(element.id) ? 'found'
-                : shakingId === element.id ? 'shake'
-                    : highlightedIds.has(element.id) ? 'highlight'
-                        : animatingIds.has(element.id) ? 'animate'
-                            : undefined;
+                : wrongIds.has(element.id) ? 'wrong'
+                    : shakingId === element.id ? 'shake'
+                        : highlightedIds.has(element.id) ? 'highlight'
+                            : animatingIds.has(element.id) ? 'animate'
+                                : undefined;
 
         if (element.type === ELEMENT_TYPES.BOX) {
             const children = getChildren(element.id);
             return (
-                <Group
-                    key={element.id}
-                    x={element.x}
-                    y={element.y}
-                    rotation={element.rotation || 0}
-                >
+                <Group key={element.id} x={element.x} y={element.y} rotation={element.rotation || 0}>
                     <Rect
                         width={element.width}
                         height={element.height}
@@ -281,56 +274,27 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                 </Group>
             );
         }
-
-        if (element.type === ELEMENT_TYPES.TEXT) {
-            return <PlayerText key={element.id} element={element} />;
-        }
-        if (element.type === ELEMENT_TYPES.IMAGE) {
-            return (
-                <PlayerImage
-                    key={element.id}
-                    element={element}
-                    interactionState={interactionState}
-                    onElementClick={handleElementClick}
-                />
-            );
-        }
-        if (element.type === ELEMENT_TYPES.SHAPE) {
-            return (
-                <PlayerShape
-                    key={element.id}
-                    element={element}
-                    interactionState={interactionState}
-                    onElementClick={handleElementClick}
-                />
-            );
-        }
-        if (element.type === ELEMENT_TYPES.HOTSPOT) {
-            return (
-                <PlayerHotspot
-                    key={element.id}
-                    element={element}
-                    interactionState={interactionState}
-                    onElementClick={handleElementClick}
-                />
-            );
-        }
+        if (element.type === ELEMENT_TYPES.TEXT) return <PlayerText key={element.id} element={element} />;
+        if (element.type === ELEMENT_TYPES.IMAGE) return (
+            <PlayerImage key={element.id} element={element} interactionState={interactionState} onElementClick={handleElementClick} />
+        );
+        if (element.type === ELEMENT_TYPES.SHAPE) return (
+            <PlayerShape key={element.id} element={element} interactionState={interactionState} onElementClick={handleElementClick} />
+        );
+        if (element.type === ELEMENT_TYPES.HOTSPOT) return (
+            <PlayerHotspot key={element.id} element={element} interactionState={interactionState} onElementClick={handleElementClick} />
+        );
         return null;
     };
 
     return (
         <ThemeProvider themeId={config.meta?.themeId}>
             <div style={{
-                height: '100vh',
-                overflow: 'hidden',
+                height: '100vh', overflow: 'hidden',
                 background: theme.colors.surface,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                paddingBottom: 32,
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
                 fontFamily: theme.font.family,
             }}>
-
                 <div style={styles.header}>
                     <button style={styles.backBtn} onClick={onExit}>← Ieși</button>
                     <div style={styles.progress}>
@@ -349,31 +313,37 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                     <p style={styles.description}>{config.meta.description}</p>
                 )}
 
-
                 <div ref={containerRef} style={styles.canvasContainer}>
                     <div style={{ width: canvasWidth * scale, height: canvasHeight * scale }}>
                         <Stage
                             width={canvasWidth * scale}
                             height={canvasHeight * scale}
-                            scaleX={scale}
-                            scaleY={scale}
+                            scaleX={scale} scaleY={scale}
                             onClick={handleStageClick}
                             onTap={handleStageClick}
                         >
                             <Layer>
+
                                 <Rect
                                     x={0} y={0}
-                                    width={canvasWidth}
-                                    height={canvasHeight}
+                                    width={canvasWidth} height={canvasHeight}
                                     fill={config.canvas.background || '#ffffff'}
                                     listening={false}
                                 />
+                                {bgImage && (
+                                    <KonvaImage
+                                        image={bgImage}
+                                        x={0} y={0}
+                                        width={canvasWidth} height={canvasHeight}
+                                        listening={false}
+                                    />
+                                )}
+
                                 {topLevelElements.map(el => renderElement(el))}
                                 {bursts.map(burst => (
                                     <ParticleBurst
                                         key={burst.id}
-                                        x={burst.x}
-                                        y={burst.y}
+                                        x={burst.x} y={burst.y}
                                         onComplete={() => removeBurst(burst.id)}
                                     />
                                 ))}
@@ -387,20 +357,18 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                         ❌ Nu e obiectul căutat. Încearcă altundeva!
                     </div>
                 )}
+
                 {currentHint && (
                     <div style={{
                         ...styles.hintBox,
                         borderColor: currentHint.type === 'HIGHLIGHT' ? '#f59e0b'
-                            : currentHint.type === 'ANIMATION' ? '#8b5cf6'
-                                : '#4F6BF6',
+                            : currentHint.type === 'ANIMATION' ? '#8b5cf6' : '#4F6BF6',
                         background: currentHint.type === 'HIGHLIGHT' ? '#fffbeb'
-                            : currentHint.type === 'ANIMATION' ? '#f5f3ff'
-                                : '#f0f4ff',
+                            : currentHint.type === 'ANIMATION' ? '#f5f3ff' : '#f0f4ff',
                     }}>
                         <span style={styles.hintIcon}>
                             {currentHint.type === 'HIGHLIGHT' ? '🔦'
-                                : currentHint.type === 'ANIMATION' ? '✨'
-                                    : '💡'}
+                                : currentHint.type === 'ANIMATION' ? '✨' : '💡'}
                         </span>
                         <span style={styles.hintText}>
                             {currentHint.text || (
@@ -414,14 +382,10 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
 
                 {submitError && <p style={styles.errorText}>{submitError}</p>}
 
-
                 {phase !== 'result' && (
-                    <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+                    <div style={{ display: 'flex', gap: 12, marginTop: 12, flexShrink: 0 }}>
                         {canShowHint && (
-                            <button
-                                style={{ ...styles.hintBtn, borderRadius: theme.borderRadius }}
-                                onClick={handleHint}
-                            >
+                            <button style={{ ...styles.hintBtn, borderRadius: theme.borderRadius }} onClick={handleHint}>
                                 💡 Hint ({hintsAvailable.length - hintsUsed} rămas)
                             </button>
                         )}
@@ -439,7 +403,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                         </button>
                     </div>
                 )}
-
 
                 {phase === 'result' && result && (
                     <div style={{
@@ -460,13 +423,9 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                         {classAverage !== null && config.settings?.showGroupAverage && (
                             <div style={{
                                 marginTop: 12, background: '#f8faff',
-                                border: '1.5px solid #e0e7ff',
-                                borderRadius: 12, padding: '14px 16px',
+                                border: '1.5px solid #e0e7ff', borderRadius: 12, padding: '14px 16px',
                             }}>
-                                <p style={{
-                                    fontSize: '0.82rem', fontWeight: 800,
-                                    color: '#4F6BF6', margin: '0 0 10px 0', textAlign: 'center',
-                                }}>
+                                <p style={{ fontSize: '0.82rem', fontWeight: 800, color: '#4F6BF6', margin: '0 0 10px 0', textAlign: 'center' }}>
                                     📊 Comparație cu grupa
                                 </p>
                                 <ResponsiveContainer width="100%" height={140}>
@@ -481,10 +440,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                                         <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700, fill: '#6b7280' }} />
                                         <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#6b7280' }} tickFormatter={v => `${v}%`} />
-                                        <Tooltip
-                                            formatter={value => [`${value}%`, 'Scor']}
-                                            contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }}
-                                        />
+                                        <Tooltip formatter={value => [`${value}%`, 'Scor']} contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
                                         <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                                             <Cell fill="#4F6BF6" />
                                             <Cell fill="#a78bfa" />
@@ -497,49 +453,31 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
 
                         <div style={styles.resultActions}>
                             {!result.correct && !attemptsExhausted && (
-                                <button
-                                    style={{ ...styles.retryBtn, borderRadius: theme.borderRadius }}
-                                    onClick={handleRetry}
-                                >
+                                <button style={{ ...styles.retryBtn, borderRadius: theme.borderRadius }} onClick={handleRetry}>
                                     Încearcă din nou
                                 </button>
                             )}
                             <button
-                                style={{
-                                    ...styles.quizBtn,
-                                    background: theme.colors.primary,
-                                    borderRadius: theme.borderRadius,
-                                }}
+                                style={{ ...styles.quizBtn, background: theme.colors.primary, borderRadius: theme.borderRadius }}
                                 onClick={onExit}
                             >
                                 {isPreview ? 'Închide preview' : 'Înapoi la quiz'}
                             </button>
                         </div>
-
-                        {attemptsExhausted && (
-                            <p style={styles.exhaustedText}>Ai epuizat numărul de încercări.</p>
-                        )}
+                        {attemptsExhausted && <p style={styles.exhaustedText}>Ai epuizat numărul de încercări.</p>}
                     </div>
                 )}
 
                 {!isPreview && newBadges.length > 0 && (
-                    <div style={{
-                        marginTop: 16, background: 'white', border: '2px solid #fbbf24',
-                        borderRadius: 14, padding: '18px 24px', textAlign: 'center', minWidth: 280,
-                    }}>
+                    <div style={{ marginTop: 16, background: 'white', border: '2px solid #fbbf24', borderRadius: 14, padding: '18px 24px', textAlign: 'center', minWidth: 280 }}>
                         <p style={{ fontSize: '1rem', fontWeight: 900, color: '#92400e', marginBottom: 12 }}>
                             🎉 Badge-uri noi câștigate!
                         </p>
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
                             {newBadges.map(badge => (
-                                <div key={badge.id} style={{
-                                    background: '#fffbeb', border: '1.5px solid #fde68a',
-                                    borderRadius: 10, padding: '10px 14px', textAlign: 'center',
-                                }}>
+                                <div key={badge.id} style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
                                     <div style={{ fontSize: '2rem', marginBottom: 4 }}>{badge.icon}</div>
-                                    <p style={{ fontSize: '0.8rem', fontWeight: 800, color: '#92400e' }}>
-                                        {badge.name}
-                                    </p>
+                                    <p style={{ fontSize: '0.8rem', fontWeight: 800, color: '#92400e' }}>{badge.name}</p>
                                 </div>
                             ))}
                         </div>
@@ -547,10 +485,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                 )}
 
                 {!isPreview && showFeedback && (
-                    <ExerciseFeedbackWidget
-                        exerciseId={exerciseId}
-                        onDismiss={() => setShowFeedback(false)}
-                    />
+                    <ExerciseFeedbackWidget exerciseId={exerciseId} onDismiss={() => setShowFeedback(false)} />
                 )}
             </div>
         </ThemeProvider>
@@ -561,6 +496,7 @@ const styles = {
     header: {
         width: '100%', background: 'white', borderBottom: '1px solid #e5e7eb',
         padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexShrink: 0,
     },
     backBtn: {
         background: 'none', border: '1.5px solid #e5e7eb', borderRadius: 10,
@@ -570,32 +506,26 @@ const styles = {
     previewBanner: {
         width: '100%', background: '#fef3c7', borderBottom: '1px solid #fde68a',
         padding: '8px 20px', textAlign: 'center', fontSize: '0.82rem',
-        fontWeight: 700, color: '#92400e',
+        fontWeight: 700, color: '#92400e', flexShrink: 0,
     },
     description: {
         maxWidth: 640, textAlign: 'center', color: '#6b7280', fontWeight: 600,
-        fontSize: '0.9rem', margin: '16px 20px 0',
+        fontSize: '0.9rem', margin: '16px 20px 0', flexShrink: 0,
     },
     canvasContainer: {
-        width: '100%',
-        maxWidth: 1240,
-        display: 'flex',
-        justifyContent: 'center',
-        padding: '20px',
-        boxSizing: 'border-box',
-        flex: 1,
-        minHeight: 0,
-        overflowY: 'auto',
+        flex: 1, minHeight: 0, width: '100%', maxWidth: 1240,
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        padding: '20px', boxSizing: 'border-box',
     },
     hintBox: {
         display: 'flex', alignItems: 'center', gap: 10,
         border: '2px solid', borderRadius: 12,
-        padding: '10px 16px', marginTop: 12,
-        maxWidth: 480, width: '90%',
+        padding: '10px 16px', marginTop: 8,
+        maxWidth: 480, width: '90%', flexShrink: 0,
     },
     hintIcon: { fontSize: '1.2rem', flexShrink: 0 },
     hintText: { fontSize: '0.88rem', fontWeight: 600, color: '#374151' },
-    errorText: { color: '#dc2626', fontWeight: 700, fontSize: '0.85rem', marginTop: 8 },
+    errorText: { color: '#dc2626', fontWeight: 700, fontSize: '0.85rem', marginTop: 8, flexShrink: 0 },
     hintBtn: {
         padding: '10px 20px', background: '#fffbeb', color: '#92400e',
         border: '2px solid #fde68a', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer',
@@ -606,7 +536,7 @@ const styles = {
     },
     resultPanel: {
         marginTop: 16, border: '2px solid', borderRadius: 14,
-        padding: '18px 24px', textAlign: 'center', minWidth: 280, maxWidth: 460,
+        padding: '18px 24px', textAlign: 'center', minWidth: 280, maxWidth: 460, flexShrink: 0,
     },
     resultTitle: { fontSize: '1.1rem', fontWeight: 900, margin: '0 0 6px 0', color: '#1a1d23' },
     resultDetail: { fontSize: '0.85rem', fontWeight: 600, color: '#6b7280', margin: '0 0 12px 0' },
@@ -621,15 +551,8 @@ const styles = {
     },
     exhaustedText: { fontSize: '0.85rem', fontWeight: 700, color: '#ef4444', margin: '12px 0 0 0' },
     wrongBanner: {
-        background: '#fee2e2',
-        border: '2px solid #fca5a5',
-        borderRadius: 12,
-        padding: '10px 20px',
-        marginTop: 12,
-        fontSize: '0.9rem',
-        fontWeight: 800,
-        color: '#b91c1c',
-        maxWidth: 480,
-        textAlign: 'center',
+        background: '#fee2e2', border: '2px solid #fca5a5', borderRadius: 12,
+        padding: '10px 20px', marginTop: 8, fontSize: '0.9rem',
+        fontWeight: 800, color: '#b91c1c', maxWidth: 480, textAlign: 'center', flexShrink: 0,
     },
 };

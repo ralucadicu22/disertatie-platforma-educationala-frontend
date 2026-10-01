@@ -96,7 +96,7 @@ export default function CanvasVideo({
                 listening={false}
             />
 
-            {/* Label jos */}
+
             {!element.src && (
                 <Text
                     x={0}

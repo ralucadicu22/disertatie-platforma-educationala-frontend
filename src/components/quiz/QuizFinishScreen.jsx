@@ -41,7 +41,7 @@ const QuizFinishScreen = ({ attemptId, quizId, quizTitle, onRestart }) => {
             const attempt = await quizAttemptApi.start(quizId);
             onRestart?.(attempt.attemptId, attempt);
         } catch (err) {
-            notify.error(err?.response?.data?.message || 'Nu mai poti relua acest quiz');
+            notify.error(err?.response?.data?.message || 'Nu mai poți relua acest quiz');
         } finally {
             setRestarting(false);
         }
@@ -91,7 +91,7 @@ const QuizFinishScreen = ({ attemptId, quizId, quizTitle, onRestart }) => {
                 </div>
 
                 <h1 className="text-h1 text-neutral-900">
-                    {isPerfect ? 'Perfect! 🎉' : isPassed ? 'Bravo! 👏' : 'Mai incearca! 💪'}
+                    {isPerfect ? 'Perfect! 🎉' : isPassed ? 'Bravo! 👏' : 'Mai incearcă! 💪'}
                 </h1>
                 <p className="text-body-lg text-neutral-600 mt-2">
                     {quizTitle}
@@ -108,7 +108,7 @@ const QuizFinishScreen = ({ attemptId, quizId, quizTitle, onRestart }) => {
                         {result.correctExercises}
                         <span className="text-h1 text-neutral-500">/{result.totalExercises}</span>
                     </div>
-                    <div className="text-body-lg text-neutral-600 mt-1">exercitii corecte</div>
+                    <div className="text-body-lg text-neutral-600 mt-1">exerciții corecte</div>
                     <ProgressBar
                         value={successRate}
                         variant={isPassed ? 'success' : 'warm'}
@@ -131,7 +131,7 @@ const QuizFinishScreen = ({ attemptId, quizId, quizTitle, onRestart }) => {
                                 <Trophy className="w-5 h-5 text-warning-600" />
                             </div>
                             <div>
-                                <div className="text-caption text-neutral-500">Puncte castigate</div>
+                                <div className="text-caption text-neutral-500">Puncte câștigate</div>
                                 <div className="font-display font-bold text-stat-md text-neutral-900 leading-none mt-0.5">
                                     {result.totalPoints}
                                 </div>
@@ -164,7 +164,7 @@ const QuizFinishScreen = ({ attemptId, quizId, quizTitle, onRestart }) => {
                     onClick={handleRestart}
                     loading={restarting}
                 >
-                    Incearca din nou
+                    Incearcă din nou
                 </Button>
                 <Button
                     variant="secondary"
@@ -173,7 +173,7 @@ const QuizFinishScreen = ({ attemptId, quizId, quizTitle, onRestart }) => {
                     fullWidth
                     onClick={() => navigate('/')}
                 >
-                    Inapoi la pagina principala
+                    Înapoi la pagina principală
                 </Button>
             </motion.div>
         </div>

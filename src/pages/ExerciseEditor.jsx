@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { EditorProvider, useEditor } from '../store/editorStore.jsx';
 import EditorTopBar from '../components/editor/EditorTopBar';
 import EditorToolbar from '../components/editor/EditorToolbar';
@@ -8,6 +7,7 @@ import EditorPropertiesPanel from '../components/editor/EditorPropertiesPanel';
 import LayersPanel from '../components/editor/LayersPanel.jsx';
 import SolutionPanel from '../components/editor/SolutionPanel';
 import PreviewPanel from "../components/editor/PreviewPanel.jsx";
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 
 function EditorContent({ initialMode = 'existing' }) {
     const { exerciseId: routeExerciseId } = useParams();
@@ -19,10 +19,32 @@ function EditorContent({ initialMode = 'existing' }) {
     } = useEditor();
 
     useEffect(() => {
+        const handlePopState = (e) => {
+            const confirmed = window.confirm(
+                'Ai modificări nesalvate. Ești sigur că vrei să ieși fără să salvezi?'
+            );
+            if (!confirmed) {
+                window.history.pushState(null, '', window.location.href);
+            }
+        };
+        window.history.pushState(null, '', window.location.href);
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            e.preventDefault();
+            e.returnValue = '';
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, []);
+
+    useEffect(() => {
         if (initialMode === 'new') {
             const quizId = searchParams.get('quizId');
             const type = searchParams.get('type') || 'CUSTOM';
-
             if (!quizId) {
                 navigate('/');
                 return;
@@ -99,7 +121,6 @@ function EditorContent({ initialMode = 'existing' }) {
                 <EditorCanvas />
                 <LayersPanel />
             </div>
-
             {mode === 'editor' && <EditorPropertiesPanel />}
             {mode === 'solution' && <SolutionPanel />}
             {mode === 'preview' && <PreviewPanel />}

@@ -45,14 +45,12 @@ export default function StudentDashboard() {
                 <p className="text-body text-neutral-500">Urmărește activitatea și punctele acumulate.</p>
             </div>
 
-            {/* StatCard-uri */}
             <div className="grid grid-cols-3 gap-4 mb-8">
                 <StatCard label="Exerciții rezolvate" value={String(stats?.completedExercises || 0)} icon={CheckCircle} variant="success" />
                 <StatCard label="Puncte acumulate" value={String(stats?.totalPoints || 0)} icon={Star} variant="warning" />
                 <StatCard label="Total încercări" value={String(stats?.totalSubmissions || 0)} icon={Target} variant="primary" />
             </div>
 
-            {/* Badge-uri */}
             <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
                 Badge-urile mele ({badges.length})
             </p>
@@ -79,7 +77,7 @@ export default function StudentDashboard() {
                 </div>
             )}
 
-            {/* Istoric activitate */}
+
             <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
                 Istoric activitate
             </p>

@@ -8,6 +8,7 @@ import api from '../api/axios';
 const ExercisePage = () => {
     const { quizId } = useParams();
     const [quiz, setQuiz] = useState(null);
+    const [exercises, setExercises] = useState([]);
     const [screen, setScreen] = useState('start');
     const [currentAttemptId, setCurrentAttemptId] = useState(null);
     const [exerciseIndex, setExerciseIndex] = useState(0);
@@ -17,6 +18,13 @@ const ExercisePage = () => {
             .then((r) => setQuiz(r.data))
             .catch(() => {});
     }, [quizId]);
+
+    useEffect(() => {
+        if (!quiz) return;
+        api.get(`/exercises/quiz/${quiz.id}`)
+            .then(r => setExercises(r.data))
+            .catch(() => {});
+    }, [quiz]);
 
     const handleStart = (attemptId) => {
         setCurrentAttemptId(attemptId);
@@ -29,7 +37,7 @@ const ExercisePage = () => {
     };
 
     const handleNextExercise = () => {
-        if (quiz?.exercises && exerciseIndex < quiz.exercises.length - 1) {
+        if (exercises && exerciseIndex < exercises.length - 1) {
             setExerciseIndex((i) => i + 1);
         } else {
             handleFinishQuiz();
@@ -57,18 +65,17 @@ const ExercisePage = () => {
                 />
             )}
 
-            {screen === 'playing' && quiz.exercises?.[exerciseIndex] && (
+            {screen === 'playing' && exercises?.[exerciseIndex] && (
                 <div className="max-w-4xl mx-auto px-4 py-6">
-                    {/* Progress bar exercitii */}
                     <div className="mb-4 flex items-center gap-3">
                         <span className="text-caption text-neutral-600 font-semibold">
-                            {exerciseIndex + 1} / {quiz.exercises.length}
+                            {exerciseIndex + 1} / {exercises.length}
                         </span>
                         <div className="flex-1 h-2 bg-neutral-200 rounded-full overflow-hidden">
                             <div
                                 className="h-full bg-hero-primary rounded-full transition-all duration-500"
                                 style={{
-                                    width: `${((exerciseIndex + 1) / quiz.exercises.length) * 100}%`
+                                    width: `${((exerciseIndex + 1) / exercises.length) * 100}%`
                                 }}
                             />
                         </div>
@@ -76,14 +83,20 @@ const ExercisePage = () => {
                             onClick={handleFinishQuiz}
                             className="text-caption text-neutral-500 hover:text-neutral-700"
                         >
-                            Termina
+                            Termină
                         </button>
                     </div>
 
                     <ExercisePlayer
-                        exerciseId={quiz.exercises[exerciseIndex].id}
+                        exerciseId={exercises[exerciseIndex].id}
                         onComplete={handleNextExercise}
                     />
+                </div>
+            )}
+
+            {screen === 'playing' && exercises.length === 0 && (
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
                 </div>
             )}
 

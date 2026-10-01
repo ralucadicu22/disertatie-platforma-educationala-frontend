@@ -10,7 +10,7 @@ export default function EditorTopBar({ exerciseName = 'Exercițiu nou', onSave }
         saveDraft, saveStatus, saveMessage,
         submitForReview, draftStatus,
         autoSaveEnabled, setAutoSaveEnabled,
-        setFullscreenMode,
+        setFullscreenMode,isTemplate, toggleTemplate,
     } = useEditor();
 
     const canSubmitForReview = draftStatus === 'DRAFT';
@@ -115,7 +115,22 @@ export default function EditorTopBar({ exerciseName = 'Exercițiu nou', onSave }
                     disabled={saveStatus === 'saving'}
                 >
                     {saveStatus === 'saving' ? 'Se salveaza...' : 'Salvează draft'}
+
                 </button>
+                {draftStatus === 'PUBLISHED' && (
+                    <button
+                        style={{
+                            ...styles.secondaryBtn,
+                            background: isTemplate ? '#f0fdf4' : 'white',
+                            color: isTemplate ? '#15803d' : '#374151',
+                            borderColor: isTemplate ? '#86efac' : '#e5e7eb',
+                        }}
+                        onClick={toggleTemplate}
+                        title="Marchează ca template pentru alți editori"
+                    >
+                        {isTemplate ? '⭐ Template activ' : '☆ Marchează template'}
+                    </button>
+                )}
                 {canSubmitForReview && (
                     <button
                         style={{

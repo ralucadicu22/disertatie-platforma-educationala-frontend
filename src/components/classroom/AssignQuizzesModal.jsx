@@ -26,7 +26,7 @@ const AssignQuizzesModal = ({ open, onClose, classroom, onAssigned }) => {
         setSearch('');
         quizApi.getAll()
             .then((data) => { setAllQuizzes(data || []); setLoading(false); })
-            .catch(() => { notify.error('Nu am putut incarca quiz-urile'); setLoading(false); });
+            .catch(() => { notify.error('Nu am putut încărca quiz-urile'); setLoading(false); });
     }, [open]);
 
     const filtered = useMemo(() => {
@@ -48,7 +48,7 @@ const AssignQuizzesModal = ({ open, onClose, classroom, onAssigned }) => {
 
     const handleAssign = async () => {
         if (selectedIds.size === 0) {
-            notify.warning('Selecteaza cel putin un quiz');
+            notify.warning('Selectează cel puțin un quiz');
             return;
         }
         setSaving(true);
@@ -71,13 +71,13 @@ const AssignQuizzesModal = ({ open, onClose, classroom, onAssigned }) => {
         <Modal
             open={open}
             onClose={onClose}
-            title={`Asigneaza quiz-uri — ${classroom?.name || ''}`}
-            description="Selecteaza quiz-urile pe care vrei sa le faci disponibile elevilor din aceasta clasa."
+            title={`Asignează quiz-uri — ${classroom?.name || ''}`}
+            description="Selectează quiz-urile pe care vrei să le faci disponibile elevilor din această clasă."
             size="lg"
             footer={
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={saving}>
-                        Anuleaza
+                        Anulează
                     </Button>
                     <Button
                         variant="primary"
@@ -86,14 +86,14 @@ const AssignQuizzesModal = ({ open, onClose, classroom, onAssigned }) => {
                         loading={saving}
                         disabled={selectedIds.size === 0}
                     >
-                        Asigneaza {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                        Asignează {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
                     </Button>
                 </>
             }
         >
             <div className="space-y-4">
                 <Input
-                    placeholder="Cauta quiz dupa titlu..."
+                    placeholder="Caută quiz după titlu..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     icon={Search}
@@ -109,7 +109,7 @@ const AssignQuizzesModal = ({ open, onClose, classroom, onAssigned }) => {
                             onClick={() => setSelectedIds(new Set())}
                             className="text-caption text-primary-600 hover:text-primary-800 font-bold"
                         >
-                            Sterge selectia
+                            Șterge selecția
                         </button>
                     </div>
                 )}
@@ -122,8 +122,8 @@ const AssignQuizzesModal = ({ open, onClose, classroom, onAssigned }) => {
                     <EmptyState
                         icon={BookOpen}
                         variant="neutral"
-                        title="Nu am gasit quiz-uri"
-                        description={search ? 'Incearca alt termen de cautare.' : 'Nu exista quiz-uri in sistem.'}
+                        title="Nu am găsit quiz-uri"
+                        description={search ? 'Încearcă alt termen de căutare.' : 'Nu există quiz-uri în sistem.'}
                         size="sm"
                     />
                 ) : (
