@@ -45,7 +45,7 @@ const ClassroomDetailPage = () => {
         classroomApi.getOne(id)
             .then((data) => { setClassroom(data); setLoading(false); })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Nu am putut incarca clasa');
+                setError(err?.response?.data?.message || 'Nu am putut încărca clasa');
                 setLoading(false);
             });
     };

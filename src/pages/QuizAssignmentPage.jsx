@@ -28,7 +28,7 @@ const QuizAssignmentPage = () => {
         quizAssignmentApi.getMyClassroomsWithQuizzes()
             .then((data) => { setClassrooms(data || []); setLoading(false); })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Nu am putut incarca datele');
+                setError(err?.response?.data?.message || 'Nu am putut încărca datele');
                 setLoading(false);
             });
     };
@@ -92,7 +92,7 @@ const QuizAssignmentPage = () => {
                         variant="warm"
                         title="A aparut o eroare"
                         description={error}
-                        action={<Button variant="primary" onClick={load}>Reincarca</Button>}
+                        action={<Button variant="primary" onClick={load}>Reîncarcă</Button>}
                     />
                 </Card>
             )}
@@ -102,7 +102,7 @@ const QuizAssignmentPage = () => {
                     <EmptyState
                         icon={School}
                         variant="primary"
-                        title="Nu esti in nicio clasa inca"
+                        title="Nu esti in nicio clasa încă"
                         description="Contacteaza administratorul pentru a fi adaugat ca profesor intr-o clasa."
                     />
                 </Card>

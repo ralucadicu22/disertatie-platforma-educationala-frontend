@@ -9,6 +9,9 @@ import {
 import { Avatar, Badge } from '../../design-system/components';
 import { cn } from '../../design-system/cn';
 
+import { impersonation } from '../../utils/impersonation';
+import ViewAsDropdown from "../impersonation/ViewAsDropdown.jsx";
+
 const NAV_LINKS = {
     ELEV: [
         { to: '/',                  icon: Home,          label: 'Acasă' },
@@ -47,6 +50,9 @@ const Navbar = ({ unreadCount = 0 }) => {
     const role = user?.role || 'ELEV';
     const links = NAV_LINKS[role] || NAV_LINKS.ELEV;
 
+    const isImpersonating = impersonation.isActive();
+    const stickyTop = isImpersonating ? 'top-10' : 'top-0';
+
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -55,10 +61,12 @@ const Navbar = ({ unreadCount = 0 }) => {
 
     return (
         <>
-
-            <nav className="hidden md:flex sticky top-0 z-40 w-full bg-white/90 backdrop-blur-md border-b border-neutral-200">
+            <nav className={cn(
+                'hidden md:flex sticky z-40 w-full bg-white/90 backdrop-blur-md border-b border-neutral-200',
+                stickyTop
+            )}>
                 <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between w-full">
-                    {/* Logo */}
+
                     <div
                         className="flex items-center gap-2 cursor-pointer"
                         onClick={() => navigate('/')}
@@ -68,7 +76,6 @@ const Navbar = ({ unreadCount = 0 }) => {
                         </div>
                         <span className="text-body-lg font-bold text-neutral-900">EduPlatform</span>
                     </div>
-
 
                     <div className="flex items-center gap-1">
                         {links.map((link) => {
@@ -109,6 +116,8 @@ const Navbar = ({ unreadCount = 0 }) => {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {role === 'ADMIN' && <ViewAsDropdown />}
+
                         <div className="flex items-center gap-2">
                             <Avatar name={user?.name || '?'} size="sm" />
                             <div className="text-right">
@@ -131,8 +140,10 @@ const Navbar = ({ unreadCount = 0 }) => {
                 </div>
             </nav>
 
-
-            <nav className="md:hidden sticky top-0 z-40 w-full bg-white/90 backdrop-blur-md border-b border-neutral-200">
+            <nav className={cn(
+                'md:hidden sticky z-40 w-full bg-white/90 backdrop-blur-md border-b border-neutral-200',
+                stickyTop
+            )}>
                 <div className="px-4 h-14 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-md bg-hero-primary flex items-center justify-center">
@@ -163,7 +174,6 @@ const Navbar = ({ unreadCount = 0 }) => {
                             className="overflow-hidden border-t border-neutral-100 bg-white"
                         >
                             <div className="px-4 py-3 space-y-1">
-                                {/* User info */}
                                 <div className="flex items-center gap-3 p-3 bg-neutral-50 rounded-md mb-3">
                                     <Avatar name={user?.name || '?'} size="md" />
                                     <div>
@@ -197,6 +207,12 @@ const Navbar = ({ unreadCount = 0 }) => {
                                         </NavLink>
                                     );
                                 })}
+
+                                {role === 'ADMIN' && (
+                                    <div className="pt-1 border-t border-neutral-100">
+                                        <ViewAsDropdown />
+                                    </div>
+                                )}
 
                                 <button
                                     onClick={handleLogout}

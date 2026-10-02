@@ -54,7 +54,7 @@ export default function TeacherStudentDetailPage() {
                 <EmptyState
                     icon={AlertCircle}
                     variant="warm"
-                    title="A apărut o eroare"
+                    title="Nu există date de afișat pentru acest rol.rut o eroare"
                     description={error}
                     action={
                         <button

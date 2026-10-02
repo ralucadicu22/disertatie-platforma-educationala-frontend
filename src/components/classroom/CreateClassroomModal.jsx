@@ -51,7 +51,7 @@ const CreateClassroomModal = ({ open, onClose, onCreated }) => {
         <Modal
             open={open}
             onClose={onClose}
-            title="Clasa noua"
+            title="Clasă noua"
             description="Adaugă o clasă pentru a organiza elevi și quiz-uri."
             size="md"
             footer={

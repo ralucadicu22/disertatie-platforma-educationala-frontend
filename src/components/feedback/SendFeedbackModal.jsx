@@ -130,7 +130,7 @@ const SendFeedbackModal = ({ open, onClose, prefilledStudentId, onSent }) => {
                 />
 
                 <Select
-                    label="Clasa (opțional)"
+                    label="Clasă (opțional)"
                     placeholder="Selectează clasa"
                     value={form.classroomId}
                     onChange={set('classroomId')}

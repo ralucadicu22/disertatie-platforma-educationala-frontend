@@ -30,9 +30,9 @@ const ParentOverviewPage = () => {
             })
             .catch((err) => {
                 console.error(err);
-                setError(err?.response?.data?.message || 'Nu am putut incarca datele');
+                setError(err?.response?.data?.message || 'Nu am putut încărca datele');
                 setLoading(false);
-                notify.error('Nu am putut incarca dashboard-ul');
+                notify.error('Nu am putut încărca dashboard-ul');
             });
     }, []);
 
@@ -82,7 +82,7 @@ const ParentOverviewPage = () => {
                         variant="warm"
                         title="A aparut o eroare"
                         description={error}
-                        action={<Button variant="primary" onClick={() => window.location.reload()}>Reincarca</Button>}
+                        action={<Button variant="primary" onClick={() => window.location.reload()}>Reîncarcă</Button>}
                     />
                 </Card>
             )}

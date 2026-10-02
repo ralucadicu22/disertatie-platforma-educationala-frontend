@@ -42,7 +42,7 @@ const ExerciseFeedbackSummaryPage = () => {
                 setLoading(false);
             })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Nu am putut incarca datele');
+                setError(err?.response?.data?.message || 'Nu am putut încărca datele');
                 setLoading(false);
             });
     }, [exerciseId]);
@@ -73,7 +73,7 @@ const ExerciseFeedbackSummaryPage = () => {
                 <EmptyState
                     icon={AlertCircle}
                     variant="warm"
-                    title="A apărut o eroare"
+                    title="Nu există date de afișat pentru acest rol.rut o eroare"
                     description={error}
                 />
             )}
@@ -154,8 +154,8 @@ const ExerciseFeedbackSummaryPage = () => {
                         <EmptyState
                             icon={MessageSquare}
                             variant="neutral"
-                            title="Niciun feedback inca"
-                            description="Elevii nu au lasat inca feedback pentru acest exercitiu."
+                            title="Niciun feedback încă"
+                            description="Elevii nu au lasat încă feedback pentru acest exercitiu."
                             size="sm"
                         />
                     ) : (

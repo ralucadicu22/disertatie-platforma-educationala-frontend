@@ -25,6 +25,8 @@ import { ToastProvider } from './design-system/toast.jsx';
 import AdminContentPage from './pages/AdminContentPage.jsx';
 import AdminUsersPage from "./pages/AdminUsersPage.jsx";
 import TeacherStudentDetailPage from './pages/TeacherStudentDetailPage.jsx';
+import ImpersonationBanner from "./components/impersonation/ImpersonationBanner.jsx";
+
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -45,10 +47,10 @@ function App() {
         return <MainLayout>{children}</MainLayout>;
     };
 
-
     return (
         <>
             <ToastProvider />
+            <ImpersonationBanner />
             <Routes>
                 <Route
                     path="/login"
@@ -76,7 +78,6 @@ function App() {
                 <Route path="/feedback-inbox" element={<PrivateRoute><StudentFeedbackInboxPage /></PrivateRoute>} />
                 <Route path="/exercise/:exerciseId/feedback" element={<PrivateRoute><ExerciseFeedbackSummaryPage /></PrivateRoute>} />
 
-                {/* Fără Navbar */}
                 <Route
                     path="/editor/create"
                     element={<PrivateRoute withNav={false}><CreateExercisePage /></PrivateRoute>}

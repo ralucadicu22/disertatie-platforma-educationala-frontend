@@ -21,7 +21,7 @@ const StudentFeedbackInboxPage = () => {
         teacherFeedbackApi.getMyReceived()
             .then((data) => { setFeedbacks(data || []); setLoading(false); })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Nu am putut incarca mesajele');
+                setError(err?.response?.data?.message || 'Nu am putut încărca mesajele');
                 setLoading(false);
             });
     };
@@ -112,7 +112,7 @@ const StudentFeedbackInboxPage = () => {
                     variant="warm"
                     title="A aparut o eroare"
                     description={error}
-                    action={<Button variant="primary" onClick={load}>Reincarca</Button>}
+                    action={<Button variant="primary" onClick={load}>Reîncarcă</Button>}
                 />
             )}
 

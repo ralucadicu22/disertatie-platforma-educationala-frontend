@@ -116,7 +116,7 @@ const ParentChildAdminPage = () => {
                         variant="warm"
                         title="A aparut o eroare"
                         description={error}
-                        action={<Button variant="primary" onClick={load}>Reincarca</Button>}
+                        action={<Button variant="primary" onClick={load}>Reîncarcă</Button>}
                     />
                 </Card>
             )}
@@ -127,7 +127,7 @@ const ParentChildAdminPage = () => {
                     <EmptyState
                         icon={Users}
                         variant="primary"
-                        title="Nu exista asocieri inca"
+                        title="Nu există asocieri încă"
                         description="Adauga prima asociere parinte-copil folosind butonul de mai sus."
                         action={
                             <Button variant="primary" icon={Link2} onClick={() => setLinkModal(true)}>

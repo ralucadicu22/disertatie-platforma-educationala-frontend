@@ -580,7 +580,7 @@ export function EditorProvider({ children }) {
     }, []);
     const loadDraft = useCallback(async (id) => {
         setLoadStatus('loading');
-        setLoadMessage('Se incarca exercitiu...');
+        setLoadMessage('Se încarcă exercitiu...');
 
         try {
             const res = await api.get(`/exercises/${id}/draft`);
@@ -606,7 +606,7 @@ export function EditorProvider({ children }) {
             setLoadStatus('loaded');
             setLoadMessage('');
         } catch (err) {
-            if (err.response?.status === 500 || err.response?.data?.message?.includes('Nu exista draft')) {
+            if (err.response?.status === 500 || err.response?.data?.message?.includes('Nu există draft')) {
                 try {
                     const versionsRes = await api.get(`/exercises/${id}/versions`);
                     const publishedVersion = versionsRes.data?.find(v => v.status === 'PUBLISHED');
@@ -633,9 +633,9 @@ export function EditorProvider({ children }) {
                     console.error('Eroare la încărcarea versiunii publicate:', e);
                 }
             }
-            console.error('Eroare la incarcare:', err);
+            console.error('Eroare la încărcare:', err);
             setLoadStatus('error');
-            setLoadMessage(err.response?.data?.message || 'Eroare la incarcare');
+            setLoadMessage(err.response?.data?.message || 'Eroare la încărcare');
         }
     }, []);
 

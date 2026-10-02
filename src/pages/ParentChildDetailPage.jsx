@@ -39,9 +39,9 @@ const ParentChildDetailPage = () => {
                 setLoading(false);
             })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Nu am putut incarca datele');
+                setError(err?.response?.data?.message || 'Nu am putut încărca datele');
                 setLoading(false);
-                notify.error('Nu am putut incarca detaliile');
+                notify.error('Nu am putut încărca detaliile');
             });
     }, [childId]);
 

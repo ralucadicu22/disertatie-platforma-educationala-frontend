@@ -13,6 +13,12 @@ api.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+
+        const impersonatedRole = localStorage.getItem('_impersonationRole');
+        if (impersonatedRole) {
+            config.headers['X-Impersonating-As'] = impersonatedRole;
+        }
+
         return config;
     },
     error => Promise.reject(error)
@@ -42,7 +48,6 @@ export function setApiOverride(mockApi) {
 export function clearApiOverride() {
     overrideApi = null;
 }
-
 
 export const apiWithOverride = {
     get: (...args) => (overrideApi || api).get(...args),

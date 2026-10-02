@@ -20,7 +20,7 @@ const TeacherFeedbackPage = () => {
         teacherFeedbackApi.getMyGiven()
             .then((data) => { setFeedbacks(data || []); setLoading(false); })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Nu am putut incarca feedback-urile');
+                setError(err?.response?.data?.message || 'Nu am putut încărca feedback-urile');
                 setLoading(false);
             });
     };
@@ -63,7 +63,7 @@ const TeacherFeedbackPage = () => {
                     variant="warm"
                     title="A aparut o eroare"
                     description={error}
-                    action={<Button variant="primary" onClick={load}>Reincarca</Button>}
+                    action={<Button variant="primary" onClick={load}>Reîncarcă</Button>}
                 />
             )}
 
@@ -71,7 +71,7 @@ const TeacherFeedbackPage = () => {
                 <EmptyState
                     icon={MessageSquare}
                     variant="primary"
-                    title="Nu ai trimis niciun feedback inca"
+                    title="Nu ai trimis niciun feedback încă"
                     description="Trimite primul mesaj unui elev pentru a-l motiva sau ghida."
                     action={
                         <Button variant="primary" icon={Plus} onClick={() => setSendOpen(true)}>

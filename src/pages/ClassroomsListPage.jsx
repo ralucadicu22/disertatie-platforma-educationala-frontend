@@ -25,7 +25,7 @@ const ClassroomsListPage = () => {
         promise
             .then((data) => { setClassrooms(data || []); setLoading(false); })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Nu am putut incarca clasele');
+                setError(err?.response?.data?.message || 'Nu am putut încărca clasele');
                 setLoading(false);
             });
     };
@@ -63,7 +63,7 @@ const ClassroomsListPage = () => {
                         variant="warm"
                         title="A aparut o eroare"
                         description={error}
-                        action={<Button variant="primary" onClick={load}>Reincarca</Button>}
+                        action={<Button variant="primary" onClick={load}>Reîncarcă</Button>}
                     />
                 </Card>
             )}
@@ -73,12 +73,12 @@ const ClassroomsListPage = () => {
                     <EmptyState
                         icon={School}
                         variant="primary"
-                        title="Nu exista clase inca"
+                        title="Nu există clase încă"
                         description={isAdmin
-                            ? 'Creeaza prima clasa pentru a incepe.'
-                            : 'Contacteaza administratorul pentru a fi adaugat intr-o clasa.'}
+                            ? 'Creează prima clasă pentru a începe.'
+                            : 'Contactează administratorul pentru a fi adăugat într-o clasă.'}
                         action={isAdmin
-                            ? <Button variant="primary" icon={Plus} onClick={() => setCreateOpen(true)}>Creeaza prima clasa</Button>
+                            ? <Button variant="primary" icon={Plus} onClick={() => setCreateOpen(true)}>Creează prima clasă</Button>
                             : null}
                     />
                 </Card>
