@@ -73,7 +73,7 @@ export default function EditorTopBar({ exerciseName = 'Exercițiu nou', onSave }
                 </IconBtn>
             </div>
 
-            {/* ThemePicker separat, intre actionGroup si modeSwitcher */}
+            {/* ThemePicker separat, întree actionGroup si modeSwitcher */}
             <ThemePicker />
 
             <div style={styles.modeSwitcher}>

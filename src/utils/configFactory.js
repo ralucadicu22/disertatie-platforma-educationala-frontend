@@ -18,15 +18,12 @@ export const DEFAULT_SOLUTION = {
     dropMapping: {},
     alternativeAnswers:[],
 };
-
-export function createDefaultConfig({ type = EXERCISE_TYPES.CUSTOM, name = 'Exercitiu nou' } = {}) {
+export function createDefaultConfig(arg = {}) {
+    const opts = typeof arg === 'string' ? { type: arg } : arg;
+    const { type = EXERCISE_TYPES.CUSTOM, name = 'Exercițiu nou' } = opts;
     return {
         version: CONFIG_SCHEMA_VERSION,
-        meta: {
-            type,
-            name,
-            description: '',
-        },
+        meta: { type, name, description: '' },
         canvas: { ...DEFAULT_CANVAS },
         elements: getInitialLayoutForType(type),
         settings: { ...DEFAULT_SETTINGS },

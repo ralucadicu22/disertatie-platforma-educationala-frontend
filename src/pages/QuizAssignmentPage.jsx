@@ -48,7 +48,7 @@ const QuizAssignmentPage = () => {
         setRemovingKey(key);
         try {
             await quizAssignmentApi.unassign(classroomId, quizId);
-            notify.success(`"${quizTitle}" a fost retras din clasa`);
+            notify.success(`"${quizTitle}" a fost retras din clasă`);
             setClassrooms((prev) =>
                 prev.map((c) =>
                     c.classroomId === classroomId
@@ -75,7 +75,7 @@ const QuizAssignmentPage = () => {
                 <div>
                     <h1 className="text-h1 text-neutral-900">Asignare quiz-uri</h1>
                     <p className="text-body-lg text-neutral-600 mt-1">
-                        Gestioneaza quiz-urile disponibile pentru fiecare clasa.
+                        Gestionează quiz-urile disponibile pentru fiecare clasă.
                     </p>
                 </div>
             </div>
@@ -102,8 +102,8 @@ const QuizAssignmentPage = () => {
                     <EmptyState
                         icon={School}
                         variant="primary"
-                        title="Nu esti in nicio clasa încă"
-                        description="Contacteaza administratorul pentru a fi adaugat ca profesor intr-o clasa."
+                        title="Nu esti in nicio clasă încă"
+                        description="Contacteaza administratorul pentru a fi adaugat ca profesor într-o clasă."
                     />
                 </Card>
             )}

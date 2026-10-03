@@ -6,6 +6,7 @@ import { StatCard } from '../design-system/components';
 import { Users, BookOpen, FileText, CheckCircle, BarChart3, School } from 'lucide-react';
 import { cn } from '../design-system/cn';
 import {classroomApi} from "../api/classroomApi.js";
+import {impersonation} from "../utils/impersonation.js";
 
 const ACCENTS = [
     'from-primary-500 to-accent-500',
@@ -34,7 +35,10 @@ export default function ModulesPage() {
 
     const navigate = useNavigate();
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const activeUser = impersonation.isActive()
+        ? impersonation.currentUser()
+        : JSON.parse(localStorage.getItem('user') || '{}');
+    const user = activeUser;
     const role = user.role || 'ELEV';
     const firstName = user.name?.split(' ')[0] || 'utilizator';
 
@@ -79,16 +83,10 @@ export default function ModulesPage() {
                     const classrooms = res.data;
                     setProfesorClassroomCount(classrooms.length);
 
-                    const studentIds = new Set();
-                    let totalQuizzes = 0;
-                    classrooms.forEach(c => {
-                        (c.studentIds || c.students || []).forEach(s => {
-                            const id = s.id ?? s;
-                            studentIds.add(id);
-                        });
-                        totalQuizzes += (c.quizCount ?? c.assignedQuizzes?.length ?? 0);
-                    });
-                    setProfesorStudentCount(studentIds.size);
+                    const totalStudents = classrooms.reduce((sum, c) => sum + (c.studentCount || 0), 0);
+                    const totalQuizzes = classrooms.reduce((sum, c) => sum + (c.quizCount || 0), 0);
+
+                    setProfesorStudentCount(totalStudents);
                     setProfesorQuizCount(totalQuizzes);
                 })
                 .catch(console.error);

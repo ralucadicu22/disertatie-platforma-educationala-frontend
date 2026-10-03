@@ -14,9 +14,9 @@ api.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`;
         }
 
-        const impersonatedRole = localStorage.getItem('_impersonationRole');
-        if (impersonatedRole) {
-            config.headers['X-Impersonating-As'] = impersonatedRole;
+        const impersonatedUserId = localStorage.getItem('_impersonatedUserId');
+        if (impersonatedUserId) {
+            config.headers['X-Impersonate-User-Id'] = impersonatedUserId;
         }
 
         return config;
@@ -33,7 +33,7 @@ api.interceptors.response.use(
             window.location.href = '/login';
         }
         if (error.response?.status === 403) {
-            alert('Nu ai permisiunea sa accesezi aceasta resursa.');
+            alert('Nu ai permisiunea să accesezi această resursă.');
         }
         return Promise.reject(error);
     }
@@ -50,9 +50,9 @@ export function clearApiOverride() {
 }
 
 export const apiWithOverride = {
-    get: (...args) => (overrideApi || api).get(...args),
-    post: (...args) => (overrideApi || api).post(...args),
-    put: (...args) => (overrideApi || api).put(...args),
+    get:    (...args) => (overrideApi || api).get(...args),
+    post:   (...args) => (overrideApi || api).post(...args),
+    put:    (...args) => (overrideApi || api).put(...args),
     delete: (...args) => (overrideApi || api).delete(...args),
 };
 

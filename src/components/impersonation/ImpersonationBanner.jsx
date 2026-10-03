@@ -10,15 +10,15 @@ export default function ImpersonationBanner() {
 
     if (!impersonation.isActive()) return null;
 
-    const role = impersonation.currentRole();
+    const target   = impersonation.currentUser();
     const original = impersonation.originalUser();
+    const role     = target?.role;
 
     const handleEnd = async () => {
         setLeaving(true);
         try {
-            await impersonationApi.logEnd(role);
+            await impersonationApi.end(target?.id);
         } catch {
-
         }
         impersonation.end();
         navigate('/');
@@ -28,14 +28,19 @@ export default function ImpersonationBanner() {
     return (
         <div className="fixed top-0 inset-x-0 z-[100] flex items-center justify-between px-4 py-2.5
                         bg-warning-500 text-white shadow-lg text-body font-semibold">
-            <div className="flex items-center gap-2">
-                <span className="text-lg">👁</span>
-                <span>
+            <div className="flex items-center gap-2 min-w-0">
+                <span className="text-lg flex-shrink-0">👁</span>
+                <span className="truncate">
                     Vizualizezi ca:{' '}
-                    <strong className="uppercase">{impersonation.roleLabel(role)}</strong>
+                    <strong>{target?.name}</strong>
+                    {role && (
+                        <span className="font-normal opacity-90 ml-1">
+                            ({impersonation.roleLabel(role)})
+                        </span>
+                    )}
                     {original?.name && (
-                        <span className="font-normal opacity-80 ml-1">
-                            (conectat ca {original.name})
+                        <span className="font-normal opacity-80 ml-2">
+                            · conectat ca {original.name}
                         </span>
                     )}
                 </span>
@@ -43,7 +48,7 @@ export default function ImpersonationBanner() {
             <button
                 onClick={handleEnd}
                 disabled={leaving}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-warning-700
+                className="flex-shrink-0 ml-3 flex items-center gap-1.5 px-3 py-1.5 bg-white text-warning-700
                            rounded-lg text-caption font-bold hover:bg-warning-50 transition-colors
                            disabled:opacity-60"
             >

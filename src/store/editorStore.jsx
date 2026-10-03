@@ -2,7 +2,6 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect } f
 import api from '../api/axios';
 import { createDefaultConfig, migrateConfig } from '../utils/configFactory';
 import { DEFAULT_CANVAS } from '../constants/canvas';
-import { EXERCISE_TYPES } from '../constants/exerciseTypes';
 import { ELEMENT_TYPES } from '../constants/elementTypes';
 import { DEFAULT_SETTINGS, DEFAULT_SOLUTION } from '../utils/configFactory';
 
@@ -53,6 +52,9 @@ export function EditorProvider({ children }) {
 
     const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
     const lastSavedRef = useRef(null);
+    const pendingNewRef = useRef(null);
+
+    const [isTemplate, setIsTemplate] = useState(false);
 
     useEffect(() => {
         historyIndexRef.current = historyIndex;
@@ -468,12 +470,6 @@ export function EditorProvider({ children }) {
     }, []);
 
     const saveDraft = useCallback(async () => {
-        if (!exerciseId) {
-            setSaveStatus('error');
-            setSaveMessage('Niciun exercitiu selectat');
-            return;
-        }
-
         setSaveStatus('saving');
         setSaveMessage('Se salveaza...');
 
@@ -487,6 +483,31 @@ export function EditorProvider({ children }) {
         };
 
         try {
+            if (!exerciseId && pendingNewRef.current) {
+                const { quizId, type } = pendingNewRef.current;
+                const res = await api.post('/exercises/draft/new', {
+                    type,
+                    config: JSON.stringify(canvasState),
+                    changeNote: 'Draft inițial',
+                }, { params: { quizId } });
+
+                const newId = res.data.exerciseId ?? res.data.id;
+                setExerciseId(newId);
+                setDraftVersionId(res.data.versionId ?? res.data.id);
+                setDraftStatus(res.data.status || 'DRAFT');
+                pendingNewRef.current = null;
+                setSaveStatus('saved');
+                setSaveMessage('Salvat! Exercițiu creat.');
+                setTimeout(() => setSaveStatus('idle'), 3000);
+                return newId;
+            }
+
+            if (!exerciseId) {
+                setSaveStatus('error');
+                setSaveMessage('Niciun exercitiu selectat');
+                return;
+            }
+
             const res = await api.put(`/exercises/${exerciseId}/draft`, {
                 config: JSON.stringify(canvasState),
                 changeNote: `Draft salvat la ${new Date().toLocaleTimeString('ro-RO')}`,
@@ -529,13 +550,23 @@ export function EditorProvider({ children }) {
         }
     }, [draftVersionId]);
 
+    const toggleTemplate = useCallback(async () => {
+        if (!draftVersionId) return;
+        try {
+            const res = await api.post(`/exercises/versions/${draftVersionId}/toggle-template`, {});
+            setIsTemplate(res.data.isTemplate ?? !isTemplate);
+        } catch (err) {
+            console.error('Eroare la toggle template:', err);
+        }
+    }, [draftVersionId, isTemplate]);
+
     const initNewExercise = useCallback(async (quizId, type = 'CUSTOM') => {
         setLoadStatus('loading');
         setLoadMessage('Se pregătește editorul...');
         try {
             const existingRes = await api.get(`/exercises/quiz/${quizId}`);
             const existing = existingRes.data?.find(
-                ex => ex.status === 'DRAFT' || ex.status === 'PENDING_REVIEW'
+                ex => ex.type === type && (ex.status === 'DRAFT' || ex.status === 'PENDING_REVIEW')
             );
 
             if (existing) {
@@ -548,36 +579,30 @@ export function EditorProvider({ children }) {
                 setMeta(cfg.meta || { type });
                 setSettings(cfg.settings || DEFAULT_SETTINGS);
                 setSolution(cfg.solution || DEFAULT_SOLUTION);
-                setLoadStatus('ready');
+                pendingNewRef.current = null;
+                setLoadStatus('loaded');
                 setLoadMessage('');
                 return existing.id;
             }
+
             const defaultConfig = buildDefaultConfig(type);
-            const res = await api.post('/exercises/draft/new', {
-                type,
-                config: JSON.stringify(defaultConfig),
-                changeNote: 'Draft inițial',
-            }, { params: { quizId } });
-
-            const newId = res.data.exerciseId ?? res.data.id;
-            const cfg = JSON.parse(res.data.config);
-            setExerciseId(newId);
+            pendingNewRef.current = { quizId, type, defaultConfig };
+            setElements(defaultConfig.elements || []);
+            setCanvas(defaultConfig.canvas || DEFAULT_CANVAS);
+            setMeta(defaultConfig.meta || { type });
+            setSettings(defaultConfig.settings || DEFAULT_SETTINGS);
+            setSolution(defaultConfig.solution || DEFAULT_SOLUTION);
             setDraftStatus('DRAFT');
-            setElements(cfg.elements || []);
-            setCanvas(cfg.canvas || DEFAULT_CANVAS);
-            setMeta(cfg.meta || { type });
-            setSettings(cfg.settings || DEFAULT_SETTINGS);
-            setSolution(cfg.solution || DEFAULT_SOLUTION);
-            setLoadStatus('ready');
+            setLoadStatus('loaded');
             setLoadMessage('');
-            return newId;
-
+            return null;
         } catch (err) {
             setLoadStatus('error');
             setLoadMessage('Eroare la crearea exercițiului.');
             return null;
         }
     }, []);
+
     const loadDraft = useCallback(async (id) => {
         setLoadStatus('loading');
         setLoadMessage('Se încarcă exercitiu...');
@@ -674,7 +699,6 @@ export function EditorProvider({ children }) {
                 _solutionTargetId: target.id,
                 _solutionRole: 'img-placeholder',
             },
-
             {
                 id: `sol_label_${target.id}`,
                 type: ELEMENT_TYPES.TEXT,
@@ -709,7 +733,6 @@ export function EditorProvider({ children }) {
                 _solutionTargetId: target.id,
                 _solutionRole: 'label',
             },
-
             {
                 id: `sol_count_${target.id}`,
                 type: ELEMENT_TYPES.SHAPE,
@@ -735,7 +758,6 @@ export function EditorProvider({ children }) {
                 _solutionTargetId: target.id,
                 _solutionRole: 'count-box',
             },
-
             {
                 id: `sol_count_text_${target.id}`,
                 type: ELEMENT_TYPES.TEXT,
@@ -773,7 +795,6 @@ export function EditorProvider({ children }) {
         ];
     };
 
-
     const syncSolutionElements = useCallback((newTargets, currentElements) => {
         const zoneId = findSolutionsZoneId(currentElements);
         if (!zoneId) return currentElements;
@@ -783,11 +804,9 @@ export function EditorProvider({ children }) {
                 && el.fontStyle === 'italic' && el.fill === '#9ca3af')
         );
 
-
         const newSolutionEls = newTargets.flatMap((target, index) =>
             makeSolutionRowElements(target, index, zoneId)
         );
-
 
         const neededH = newTargets.length > 0
             ? SOLUTION_PADDING * 2 + newTargets.length * (SOLUTION_ITEM_H + SOLUTION_ITEM_GAP) - SOLUTION_ITEM_GAP
@@ -801,7 +820,6 @@ export function EditorProvider({ children }) {
 
         return [...withUpdatedZone, ...newSolutionEls];
     }, []);
-
 
     const addTarget = useCallback(() => {
         const newTarget = {
@@ -952,7 +970,6 @@ export function EditorProvider({ children }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [undo, redo, copy, paste, duplicate, deleteSelected, selectedIds, elements, clearSelection, fullscreenMode]);
 
-
     useEffect(() => {
         if (!autoSaveEnabled || !exerciseId || draftStatus !== 'DRAFT') return;
 
@@ -1025,7 +1042,9 @@ export function EditorProvider({ children }) {
         toggleCorrect, isCorrect: (id) => solution.correctElementIds.includes(id),
         draftVersionId, draftStatus, submitForReview,
         autoSaveEnabled, setAutoSaveEnabled,
-        addTarget, updateTarget, removeTarget, reorderTargets, linkElementToTarget,addHint, updateHint, removeHint, reorderHints,
+        isTemplate, toggleTemplate,
+        addTarget, updateTarget, removeTarget, reorderTargets, linkElementToTarget,
+        addHint, updateHint, removeHint, reorderHints,
     };
 
     return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;
@@ -1036,15 +1055,18 @@ export function useEditor() {
     if (!ctx) throw new Error('useEditor trebuie folosit în interiorul EditorProvider');
     return ctx;
 }
+
 function buildDefaultConfig(type) {
+    const base = createDefaultConfig({ type });
     return {
-        canvas: { ...DEFAULT_CANVAS },
-        meta: { type, name: 'Exercițiu nou', description: '', themeId: 'formal' },
-        elements: [],
-        settings: { ...DEFAULT_SETTINGS },
-        solution: { ...DEFAULT_SOLUTION },
+        ...base,
+        meta: {
+            ...base.meta,
+            themeId: 'formal',
+        },
     };
 }
+
 function getDefaultElementProps(type) {
     switch (type) {
         case ELEMENT_TYPES.TEXT:
@@ -1139,3 +1161,4 @@ function getDefaultElementProps(type) {
             return {};
     }
 }
+

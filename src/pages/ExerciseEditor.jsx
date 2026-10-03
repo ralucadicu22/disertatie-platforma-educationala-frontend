@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { EditorProvider, useEditor } from '../store/editorStore.jsx';
 import EditorTopBar from '../components/editor/EditorTopBar';
 import EditorToolbar from '../components/editor/EditorToolbar';
@@ -16,16 +16,31 @@ function EditorContent({ initialMode = 'existing' }) {
     const {
         mode, initNewExercise, loadDraft, loadStatus, loadMessage, exerciseId,
         fullscreenMode, setFullscreenMode,
+        saveDraft,
     } = useEditor();
 
+    // FIX Bug 2: când prima salvare creează exercițiul, navigăm la URL-ul cu ID
     useEffect(() => {
-        const handlePopState = (e) => {
+        if (exerciseId && initialMode === 'new' && !routeExerciseId) {
+            navigate(`/editor/${exerciseId}`, { replace: true });
+        }
+    }, [exerciseId]);
+
+    // FIX Bug 3: back button necesita două apăsări
+    useEffect(() => {
+        const handlePopState = () => {
+            // Împingem starea înapoi imediat, înainte de confirm
+            window.history.pushState(null, '', window.location.href);
             const confirmed = window.confirm(
                 'Ai modificări nesalvate. Ești sigur că vrei să ieși fără să salvezi?'
             );
-            if (!confirmed) {
-                window.history.pushState(null, '', window.location.href);
+            if (confirmed) {
+                // Eliminăm listener-ul ca să nu se mai declanșeze la go(-2)
+                window.removeEventListener('popstate', handlePopState);
+                // go(-2): -1 pentru push-ul nostru de mai sus, -1 pentru intrarea originală
+                window.history.go(-2);
             }
+            // Dacă !confirmed: push-ul deja făcut a re-armat garda, nu mai e nevoie de nimic
         };
         window.history.pushState(null, '', window.location.href);
         window.addEventListener('popstate', handlePopState);
@@ -51,7 +66,9 @@ function EditorContent({ initialMode = 'existing' }) {
             }
             initNewExercise(parseInt(quizId), type)
                 .then(newId => {
+                    // Dacă există deja un draft pentru tipul ăsta, navigăm direct la el
                     if (newId) navigate(`/editor/${newId}`, { replace: true });
+                    // Dacă newId === null, exercițiul e nou și nesalvat — rămânem pe pagina curentă
                 });
         } else if (routeExerciseId) {
             loadDraft(parseInt(routeExerciseId));
@@ -88,6 +105,7 @@ function EditorContent({ initialMode = 'existing' }) {
         );
     }
 
+    // Afișăm spinner doar dacă suntem în idle fără niciun exercițiu și fără pending new
     if (loadStatus === 'idle' && !exerciseId) {
         return (
             <div style={styles.centeredMsg}>
