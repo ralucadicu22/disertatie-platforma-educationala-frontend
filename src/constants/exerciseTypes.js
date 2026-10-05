@@ -172,6 +172,7 @@ export const EXERCISE_TYPE_DEFINITIONS = [
         hasTargets: false,
         allowedTools: ['TEXT', 'IMAGE', 'SHAPE', 'BOX'],
     },
+    { type: 'CUSTOM', label: 'Exercițiu custom', implemented: true }
 ];
 
 export function getTypeDefinition(type) {

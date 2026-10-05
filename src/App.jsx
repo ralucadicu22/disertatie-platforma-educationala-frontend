@@ -26,7 +26,7 @@ import AdminContentPage from './pages/AdminContentPage.jsx';
 import AdminUsersPage from "./pages/AdminUsersPage.jsx";
 import TeacherStudentDetailPage from './pages/TeacherStudentDetailPage.jsx';
 import ImpersonationBanner from "./components/impersonation/ImpersonationBanner.jsx";
-
+import AdminExerciseTypesPage from './pages/AdminExerciseTypesPage.jsx';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(
@@ -94,6 +94,7 @@ function App() {
                 <Route path="/admin/content" element={<PrivateRoute><AdminContentPage /></PrivateRoute>} />
                 <Route path="/admin/users" element={<PrivateRoute><AdminUsersPage /></PrivateRoute>} />
                 <Route path="/profesor/elev/:studentId" element={<PrivateRoute><TeacherStudentDetailPage /></PrivateRoute>} />
+                <Route path="/admin/exercise-types" element={<PrivateRoute><AdminExerciseTypesPage /></PrivateRoute>} />
             </Routes>
         </>
     );

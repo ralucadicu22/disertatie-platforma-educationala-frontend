@@ -49,6 +49,7 @@ const NAV_LINKS = {
         { to: '/profesor',         icon: BarChart3,     label: 'Dashboard' },
         { to: '/admin/content',    icon: Settings,      label: 'Conținut' },
         { to: '/admin/users',      icon: Users,         label: 'Utilizatori' },
+        { to: '/admin/exercise-types',   icon: ClipboardList,   label: 'Tipuri exerciții' },
     ],
 };
 

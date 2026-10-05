@@ -2,39 +2,36 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { cn } from '../design-system/cn';
+import {EXERCISE_TYPE_DEFINITIONS} from "../constants/exerciseTypes.js";
+import {exerciseTypeApi} from "../api/exerciseTypeApi.js";
 
-const EXERCISE_OPTIONS = [
-    {
-        type: 'FIND_AND_SELECT',
-        icon: '👆',
-        label: 'Găsește și selectează',
-        description: 'Elevul dă click pe elementele corecte din imagine',
+const TYPE_STYLES = {
+    FIND_AND_SELECT: {
         color: 'from-primary-500 to-accent-500',
         bg: 'bg-primary-50',
         border: 'border-primary-200',
-        implemented: true,
     },
-    {
-        type: 'DRAG_AND_DROP',
-        icon: '🧲',
-        label: 'Trage și plasează',
-        description: 'Elevul trage elementele în pozițiile corecte',
+    DRAG_AND_DROP: {
         color: 'from-warm-400 to-accent-400',
         bg: 'bg-warm-50',
         border: 'border-warm-200',
-        implemented: true,
     },
-    {
-        type: 'CUSTOM',
-        icon: '🎨',
-        label: 'Personalizat',
-        description: 'Canvas liber, fără interactivitate specifică — ideal pentru conținut informativ',
+    CUSTOM: {
         color: 'from-neutral-400 to-neutral-500',
         bg: 'bg-neutral-50',
         border: 'border-neutral-200',
-        implemented: true,
     },
-];
+
+    _default: {
+        color: 'from-primary-300 to-primary-500',
+        bg: 'bg-primary-50',
+        border: 'border-primary-100',
+    },
+};
+
+function getTypeStyle(type) {
+    return TYPE_STYLES[type] || TYPE_STYLES._default;
+}
 
 export default function CreateExercisePage() {
     const [searchParams] = useSearchParams();
@@ -44,33 +41,48 @@ export default function CreateExercisePage() {
     const [activeTab, setActiveTab] = useState('scratch');
     const [templates, setTemplates] = useState([]);
     const [loadingTemplates, setLoadingTemplates] = useState(false);
-    const [creating, setCreating] = useState(null); // tipul care se creează
+    const [creating, setCreating] = useState(null);
     const [error, setError] = useState(null);
 
+    const [allowedTypes, setAllowedTypes] = useState(null);
+    const [loadingAllowed, setLoadingAllowed] = useState(true);
+
+
     useEffect(() => {
-        if (activeTab === 'template') {
-            setLoadingTemplates(true);
-            api.get('/exercises/versions/templates')
-                .then(res => setTemplates(res.data))
-                .catch(() => setError('Nu am putut încărca template-urile.'))
-                .finally(() => setLoadingTemplates(false));
-        }
+        if (!quizId) { setLoadingAllowed(false); return; }
+        exerciseTypeApi.getAllowedTypesForQuiz(Number(quizId))
+            .then(data => setAllowedTypes(data))
+            .catch(() => {
+                setAllowedTypes(null);
+            })
+            .finally(() => setLoadingAllowed(false));
+    }, [quizId]);
+
+    const exerciseOptions = EXERCISE_TYPE_DEFINITIONS
+        .filter(def => def.implemented)
+        .filter(def => allowedTypes === null || allowedTypes.includes(def.type))
+        .map(def => ({
+            ...def,
+            ...getTypeStyle(def.type),
+        }));
+    useEffect(() => {
+        if (activeTab !== 'template') return;
+        setLoadingTemplates(true);
+        api.get('/exercises/versions/templates')
+            .then(res => setTemplates(res.data))
+            .catch(() => setError('Nu am putut încărca template-urile.'))
+            .finally(() => setLoadingTemplates(false));
     }, [activeTab]);
 
-    const handleCreateFromScratch = async (exerciseType) => {
-        if (!quizId) return;
+    const handleCreateFromScratch = (exerciseType) => {
+        if (!quizId || creating) return;
         setCreating(exerciseType);
         setError(null);
-        try {
-            navigate(`/editor/new?quizId=${quizId}&type=${exerciseType}`);
-        } catch {
-            setError('Eroare la creare exercițiu.');
-            setCreating(null);
-        }
+        navigate(`/editor/new?quizId=${quizId}&type=${exerciseType}`);
     };
 
     const handleCreateFromTemplate = async (templateVersionId) => {
-        if (!quizId) return;
+        if (!quizId || creating) return;
         setCreating('template');
         setError(null);
         try {
@@ -117,7 +129,7 @@ export default function CreateExercisePage() {
             </div>
 
             <div className="max-w-2xl mx-auto px-4 py-10">
-
+                {/* Tabs */}
                 <div className="flex bg-neutral-200 rounded-lg p-1 mb-8 w-fit">
                     {['scratch', 'template'].map(tab => (
                         <button
@@ -142,56 +154,73 @@ export default function CreateExercisePage() {
                 )}
 
                 {activeTab === 'scratch' && (
-                    <div className="flex flex-col gap-3">
-                        {EXERCISE_OPTIONS.map(opt => (
-                            <button
-                                key={opt.type}
-                                onClick={() => !creating && handleCreateFromScratch(opt.type)}
-                                disabled={!!creating}
-                                className={cn(
-                                    'group relative flex items-center gap-5 w-full text-left',
-                                    'bg-white rounded-xl border-2 p-5 transition-all duration-200',
-                                    'hover:shadow-md hover:-translate-y-0.5',
-                                    opt.border,
-                                    creating === opt.type && 'opacity-70 cursor-wait',
-                                    creating && creating !== opt.type && 'opacity-40 cursor-not-allowed',
-                                )}
-                            >
-                                <div className={cn(
-                                    'w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0',
-                                    'bg-gradient-to-br',
-                                    opt.color,
-                                    'text-white shadow-sm'
-                                )}>
-                                    {creating === opt.type ? (
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        opt.icon
-                                    )}
-                                </div>
-
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-body-lg font-bold text-neutral-900">
-                                            {opt.label}
-                                        </span>
-                                        {opt.implemented && opt.type !== 'CUSTOM' && (
-                                            <span className="px-2 py-0.5 bg-success-100 text-success-700 text-micro rounded-full font-bold">
-                                                DISPONIBIL
-                                            </span>
+                    <>
+                        {loadingAllowed ? (
+                            <div className="flex items-center justify-center py-20">
+                                <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        ) : exerciseOptions.length === 0 ? (
+                            <div className="bg-white rounded-xl border-2 border-dashed border-neutral-200 p-12 text-center">
+                                <div className="text-4xl mb-3">🚫</div>
+                                <h3 className="text-h3 font-bold text-neutral-900 mb-2">
+                                    Niciun tip de exercițiu disponibil
+                                </h3>
+                                <p className="text-body text-neutral-500 max-w-xs mx-auto">
+                                    Administratorul a dezactivat toate tipurile de exerciții pentru acest produs.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-3">
+                                {exerciseOptions.map(opt => (
+                                    <button
+                                        key={opt.type}
+                                        onClick={() => handleCreateFromScratch(opt.type)}
+                                        disabled={!!creating}
+                                        className={cn(
+                                            'group relative flex items-center gap-5 w-full text-left',
+                                            'bg-white rounded-xl border-2 p-5 transition-all duration-200',
+                                            'hover:shadow-md hover:-translate-y-0.5',
+                                            opt.border,
+                                            creating === opt.type && 'opacity-70 cursor-wait',
+                                            creating && creating !== opt.type && 'opacity-40 cursor-not-allowed',
                                         )}
-                                    </div>
-                                    <p className="text-caption text-neutral-500 leading-relaxed">
-                                        {opt.description}
-                                    </p>
-                                </div>
+                                    >
+                                        <div className={cn(
+                                            'w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0',
+                                            'bg-gradient-to-br text-white shadow-sm',
+                                            opt.color,
+                                        )}>
+                                            {creating === opt.type ? (
+                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                opt.icon
+                                            )}
+                                        </div>
 
-                                <div className="text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-1 transition-all text-lg flex-shrink-0">
-                                    →
-                                </div>
-                            </button>
-                        ))}
-                    </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className="text-body-lg font-bold text-neutral-900">
+                                                    {opt.label}
+                                                </span>
+                                                {opt.type !== 'CUSTOM' && (
+                                                    <span className="px-2 py-0.5 bg-success-100 text-success-700 text-micro rounded-full font-bold">
+                                                        DISPONIBIL
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-caption text-neutral-500 leading-relaxed">
+                                                {opt.description}
+                                            </p>
+                                        </div>
+
+                                        <div className="text-neutral-300 group-hover:text-neutral-500 group-hover:translate-x-1 transition-all text-lg flex-shrink-0">
+                                            →
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {activeTab === 'template' && (
