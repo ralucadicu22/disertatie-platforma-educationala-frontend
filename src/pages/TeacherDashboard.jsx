@@ -124,12 +124,12 @@ export default function TeacherDashboard() {
             ) : (
                 <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
                     <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-neutral-50 border-b border-neutral-200">
-                        {['#', 'Elev', 'Rezolvate', 'Încercări', 'Puncte'].map((h, i) => (
+                        {['#', 'Elev', 'Rezolvate', 'Încercări', 'Media înc./ex.', 'Puncte'].map((h, i) => (
                             <div
                                 key={h}
                                 className={cn(
                                     'text-micro text-neutral-400 font-bold uppercase tracking-wide',
-                                    i === 0 ? 'col-span-1' : i === 1 ? 'col-span-5' : 'col-span-2 text-center'
+                                    i === 0 ? 'col-span-1' : i === 1 ? 'col-span-4' : 'col-span-2 text-center'
                                 )}
                             >
                                 {h}
@@ -144,20 +144,20 @@ export default function TeacherDashboard() {
                             className="grid grid-cols-12 gap-2 items-center px-4 py-3.5 border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors cursor-pointer"
                         >
                             <div className="col-span-1">
-                                <span className={cn(
-                                    'inline-flex w-7 h-7 rounded-lg items-center justify-center text-caption font-bold',
-                                    i < 3 ? RANK_STYLES[i] : 'text-neutral-400'
-                                )}>
-                                    {i + 1}
-                                </span>
+            <span className={cn(
+                'inline-flex w-7 h-7 rounded-lg items-center justify-center text-caption font-bold',
+                i < 3 ? RANK_STYLES[i] : 'text-neutral-400'
+            )}>
+                {i + 1}
+            </span>
                             </div>
-                            <div className="col-span-5 flex items-center gap-2.5">
+                            <div className="col-span-4 flex items-center gap-2.5">   {/* 5→4 */}
                                 <div className="w-8 h-8 rounded-full bg-hero-primary flex items-center justify-center text-white text-caption font-bold flex-shrink-0">
                                     {s.userName?.charAt(0).toUpperCase() || '?'}
                                 </div>
                                 <span className="text-body font-semibold text-neutral-900 truncate">
-                                    {s.userName}
-                                </span>
+                {s.userName}
+            </span>
                             </div>
                             <div className="col-span-2 text-center text-body font-semibold text-neutral-700">
                                 {s.completedExercises || 0}
@@ -165,14 +165,18 @@ export default function TeacherDashboard() {
                             <div className="col-span-2 text-center text-body font-semibold text-neutral-700">
                                 {s.totalSubmissions || 0}
                             </div>
+                            <div className="col-span-2 text-center text-body font-semibold text-neutral-700">
+                                {s.avgAttemptsPerExercise != null
+                                    ? s.avgAttemptsPerExercise.toFixed(1)
+                                    : '—'}
+                            </div>
                             <div className="col-span-2 text-center">
-                                <span className="px-2.5 py-1 bg-warning-100 text-warning-700 rounded-full text-caption font-bold">
-                                    {s.totalPoints || 0}
-                                </span>
+            <span className="px-2.5 py-1 bg-warning-100 text-warning-700 rounded-full text-caption font-bold">
+                {s.totalPoints || 0}
+            </span>
                             </div>
                         </div>
-                    ))}
-                </div>
+                    ))}    </div>
             )}
         </div>
     );

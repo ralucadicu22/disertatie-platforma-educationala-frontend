@@ -516,6 +516,13 @@ export function EditorProvider({ children }) {
             setSaveMessage(`Salvat! Versiune ${res.data.versionNumber}`);
             setDraftVersionId(res.data.id);
             setDraftStatus(res.data.status);
+
+            if (settings.maxAttempts !== undefined && settings.maxAttempts !== null) {
+                await api.put(`/exercises/${exerciseId}/metadata`, {
+                    maxAttempts: settings.maxAttempts,
+                });
+            }
+
             setTimeout(() => setSaveStatus('idle'), 3000);
         } catch (err) {
             console.error('Eroare la salvare:', err);
@@ -979,6 +986,7 @@ export function EditorProvider({ children }) {
             if (saveStatus === 'saving') return;
             lastSavedRef.current = snapshot;
             saveDraft();
+
         }, 30000);
 
         return () => clearInterval(interval);

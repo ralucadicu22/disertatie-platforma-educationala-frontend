@@ -202,6 +202,16 @@ const ChildCard = ({ child, index, onClick }) => {
                                     <span>{timeAgo(child.lastActivityAt)}</span>
                                 </div>
                             )}
+
+                            {child.avgAttemptsPerExercise != null && (
+                                <div className="flex items-center gap-1.5 text-caption text-neutral-600">
+                                    <TrendingUp className="w-4 h-4 text-accent-500" />
+                                    <span className="font-semibold text-neutral-800">
+            {child.avgAttemptsPerExercise.toFixed(1)}
+        </span>
+                                    <span>înc./ex.</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 

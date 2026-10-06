@@ -90,6 +90,7 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit, isPrevie
     const [wrongClicks, setWrongClicks] = useState(0);
     const [hintsAvailable, setHintsAvailable] = useState([]);
     const [hintsUsed, setHintsUsed] = useState(0);
+    const [showSolutionPanel, setShowSolutionPanel] = useState(false);
     const [currentHint, setCurrentHint] = useState(null);
     const [highlightedIds, setHighlightedIds] = useState(new Set());
     const startTime = useRef(Date.now());
@@ -294,6 +295,12 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit, isPrevie
                 durationSeconds,
             });
             setResult(res.data);
+            if (!res.data.correct && res.data.attemptsRemaining === 0) {
+                const bof = res.data.behaviorOnFail;
+                if (bof === 'showSolution') {
+                    setShowSolutionPanel(true);
+                }
+            }
             setPhase('result');
             setShowFeedback(true);
         } catch (err) {
@@ -542,6 +549,20 @@ export default function DragAndDropPlayer({ exerciseId, config, onExit, isPrevie
                                 }}
                                 onClick={onExit}
                             >
+                                {showSolutionPanel && config.settings?.explanation && (
+                                    <div style={{
+                                        marginTop: 12, background: '#f0fdf4', border: '2px solid #86efac',
+                                        borderRadius: 12, padding: '14px 16px', maxWidth: 420, textAlign: 'left',
+                                    }}>
+                                        <p style={{ fontSize: '0.8rem', fontWeight: 800, color: '#166534', margin: '0 0 6px 0' }}>
+                                            💡 Explicație
+                                        </p>
+                                        <p style={{ fontSize: '0.85rem', color: '#374151', margin: 0, lineHeight: 1.5 }}>
+                                            {config.settings.explanation}
+                                        </p>
+                                    </div>
+                                )}
+
                                 {isPreview ? 'Închide preview' : 'Înapoi la quiz'}
                             </button>
                         </div>

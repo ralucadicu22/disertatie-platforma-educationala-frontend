@@ -36,6 +36,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
     const [wrongClicks, setWrongClicks] = useState(0);
     const [wrongBanner, setWrongBanner] = useState(false);
     const [wrongIds, setWrongIds] = useState(() => new Set());
+    const [showSolutionPanel, setShowSolutionPanel] = useState(false);
 
     const wrongBannerTimeoutRef = useRef(null);
     const shakeTimeoutRef = useRef(null);
@@ -212,7 +213,14 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                 exerciseId,
                 answer: Array.from(foundIds),
             });
+
             setResult(res.data);
+            if (!res.data.correct && res.data.attemptsRemaining === 0) {
+                const bof = res.data.behaviorOnFail;
+                if (bof === 'showSolution') {
+                    setShowSolutionPanel(true);
+                }
+            }
             setPhase('result');
             setShowFeedback(true);
             if (res.data.newBadges?.length > 0) setNewBadges(res.data.newBadges);
@@ -456,6 +464,19 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                                 <button style={{ ...styles.retryBtn, borderRadius: theme.borderRadius }} onClick={handleRetry}>
                                     Încearcă din nou
                                 </button>
+                            )}
+                            {showSolutionPanel && config.settings?.explanation && (
+                                <div style={{
+                                    marginTop: 12, background: '#f0fdf4', border: '2px solid #86efac',
+                                    borderRadius: 12, padding: '14px 16px', maxWidth: 420, textAlign: 'left',
+                                }}>
+                                    <p style={{ fontSize: '0.8rem', fontWeight: 800, color: '#166534', margin: '0 0 6px 0' }}>
+                                        💡 Explicație
+                                    </p>
+                                    <p style={{ fontSize: '0.85rem', color: '#374151', margin: 0, lineHeight: 1.5 }}>
+                                        {config.settings.explanation}
+                                    </p>
+                                </div>
                             )}
                             <button
                                 style={{ ...styles.quizBtn, background: theme.colors.primary, borderRadius: theme.borderRadius }}

@@ -105,7 +105,7 @@ const ParentChildDetailPage = () => {
                         </Card>
                     </motion.div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                         <StatCard
                             label="Exerciții"
                             value={formatNumber(data.totalAttempts)}
@@ -130,6 +130,15 @@ const ParentChildDetailPage = () => {
                             value={formatMinutes(data.totalMinutesSpent)}
                             icon={Clock}
                             variant="success"
+                        />
+                        <StatCard
+                            label="Media înc./ex."
+                            value={data.avgAttemptsPerExercise != null
+                                ? data.avgAttemptsPerExercise.toFixed(1)
+                                : '—'}
+                            icon={TrendingUp}
+                            variant="accent"
+                            hint="încercări medii per exercițiu"
                         />
                     </div>
 
