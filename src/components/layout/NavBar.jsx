@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Home, Users, BookOpen, MessageSquare, BarChart3,
     Settings, LogOut, Menu, X, School, Link2,
-    UserCheck, ClipboardList, Inbox,
+    UserCheck, ClipboardList, Inbox, Shield, Activity
 } from 'lucide-react';
 import { Avatar, Badge } from '../../design-system/components';
 import { cn } from '../../design-system/cn';
@@ -50,6 +50,8 @@ const NAV_LINKS = {
         { to: '/admin/content',    icon: Settings,      label: 'Conținut' },
         { to: '/admin/users',      icon: Users,         label: 'Utilizatori' },
         { to: '/admin/exercise-types',   icon: ClipboardList,   label: 'Tipuri exerciții' },
+        { to: '/admin/audit-log', label: 'Audit Log', icon: Shield },
+        { to: '/admin/activity-log', label: 'Activity Log', icon: Activity },
     ],
 };
 
@@ -73,7 +75,6 @@ const Navbar = ({ unreadCount = 0 }) => {
         const isInbox = link.to === '/feedback-inbox';
         return (
             <NavLink
-                key={link.to}
                 to={link.to}
                 title={collapsed ? link.label : undefined}
                 className={({ isActive }) => cn(
@@ -84,27 +85,25 @@ const Navbar = ({ unreadCount = 0 }) => {
                         : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
                 )}
             >
-                {({ isActive }) => (
-                    <>
-                        <Icon className={cn('w-5 h-5 flex-shrink-0', isActive ? 'text-primary-600' : '')} />
-                        {!collapsed && (
-                            <span className="truncate">{link.label}</span>
-                        )}
-                        {isInbox && unreadCount > 0 && (
-                            <Badge variant="danger" size="sm"
-                                   className={cn('flex-shrink-0', collapsed ? 'absolute top-1 right-1' : '')}>
-                                {unreadCount}
-                            </Badge>
-                        )}
-                        {/* Tooltip pe collapsed */}
-                        {collapsed && (
-                            <span className="absolute left-full ml-2 px-2 py-1 bg-neutral-900 text-white text-caption
-                                             rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none
-                                             transition-opacity z-50">
-                                {link.label}
-                            </span>
-                        )}
-                    </>
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && (
+                    <span className="truncate">{link.label}</span>
+                )}
+                {isInbox && unreadCount > 0 && (
+                    <Badge
+                        variant="danger"
+                        size="sm"
+                        className={cn('flex-shrink-0', collapsed ? 'absolute top-1 right-1' : '')}
+                    >
+                        {unreadCount}
+                    </Badge>
+                )}
+                {collapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-neutral-900 text-white text-caption
+                                 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none
+                                 transition-opacity z-50">
+                    {link.label}
+                </span>
                 )}
             </NavLink>
         );

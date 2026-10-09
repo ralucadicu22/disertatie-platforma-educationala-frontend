@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { adminUsersApi } from '../api/adminUsersApi';
 import { cn } from '../design-system/cn';
 import BulkImportModal from "../components/BulkImportModal.jsx";
+import {bulkImportApi} from "../api/bulkImportApi.js";
 
 const ROLES = ['ELEV', 'PROFESOR', 'EDITOR', 'ADMIN', 'PARINTE'];
 const ROLE_COLORS = {
@@ -449,13 +450,12 @@ export default function AdminUsersPage() {
                     </div>
                 </div>
             )}
-
             {bulkImportOpen && (
                 <BulkImportModal
                     onClose={() => setBulkImportOpen(false)}
                     onImported={() => {
                         load();
-
+                        if (activeTab === 'history') loadHistory();
                     }}
                 />
             )}

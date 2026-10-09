@@ -19,15 +19,7 @@ export const EXERCISE_TYPES = {
 };
 
 export const EXERCISE_TYPE_DEFINITIONS = [
-    {
-        type: EXERCISE_TYPES.CUSTOM,
-        label: 'Personalizat',
-        description: 'Exercițiu liber, fără interactivitate specifică',
-        icon: '🎨',
-        implemented: false,
-        hasTargets: false,
-        allowedTools: null,
-    },
+
     {
         type: EXERCISE_TYPES.FIND_AND_SELECT,
         label: 'Găsește și selectează',

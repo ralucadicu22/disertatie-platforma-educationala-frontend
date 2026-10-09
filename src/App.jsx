@@ -27,15 +27,32 @@ import AdminUsersPage from "./pages/AdminUsersPage.jsx";
 import TeacherStudentDetailPage from './pages/TeacherStudentDetailPage.jsx';
 import ImpersonationBanner from "./components/impersonation/ImpersonationBanner.jsx";
 import AdminExerciseTypesPage from './pages/AdminExerciseTypesPage.jsx';
+import AdminAuditLogPage from "./pages/AdminAuditLogPage.jsx";
+import AdminActivityLogPage from "./pages/AdminActivityLogPage.jsx";
+
+function isTokenValid() {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.exp * 1000 > Date.now();
+    } catch {
+        return false;
+    }
+}
 
 function App() {
-    const [isAuthenticated, setIsAuthenticated] = useState(
-        !!localStorage.getItem('token')
-    );
+    const [isAuthenticated, setIsAuthenticated] = useState(isTokenValid);
 
     useEffect(() => {
+        if (!isTokenValid()) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setIsAuthenticated(false);
+        }
+
         const handleStorageChange = () => {
-            setIsAuthenticated(!!localStorage.getItem('token'));
+            setIsAuthenticated(isTokenValid());
         };
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
@@ -59,8 +76,6 @@ function App() {
 
                 <Route path="/register" element={<Navigate to="/login" />} />
 
-                <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} />} />
-
                 <Route path="/" element={<PrivateRoute><ModulesPage /></PrivateRoute>} />
                 <Route path="/product/:productId" element={<PrivateRoute><ProductDetailPage /></PrivateRoute>} />
                 <Route path="/module/:moduleId" element={<PrivateRoute><QuizzesPage /></PrivateRoute>} />
@@ -77,7 +92,6 @@ function App() {
                 <Route path="/feedback-elevi" element={<PrivateRoute><TeacherFeedbackPage /></PrivateRoute>} />
                 <Route path="/feedback-inbox" element={<PrivateRoute><StudentFeedbackInboxPage /></PrivateRoute>} />
                 <Route path="/exercise/:exerciseId/feedback" element={<PrivateRoute><ExerciseFeedbackSummaryPage /></PrivateRoute>} />
-
                 <Route
                     path="/editor/create"
                     element={<PrivateRoute withNav={false}><CreateExercisePage /></PrivateRoute>}
@@ -95,6 +109,9 @@ function App() {
                 <Route path="/admin/users" element={<PrivateRoute><AdminUsersPage /></PrivateRoute>} />
                 <Route path="/profesor/elev/:studentId" element={<PrivateRoute><TeacherStudentDetailPage /></PrivateRoute>} />
                 <Route path="/admin/exercise-types" element={<PrivateRoute><AdminExerciseTypesPage /></PrivateRoute>} />
+                <Route path="/admin/audit-log" element={<PrivateRoute><AdminAuditLogPage /></PrivateRoute>} />
+                <Route path="/admin/activity-log" element={<PrivateRoute><AdminActivityLogPage /></PrivateRoute>} />
+                <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} />} />
             </Routes>
         </>
     );
