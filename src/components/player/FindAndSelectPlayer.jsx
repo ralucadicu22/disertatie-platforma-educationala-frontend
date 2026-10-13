@@ -37,10 +37,14 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
     const [wrongBanner, setWrongBanner] = useState(false);
     const [wrongIds, setWrongIds] = useState(() => new Set());
     const [showSolutionPanel, setShowSolutionPanel] = useState(false);
+    // FIX US 2.2: showHints la epuizarea tentativelor
+    const [showHintsPanel, setShowHintsPanel] = useState(false);
 
     const wrongBannerTimeoutRef = useRef(null);
     const shakeTimeoutRef = useRef(null);
     const hintTimeoutRef = useRef(null);
+    // FIX durata: măsoară timpul de la început / retry
+    const startTimeRef = useRef(Date.now());
 
     const canvasWidth = config.canvas.width;
     const canvasHeight = config.canvas.height;
@@ -116,7 +120,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                 y: element.y + element.height / 2,
             }]);
         } else {
-            // Shake animation
             clearTimeout(shakeTimeoutRef.current);
             setShakingId(element.id);
             shakeTimeoutRef.current = setTimeout(() => setShakingId(null), 320);
@@ -208,19 +211,26 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
         }
         setPhase('submitting');
         setSubmitError('');
+        const durationSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
+
         try {
             const res = await api.post('/exercises/submit', {
                 exerciseId,
                 answer: Array.from(foundIds),
+                durationSeconds,
             });
 
             setResult(res.data);
+
             if (!res.data.correct && res.data.attemptsRemaining === 0) {
                 const bof = res.data.behaviorOnFail;
                 if (bof === 'showSolution') {
                     setShowSolutionPanel(true);
+                } else if (bof === 'showHints') {
+                    setShowHintsPanel(true);
                 }
             }
+
             setPhase('result');
             setShowFeedback(true);
             if (res.data.newBadges?.length > 0) setNewBadges(res.data.newBadges);
@@ -234,6 +244,7 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
             setPhase('playing');
         }
     };
+
     const handleRetry = () => {
         setFoundIds(new Set());
         setResult(null);
@@ -248,6 +259,8 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
         setWrongBanner(false);
         setWrongIds(new Set());
         setHintsUsed(0);
+        setShowHintsPanel(false);
+        startTimeRef.current = Date.now();
     };
 
     const attemptsExhausted = result && !result.correct && result.attemptsRemaining === 0;
@@ -331,7 +344,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                             onTap={handleStageClick}
                         >
                             <Layer>
-
                                 <Rect
                                     x={0} y={0}
                                     width={canvasWidth} height={canvasHeight}
@@ -346,7 +358,6 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                                         listening={false}
                                     />
                                 )}
-
                                 {topLevelElements.map(el => renderElement(el))}
                                 {bursts.map(burst => (
                                     <ParticleBurst
@@ -476,6 +487,24 @@ export default function FindAndSelectPlayer({ exerciseId, config, onExit, isPrev
                                     <p style={{ fontSize: '0.85rem', color: '#374151', margin: 0, lineHeight: 1.5 }}>
                                         {config.settings.explanation}
                                     </p>
+                                </div>
+                            )}
+                            {/* FIX US 2.2: afișează hints forțat când behaviorOnFail = 'showHints' */}
+                            {showHintsPanel && config.settings?.hints?.length > 0 && (
+                                <div style={{
+                                    marginTop: 12, background: '#fffbeb', border: '1.5px solid #fbbf24',
+                                    borderRadius: 12, padding: '14px 16px', maxWidth: 420, textAlign: 'left',
+                                }}>
+                                    <p style={{ fontSize: '0.8rem', fontWeight: 800, color: '#92400e', margin: '0 0 8px 0' }}>
+                                        💡 Indicii pentru rezolvare:
+                                    </p>
+                                    {config.settings.hints.map((hint, i) =>
+                                            hint.type === 'TEXT' && (
+                                                <p key={i} style={{ margin: '4px 0', fontSize: '0.85rem', color: '#78350f' }}>
+                                                    {i + 1}. {hint.text}
+                                                </p>
+                                            )
+                                    )}
                                 </div>
                             )}
                             <button
