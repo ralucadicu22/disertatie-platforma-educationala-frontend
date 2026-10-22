@@ -81,11 +81,9 @@ export default function SolutionPanel() {
                         </select>
                     </Field>
                     <Field label="Număr încercări">
-                        <input
-                            type="number" min={1} max={10}
+                        <AttemptsInput
                             value={settings.maxAttempts}
-                            onChange={(e) => updateSettings({ maxAttempts: parseInt(e.target.value) || 1 })}
-                            style={styles.input}
+                            onChange={(v) => updateSettings({ maxAttempts: v })}
                         />
                     </Field>
                     <Field label="Mod scoring">
@@ -115,6 +113,7 @@ export default function SolutionPanel() {
                             style={styles.input}
                         >
                             <option value="showSolution">Arată soluția</option>
+                            <option value="showHints">Arată hints</option>
                             <option value="retry">Reîncearcă</option>
                             <option value="next">Următorul exercițiu</option>
                         </select>
@@ -242,6 +241,45 @@ export default function SolutionPanel() {
         </div>
     );
 }
+
+function AttemptsInput({ value, onChange }) {
+    const isUnlimited = value === null || value === undefined || value === 0;
+
+    return (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <select
+                value={isUnlimited ? 'unlimited' : 'custom'}
+                onChange={(e) => {
+                    if (e.target.value === 'unlimited') {
+                        onChange(null);
+                    } else {
+                        onChange(3);
+                    }
+                }}
+                style={{ ...styles.input, flex: 1 }}
+            >
+                <option value="unlimited">Nelimitat</option>
+                <option value="custom">Limitat</option>
+            </select>
+            {!isUnlimited && (
+                <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={value}
+                    onChange={(e) => {
+                        const parsed = parseInt(e.target.value);
+                        if (!isNaN(parsed) && parsed >= 1 && parsed <= 10) {
+                            onChange(parsed);
+                        }
+                    }}
+                    style={{ ...styles.input, width: 60, textAlign: 'center' }}
+                />
+            )}
+        </div>
+    );
+}
+
 function HintsList({ hints, elements, onAdd, onUpdate, onRemove, onReorder }) {
     const dragIndexRef = useRef(null);
 

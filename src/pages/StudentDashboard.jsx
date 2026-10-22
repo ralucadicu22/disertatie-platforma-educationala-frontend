@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api/axios';
+
 import { StatCard } from '../design-system/components';
 import { cn } from '../design-system/cn';
 import { badgesApi } from '../api/badgesApi';
 import { CheckCircle, Star, Target } from 'lucide-react';
+import RecommendationsWidget from "./RecommendationsWidget.jsx";
+import api from "../api/axios.js";
 
 export default function StudentDashboard() {
     const [stats, setStats] = useState(null);
@@ -12,6 +14,15 @@ export default function StudentDashboard() {
     const [badges, setBadges] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+
+    const studentId = (() => {
+        try {
+            const u = localStorage.getItem('user');
+            return u ? JSON.parse(u).id : null;
+        } catch {
+            return null;
+        }
+    })();
 
     useEffect(() => {
         Promise.all([
@@ -51,6 +62,12 @@ export default function StudentDashboard() {
                 <StatCard label="Total încercări" value={String(stats?.totalSubmissions || 0)} icon={Target} variant="primary" />
             </div>
 
+            {studentId && (
+                <div className="mb-8">
+                    <RecommendationsWidget studentId={studentId} />
+                </div>
+            )}
+
             <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
                 Badge-urile mele ({badges.length})
             </p>
@@ -76,7 +93,6 @@ export default function StudentDashboard() {
                     ))}
                 </div>
             )}
-
 
             <p className="text-micro text-neutral-400 uppercase tracking-widest font-bold mb-3">
                 Istoric activitate
