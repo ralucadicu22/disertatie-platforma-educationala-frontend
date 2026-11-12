@@ -1,6 +1,165 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useEditor } from '../../store/editorStore.jsx';
 import AssetLibrary from './AssetLibrary';
+import GridTableProperties from "../../design-system/components/GridTableProperties.jsx";
+import PuzzleGenerator from "./elements/PuzzleGenerator.jsx";
+
+
+function GridCellEditor({ el, updateElement, openLibrary }) {
+    const { selectedGridCell, setSelectedGridCell } = useEditor();
+    const cellFileRef = useRef(null);
+
+    if (!selectedGridCell || selectedGridCell.gridId !== el.id) {
+        return (
+            <div style={{ padding: '10px 0', color: '#9ca3af', fontSize: '0.8rem', fontWeight: 600 }}>
+                Dă click pe o celulă din grid pentru a o edita.
+            </div>
+        );
+    }
+    const { key, row, col } = selectedGridCell;
+    const cellContent = el.cellContent || {};
+    const cellTypes = el.cellTypes || {};
+    const cellImages = el.cellImages || {};
+    const currentContent = cellContent[key] || '';
+    const currentImage = cellImages[key] || '';
+
+    const setContent = (val) => {
+        updateElement(el.id, { cellContent: { ...cellContent, [key]: val } });
+    };
+
+    const setImage = (url) => {
+        const fullUrl = url.startsWith('http') ? url : `http://localhost:8080${url}`;
+        updateElement(el.id, { cellImages: { ...cellImages, [key]: fullUrl } });
+    };
+
+    const removeImage = () => {
+        const next = { ...cellImages };
+        delete next[key];
+        updateElement(el.id, { cellImages: next });
+    };
+
+    const handleImageFile = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => setImage(evt.target.result);
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
+
+    const clearCell = () => {
+        const nextContent = { ...cellContent };
+        const nextTypes = { ...cellTypes };
+        const nextImages = { ...cellImages };
+        delete nextContent[key];
+        delete nextTypes[key];
+        delete nextImages[key];
+        updateElement(el.id, { cellContent: nextContent, cellTypes: nextTypes, cellImages: nextImages });
+        setSelectedGridCell(null);
+    };
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 200 }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#7c3aed', letterSpacing: 1, textTransform: 'uppercase' }}>
+                Celulă [{row},{col}]
+            </div>
+
+            {true && (
+                <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>
+                            Text fix
+                        </label>
+                        <input
+                            type="text"
+                            value={currentContent}
+                            onChange={e => setContent(e.target.value)}
+                            placeholder="ex: 5, A, ?"
+                            style={{
+                                border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '7px 10px',
+                                fontSize: '0.85rem', fontWeight: 600, color: '#1a1d23',
+                                outline: 'none', background: '#f9fafb', width: '100%', boxSizing: 'border-box',
+                            }}
+                        />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>
+                            Imagine celulă
+                        </label>
+                        {currentImage ? (
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <img
+                                    src={currentImage.startsWith('data:') ? currentImage : `http://localhost:8080${currentImage}`}
+                                    alt=""
+                                    style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 6, border: '1.5px solid #e5e7eb', background: '#f3f4f6' }}
+                                />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <button
+                                        onClick={() => cellFileRef.current?.click()}
+                                        style={{ padding: '4px 8px', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 6, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', color: '#374151' }}
+                                    >
+                                        📁 Fișier
+                                    </button>
+                                    {openLibrary && (
+                                        <button
+                                            onClick={() => openLibrary('image', (asset) => setImage(asset.url))}
+                                            style={{ padding: '4px 8px', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 6, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', color: '#374151' }}
+                                        >
+                                            🖼 Librărie
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={removeImage}
+                                        style={{ padding: '4px 8px', background: '#fee2e2', border: 'none', borderRadius: 6, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', color: '#b91c1c' }}
+                                    >
+                                        Elimină
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', gap: 6 }}>
+                                <button
+                                    onClick={() => cellFileRef.current?.click()}
+                                    style={{ flex: 1, padding: '6px 4px', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', color: '#374151' }}
+                                >
+                                    📁 Fișier
+                                </button>
+                                {openLibrary && (
+                                    <button
+                                        onClick={() => openLibrary('image', (asset) => setImage(asset.url))}
+                                        style={{ flex: 1, padding: '6px 4px', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', color: '#374151' }}
+                                    >
+                                        🖼 Librărie
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                        <input
+                            ref={cellFileRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageFile}
+                            style={{ display: 'none' }}
+                        />
+                    </div>
+                </>
+            )}
+
+            <button
+                onClick={clearCell}
+                style={{
+                    background: '#fee2e2', color: '#b91c1c', border: 'none',
+                    padding: '6px 10px', borderRadius: 7, fontSize: '0.75rem',
+                    fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start',
+                }}
+            >
+                Resetează celula
+            </button>
+        </div>
+    );
+}
 
 const FONT_FAMILIES = ['Nunito', 'Arial', 'Times New Roman', 'Courier New', 'Georgia', 'Verdana', 'Comic Sans MS'];
 
@@ -8,12 +167,12 @@ export default function EditorPropertiesPanel() {
     const {
         selectedElement, updateElement, deleteElement, deleteSelected,
         selectedIds, alignElements, distributeElements,
-        canvas, updateCanvas,elements
+        canvas, updateCanvas, elements, setElements, updateSolution,
     } = useEditor();
     const fileInputRef = useRef(null);
     const bgFileInputRef = useRef(null);
 
-    const [libraryConfig, setLibraryConfig] = useState(null); // { accept, onPick }
+    const [libraryConfig, setLibraryConfig] = useState(null);
 
     const openLibrary = (accept, onPick) => {
         setLibraryConfig({ accept, onPick });
@@ -149,18 +308,27 @@ export default function EditorPropertiesPanel() {
                     />
                 )}
                 {el.type === 'SHAPE' && <ShapePropertyTabs el={el} update={update} />}
-                {el.type === 'BOX' && <BoxPropertyTabs el={el} update={update} />}
-                {el.type === 'GRID' && <GridPropertyTabs el={el} update={update} />}
+                {el.type === 'BOX' && (
+                    <BoxPropertyTabs
+                        el={el}
+                        update={update}
+                        elements={elements}
+                        setElements={setElements}
+                        updateSolution={updateSolution}
+                    />
+                )}
+                {el.type === 'GRID' && <GridPropertyTabs el={el} update={update} updateElement={updateElement} openLibrary={openLibrary} />}
                 {el.type === 'VIDEO' && <VideoPropertyTabs el={el} update={update} onOpenLibrary={openLibrary} />}
                 {el.type === 'PDF' && <PdfPropertyTabs el={el} update={update} onOpenLibrary={openLibrary} />}
             </div>
 
-            {libraryConfig && (
+            {libraryConfig && createPortal(
                 <AssetLibrary
                     acceptTypes={libraryConfig.accept}
                     onInsert={handleLibraryInsert}
                     onClose={() => setLibraryConfig(null)}
-                />
+                />,
+                document.body
             )}
         </div>
     );
@@ -176,7 +344,7 @@ const TEXT_PRESETS = [
     { label: 'Enunț', fontSize: 22, fontStyle: 'bold', fontFamily: 'Nunito', fill: '#1a1d23' },
 ];
 
-function TextPropertyTabs({ el, update,updateElement}) {
+function TextPropertyTabs({ el, update, updateElement }) {
     const isBold = el.fontStyle?.includes('bold');
     const isItalic = el.fontStyle?.includes('italic');
     const isUnderline = el.textDecoration === 'underline';
@@ -224,7 +392,6 @@ function TextPropertyTabs({ el, update,updateElement}) {
 
     return (
         <>
-
             <Tab title="Preset stil">
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {TEXT_PRESETS.map(p => (
@@ -245,7 +412,6 @@ function TextPropertyTabs({ el, update,updateElement}) {
             </Tab>
 
             <Tab title="Text">
-                {/* Heading level */}
                 <div style={styles.field}>
                     <label style={styles.fieldLabel}>Heading</label>
                     <div style={styles.btnGroup}>
@@ -343,7 +509,6 @@ function TextPropertyTabs({ el, update,updateElement}) {
                     </ToggleBtn>
                 </div>
 
-                {/* Divider */}
                 <div style={styles.field}>
                     <label style={styles.fieldLabel}>Divider</label>
                     <button
@@ -518,10 +683,13 @@ function ImagePropertyTabs({ el, update, fileInputRef, onOpenLibrary, elements, 
                     <SelectField label="" value={el.behavior} onChange={v => update('behavior', v)}
                                  options={[
                                      { value: 'static', label: 'Static (decorativ)' },
+                                     { value: 'match-left', label: 'Matching — Stânga' },
+                                     { value: 'match-right', label: 'Matching — Dreapta' },
                                      { value: 'clickable', label: 'Click (selectabil)' },
                                      { value: 'draggable', label: 'Drag source' },
                                      { value: 'dropTarget', label: 'Drop target' },
-                                 ]} width={180} />
+                                     { value: 'colorZone', label: 'Zonă de colorat' },
+                                 ]} width={200} />
                 </div>
             </Tab>
         </>
@@ -645,21 +813,86 @@ function ShapePropertyTabs({ el, update }) {
                 <SelectField label="Tip" value={el.behavior} onChange={v => update('behavior', v)}
                              options={[
                                  { value: 'static', label: 'Static (decorativ)' },
+                                 { value: 'match-left', label: 'Matching — Stânga' },
+                                 { value: 'match-right', label: 'Matching — Dreapta' },
                                  { value: 'draggable', label: 'Drag source' },
                                  { value: 'dropTarget', label: 'Drop target' },
                                  { value: 'clickZone', label: 'Zonă de click' },
                                  { value: 'hotspot', label: 'Hotspot' },
                                  { value: 'colorZone', label: 'Zonă de colorat' },
-                             ]} width={180} />
+                             ]} width={200} />
             </Tab>
         </>
     );
 }
 
 
-function BoxPropertyTabs({ el, update }) {
+function BoxPropertyTabs({ el, update, elements = [], setElements, updateSolution }) {
     const isRoleZone = !!el.role;
     const isLockedZone = isRoleZone && el.locked;
+    const isBoardZone = el.role === 'board-zone';
+
+    const handlePuzzleGenerate = useCallback(({ pieces, cols, rows, boardZone, piecesZone }) => {
+        let counter = 0;
+        const genId = (prefix) => `${prefix}_${Date.now()}_${++counter}_${Math.floor(Math.random() * 99999)}`;
+
+        const slotW = Math.floor(boardZone.width / cols);
+        const slotH = Math.floor(boardZone.height / rows);
+
+        const pieceW = Math.floor(piecesZone.width / cols);
+        const pieceH = Math.floor(piecesZone.height / rows);
+
+        const newSlots = [];
+        const newPieces = [];
+        const puzzleMapping = {};
+
+        pieces.forEach((p, idx) => {
+            const slotId = genId('slot');
+            const pieceId = genId('piece');
+
+            newSlots.push({
+                id: slotId,
+                type: 'BOX',
+                role: 'puzzle-slot',
+                parentId: boardZone.id,
+                x: p.col * slotW,
+                y: p.row * slotH,
+                width: slotW,
+                height: slotH,
+                bgFill: 'rgba(100,120,220,0.08)',
+                bgStroke: '#93c5fd',
+                bgStrokeWidth: 2,
+                bgCornerRadius: 4,
+                label: `Slot ${idx + 1}`,
+            });
+
+            newPieces.push({
+                id: pieceId,
+                type: 'IMAGE',
+                parentId: piecesZone.id,
+                x: (idx % cols) * pieceW,
+                y: Math.floor(idx / cols) * pieceH,
+                width: pieceW,
+                height: pieceH,
+                src: p.url,
+                fit: 'fill',
+                behavior: 'draggable',
+            });
+
+            puzzleMapping[pieceId] = slotId;
+        });
+
+        const filtered = elements.filter(e =>
+            !(e.parentId === boardZone.id && e.role === 'puzzle-slot') &&
+            !(e.parentId === piecesZone.id && e.type === 'IMAGE' && !e.isPlaceholder)
+        );
+
+        setElements([...filtered, ...newSlots, ...newPieces]);
+        if (updateSolution) updateSolution({ puzzleMapping });
+    }, [elements, setElements, updateSolution]);
+
+    const boardZone = isBoardZone ? el : null;
+    const piecesZone = isBoardZone ? elements.find(e => e.role === 'pieces-zone') : null;
 
     return (
         <>
@@ -689,6 +922,17 @@ function BoxPropertyTabs({ el, update }) {
                             {isLockedZone ? '🔒 Deblochează zona' : '🔓 Blochează zona'}
                         </button>
                     </div>
+                </Tab>
+            )}
+
+            {isBoardZone && (
+                <Tab title="🧩 Generator puzzle">
+                    <PuzzleGenerator
+                        boardZone={boardZone}
+                        piecesZone={piecesZone}
+                        elements={elements}
+                        onGenerate={handlePuzzleGenerate}
+                    />
                 </Tab>
             )}
 
@@ -725,20 +969,77 @@ function BoxPropertyTabs({ el, update }) {
                 <NumField label="Blur" value={el.shadowBlur} onChange={v => update('shadowBlur', v)} />
                 <NumField label="Opacitate" value={el.shadowOpacity} onChange={v => update('shadowOpacity', parseFloat(v) || 0)} step={0.1} />
             </Tab>
+
         </>
     );
 }
 
 
-function GridPropertyTabs({ el, update }) {
+function GridPropertyTabs({ el, update, updateElement, openLibrary }) {
+    const { selectedGridCell } = useEditor();
+    const isTable = el.gridMode === 'table';
+
+    const toggleTableMode = () => {
+        if (isTable) {
+            update('gridMode', null);
+        } else {
+            update('gridMode', 'table');
+        }
+    };
+
     return (
         <>
-            <Tab title="Grid">
-                <NumField label="Rânduri" value={el.rows} onChange={v => update('rows', Math.max(1, Math.round(v)))} />
-                <NumField label="Coloane" value={el.cols} onChange={v => update('cols', Math.max(1, Math.round(v)))} />
-                <NumField label="Gap" value={el.gap} onChange={v => update('gap', Math.max(0, v))} />
-                <NumField label="Padding" value={el.cellPadding} onChange={v => update('cellPadding', Math.max(0, v))} />
+            <Tab title="Mod">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6b7280' }}>Tip element Grid</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                            onClick={() => update('gridMode', null)}
+                            style={{
+                                flex: 1, padding: '8px 6px', border: '1.5px solid',
+                                borderColor: !isTable ? '#4F6BF6' : '#e5e7eb',
+                                borderRadius: 8, background: !isTable ? '#eef2ff' : '#f9fafb',
+                                color: !isTable ? '#4F6BF6' : '#6b7280',
+                                fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
+                            }}
+                        >
+                            ⊞ Grid normal
+                        </button>
+                        <button
+                            onClick={() => update('gridMode', 'table')}
+                            style={{
+                                flex: 1, padding: '8px 6px', border: '1.5px solid',
+                                borderColor: isTable ? '#7c3aed' : '#e5e7eb',
+                                borderRadius: 8, background: isTable ? '#f5f3ff' : '#f9fafb',
+                                color: isTable ? '#7c3aed' : '#6b7280',
+                                fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
+                            }}
+                        >
+                            ☰ Tabel
+                        </button>
+                    </div>
+                    {isTable && (
+                        <div style={{ fontSize: '0.72rem', color: '#7c3aed', background: '#f5f3ff', padding: '6px 8px', borderRadius: 6 }}>
+                            Mod tabel activ — editează celulele în tab-ul „Tabel"
+                        </div>
+                    )}
+                </div>
             </Tab>
+
+            {isTable && (
+                <Tab title="Tabel">
+                    <GridTableProperties element={el} />
+                </Tab>
+            )}
+
+            {!isTable && (
+                <Tab title="Grid">
+                    <NumField label="Rânduri" value={el.rows} onChange={v => update('rows', Math.max(1, Math.round(v)))} />
+                    <NumField label="Coloane" value={el.cols} onChange={v => update('cols', Math.max(1, Math.round(v)))} />
+                    <NumField label="Gap" value={el.gap} onChange={v => update('gap', Math.max(0, v))} />
+                    <NumField label="Padding" value={el.cellPadding} onChange={v => update('cellPadding', Math.max(0, v))} />
+                </Tab>
+            )}
 
             <Tab title="Fundal Grid">
                 <ColorField
@@ -761,26 +1062,47 @@ function GridPropertyTabs({ el, update }) {
                 <NumField label="Radius" value={el.bgCornerRadius} onChange={v => update('bgCornerRadius', v)} />
             </Tab>
 
-            <Tab title="Celule">
-                <ColorField
-                    label="Fundal celulă"
-                    value={el.cellFill === 'transparent' ? '#ffffff' : el.cellFill}
-                    onChange={v => update('cellFill', v)}
-                    allowTransparent
-                    isTransparent={el.cellFill === 'transparent'}
-                    onTransparent={() => update('cellFill', 'transparent')}
-                />
-                <ColorField
-                    label="Chenar celulă"
-                    value={el.cellStroke === 'transparent' ? '#000000' : el.cellStroke}
-                    onChange={v => update('cellStroke', v)}
-                    allowTransparent
-                    isTransparent={el.cellStroke === 'transparent'}
-                    onTransparent={() => update('cellStroke', 'transparent')}
-                />
-                <NumField label="Border w." value={el.cellStrokeWidth} onChange={v => update('cellStrokeWidth', v)} />
-                <NumField label="Radius" value={el.cellCornerRadius} onChange={v => update('cellCornerRadius', v)} />
-            </Tab>
+            {!isTable && (
+                <Tab title="Celule">
+                    <ColorField
+                        label="Fundal celulă"
+                        value={el.cellFill === 'transparent' ? '#ffffff' : el.cellFill}
+                        onChange={v => update('cellFill', v)}
+                        allowTransparent
+                        isTransparent={el.cellFill === 'transparent'}
+                        onTransparent={() => update('cellFill', 'transparent')}
+                    />
+                    <ColorField
+                        label="Chenar celulă"
+                        value={el.cellStroke === 'transparent' ? '#000000' : el.cellStroke}
+                        onChange={v => update('cellStroke', v)}
+                        allowTransparent
+                        isTransparent={el.cellStroke === 'transparent'}
+                        onTransparent={() => update('cellStroke', 'transparent')}
+                    />
+                    <NumField label="Border w." value={el.cellStrokeWidth} onChange={v => update('cellStrokeWidth', v)} />
+                    <NumField label="Radius" value={el.cellCornerRadius} onChange={v => update('cellCornerRadius', v)} />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Rânduri</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button onClick={() => update('rows', Math.max(1, (el.rows || 1) - 1))} style={{ width: 26, height: 26, border: '1.5px solid #e5e7eb', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: 800, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1a1d23', minWidth: 20, textAlign: 'center' }}>{el.rows || 1}</span>
+                                <button onClick={() => update('rows', (el.rows || 1) + 1)} style={{ width: 26, height: 26, border: '1.5px solid #e5e7eb', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: 800, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                            </div>
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Coloane</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button onClick={() => update('cols', Math.max(1, (el.cols || 1) - 1))} style={{ width: 26, height: 26, border: '1.5px solid #e5e7eb', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: 800, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1a1d23', minWidth: 20, textAlign: 'center' }}>{el.cols || 1}</span>
+                                <button onClick={() => update('cols', (el.cols || 1) + 1)} style={{ width: 26, height: 26, border: '1.5px solid #e5e7eb', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: '1rem', fontWeight: 800, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <GridCellEditor el={el} updateElement={updateElement} openLibrary={openLibrary} />
+                </Tab>
+            )}
 
             <Tab title="Umbră">
                 <div style={styles.field}>
@@ -796,6 +1118,8 @@ function GridPropertyTabs({ el, update }) {
         </>
     );
 }
+
+
 function PdfPropertyTabs({ el, update, onOpenLibrary }) {
     return (
         <>
@@ -868,6 +1192,8 @@ function PdfPropertyTabs({ el, update, onOpenLibrary }) {
         </>
     );
 }
+
+
 function HotspotPropertyTabs({ el, update }) {
     return (
         <Tab title="Hotspot">

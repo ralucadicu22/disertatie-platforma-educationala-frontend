@@ -5,10 +5,39 @@ import { migrateConfig } from '../../utils/configFactory';
 import { EXERCISE_TYPES } from '../../constants/exerciseTypes';
 import FindAndSelectPlayer from './FindAndSelectPlayer';
 import DragAndDropPlayer from './DragAndDropPlayer';
+import InputTextPlayer from "./InputTextPlayer.jsx";
+import InputNumericPlayer from "./InputNumericPlayer.jsx";
+import OrderingPlayer from "./OrderingPlayer.jsx";
+import MatchingPlayer from "./MatchingPlayer.jsx";
+import MultipleChoicePlayer from "./MultipleChoicePlayer.jsx";
+import FindAndCountPlayer from "./FindAndCountPlayer.jsx";
+import LogicalSeriesPlayer from "./LogicalSeriesPlayer.jsx";
+import ColoringPlayer from "./ColoringPlayer.jsx";
+import GridBasedPlayer from "./GridBasedPlayer.jsx";
+import PdfPlayer from "./PdfPlayer.jsx";
+import PuzzlePlayer from "./PuzzlePlayer.jsx";
+import TablesChartsPlayer from "./TablesChartsPlayer.jsx";
+import TextProblemsPlayer from "./TextProblemsPlayer.jsx";
+import VideoPlayer from "./VideoPlayer.jsx";
 
 const PLAYERS_BY_TYPE = {
     [EXERCISE_TYPES.FIND_AND_SELECT]: FindAndSelectPlayer,
     [EXERCISE_TYPES.DRAG_AND_DROP]: DragAndDropPlayer,
+    [EXERCISE_TYPES.INPUT_TEXT]: InputTextPlayer,
+    [EXERCISE_TYPES.INPUT_NUMERIC]: InputNumericPlayer,
+    [EXERCISE_TYPES.ORDERING]: OrderingPlayer,
+    [EXERCISE_TYPES.MATCHING]: MatchingPlayer,
+    [EXERCISE_TYPES.MULTIPLE_CHOICE]: MultipleChoicePlayer,
+    [EXERCISE_TYPES.FIND_AND_COUNT]:FindAndCountPlayer,
+    [EXERCISE_TYPES.LOGICAL_SERIES]:LogicalSeriesPlayer,
+    [EXERCISE_TYPES.COLORING]:ColoringPlayer,
+    [EXERCISE_TYPES.GRID_BASED]:GridBasedPlayer,
+    [EXERCISE_TYPES.PDF]:PdfPlayer,
+    [EXERCISE_TYPES.PUZZLE]:PuzzlePlayer,
+    [EXERCISE_TYPES.TABLES_CHARTS]:TablesChartsPlayer,
+    [EXERCISE_TYPES.TEXT_PROBLEMS]:TextProblemsPlayer,
+    [EXERCISE_TYPES.VIDEO]:VideoPlayer
+
 };
 
 export default function ExercisePlayer({ exerciseId, onComplete }) {

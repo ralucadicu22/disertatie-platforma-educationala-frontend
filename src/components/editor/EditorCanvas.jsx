@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Stage, Layer, Rect, Line, Transformer, Image as KonvaImage } from 'react-konva';
+import { Stage, Layer, Rect, Line, Text as KonvaText, Group, Transformer, Image as KonvaImage } from 'react-konva';
 import useImage from 'use-image';
 import { useEditor } from '../../store/editorStore.jsx';
 import CanvasText from './elements/CanvasText';
@@ -293,6 +293,10 @@ export default function EditorCanvas() {
 
     const renderElement = (el) => {
         if (el.hidden) return null;
+        if (el.isPlaceholder && el.parentId) {
+            const siblings = elements.filter(e => e.parentId === el.parentId && !e.isPlaceholder);
+            if (siblings.length > 0) return null;
+        }
 
         const isPreview = mode === 'preview';
         const isMarkedCorrect = mode === 'solution' && solution.correctElementIds.includes(el.id);
@@ -352,7 +356,68 @@ export default function EditorCanvas() {
                 </CanvasBox>
             );
         }
-        if (el.type === ELEMENT_TYPES.GRID) {
+        if (el.type === ELEMENT_TYPES.GRID && el.gridMode === 'table') {
+            const gap = el.gap || 0;
+            const totalGapW = gap * (el.cols - 1);
+            const totalGapH = gap * (el.rows - 1);
+            const cellW = (el.width - totalGapW) / el.cols;
+            const cellH = (el.height - totalGapH) / el.rows;
+            const cellContent = el.cellContent || {};
+            const cellTypes = el.cellTypes || {};
+            const padding = el.cellPadding || 6;
+            const tableCells = [];
+            for (let r = 0; r < el.rows; r++) {
+                for (let c = 0; c < el.cols; c++) {
+                    const key = `${r}_${c}`;
+                    const cx = c * (cellW + gap);
+                    const cy = r * (cellH + gap);
+                    const isInput = cellTypes[key] === 'input';
+                    const text = cellContent[key] || '';
+                    const isHeader = r === 0 || c === 0;
+                    tableCells.push(
+                        <Group key={key} x={cx} y={cy} listening={false}>
+                            <Rect
+                                width={cellW} height={cellH}
+                                fill={isInput ? '#eff6ff' : isHeader ? '#e0e7ff' : '#ffffff'}
+                                stroke="#c7d2fe" strokeWidth={1}
+                            />
+                            {!isInput && text !== '' && (
+                                <KonvaText
+                                    x={padding} y={cellH / 2 - 9}
+                                    width={cellW - padding * 2} height={18}
+                                    text={text} fontSize={12}
+                                    fontStyle={isHeader ? 'bold' : 'normal'}
+                                    fill="#1e1b4b" align="center"
+                                />
+                            )}
+                            {isInput && (
+                                <KonvaText
+                                    x={padding} y={cellH / 2 - 8}
+                                    width={cellW - padding * 2} height={16}
+                                    text="[ ? ]" fontSize={11}
+                                    fill="#818cf8" align="center"
+                                    fontStyle="bold"
+                                />
+                            )}
+                            {!isInput && text === '' && (
+                                <KonvaText
+                                    x={padding} y={cellH / 2 - 8}
+                                    width={cellW - padding * 2} height={16}
+                                    text="—" fontSize={11}
+                                    fill="#d1d5db" align="center"
+                                />
+                            )}
+                        </Group>
+                    );
+                }
+            }
+            elementNode = (
+                <CanvasGrid key={el.id} {...common}>
+                    {tableCells}
+                </CanvasGrid>
+            );
+        }
+        if (el.type === ELEMENT_TYPES.GRID && el.gridMode !== 'table') {
             const gridChildren = getChildren(el.id);
             const renderedChildren = gridChildren.map(child => {
                 if (child.slotIndex === undefined) return renderElement(child);

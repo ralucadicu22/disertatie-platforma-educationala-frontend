@@ -56,6 +56,8 @@ export function EditorProvider({ children }) {
 
     const [isTemplate, setIsTemplate] = useState(false);
 
+    const [selectedGridCell, setSelectedGridCell] = useState(null);
+
     useEffect(() => {
         historyIndexRef.current = historyIndex;
     }, [historyIndex]);
@@ -82,6 +84,16 @@ export function EditorProvider({ children }) {
         let finalX = 100;
         let finalY = 100;
         let slotIndex = undefined;
+
+        if (type === ELEMENT_TYPES.GRID && selectedIds.length === 1) {
+            const selected = elements.find(el => el.id === selectedIds[0]);
+            if (selected && selected.type === ELEMENT_TYPES.BOX && selected.role === 'table-zone') {
+                parentId = selected.id;
+                finalX = 20;
+                finalY = 20;
+                return { parentId, finalX, finalY, slotIndex };
+            }
+        }
 
         if (type !== ELEMENT_TYPES.BOX && type !== ELEMENT_TYPES.GRID && selectedIds.length === 1) {
             const selected = elements.find(el => el.id === selectedIds[0]);
@@ -132,6 +144,23 @@ export function EditorProvider({ children }) {
                 finalX = 20;
                 finalY = 20;
                 return { parentId, finalX, finalY, slotIndex };
+            }
+        }
+
+        if (type !== ELEMENT_TYPES.BOX && type !== ELEMENT_TYPES.GRID) {
+            const choiceOptions = elements.filter(el =>
+                el.type === ELEMENT_TYPES.BOX && el.role === 'choice-option'
+            );
+            for (const opt of choiceOptions) {
+                const hasContent = elements.some(child =>
+                    child.parentId === opt.id && !child.isPlaceholder
+                );
+                if (!hasContent) {
+                    parentId = opt.id;
+                    finalX = 20;
+                    finalY = 20;
+                    return { parentId, finalX, finalY, slotIndex };
+                }
             }
         }
 
@@ -226,8 +255,10 @@ export function EditorProvider({ children }) {
     const undo = useCallback(() => {
         if (historyIndex > 0) {
             const prevIndex = historyIndex - 1;
+            const snapshot = history[prevIndex];
+            if (!snapshot) return;
             setHistoryIndex(prevIndex);
-            setElements(JSON.parse(JSON.stringify(history[prevIndex])));
+            setElements(JSON.parse(JSON.stringify(snapshot)));
             setSelectedIds([]);
         }
     }, [history, historyIndex]);
@@ -235,8 +266,10 @@ export function EditorProvider({ children }) {
     const redo = useCallback(() => {
         if (historyIndex < history.length - 1) {
             const nextIndex = historyIndex + 1;
+            const snapshot = history[nextIndex];
+            if (!snapshot) return;
             setHistoryIndex(nextIndex);
-            setElements(JSON.parse(JSON.stringify(history[nextIndex])));
+            setElements(JSON.parse(JSON.stringify(snapshot)));
             setSelectedIds([]);
         }
     }, [history, historyIndex]);
@@ -1053,6 +1086,7 @@ export function EditorProvider({ children }) {
         isTemplate, toggleTemplate,
         addTarget, updateTarget, removeTarget, reorderTargets, linkElementToTarget,
         addHint, updateHint, removeHint, reorderHints,
+        selectedGridCell, setSelectedGridCell,
     };
 
     return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;

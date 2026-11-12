@@ -4,15 +4,41 @@ import { createMockPreviewApi } from '../../api/mockPreviewApi';
 import { setApiOverride, clearApiOverride } from '../../api/axios';
 import FindAndSelectPlayer from '../player/FindAndSelectPlayer';
 import DragAndDropPlayer from '../player/DragAndDropPlayer';
+import FindAndCountPlayer from '../player/FindAndCountPlayer';
+import LogicalSeriesPlayer from '../player/LogicalSeriesPlayer';
+import TextProblemsPlayer from '../player/TextProblemsPlayer';
+import TablesChartsPlayer from '../player/TablesChartsPlayer';
+import ColoringPlayer from '../player/ColoringPlayer';
+import PuzzlePlayer from '../player/PuzzlePlayer';
+import VideoPlayer from '../player/VideoPlayer';
+import PdfPlayer from '../player/PdfPlayer';
+import GridBasedPlayer from '../player/GridBasedPlayer';
+import MultipleChoicePlayer from '../player/MultipleChoicePlayer';
+import OrderingPlayer from '../player/OrderingPlayer';
+import MatchingPlayer from '../player/MatchingPlayer';
 import { EXERCISE_TYPES } from '../../constants/exerciseTypes';
 
 const PLAYERS_BY_TYPE = {
     [EXERCISE_TYPES.FIND_AND_SELECT]: FindAndSelectPlayer,
     [EXERCISE_TYPES.DRAG_AND_DROP]: DragAndDropPlayer,
+    [EXERCISE_TYPES.FIND_AND_COUNT]: FindAndCountPlayer,
+    [EXERCISE_TYPES.LOGICAL_SERIES]: LogicalSeriesPlayer,
+    [EXERCISE_TYPES.TEXT_PROBLEMS]: TextProblemsPlayer,
+    [EXERCISE_TYPES.TABLES_CHARTS]: TablesChartsPlayer,
+    [EXERCISE_TYPES.COLORING]: ColoringPlayer,
+    [EXERCISE_TYPES.PUZZLE]: PuzzlePlayer,
+    [EXERCISE_TYPES.VIDEO]: VideoPlayer,
+    [EXERCISE_TYPES.PDF]: PdfPlayer,
+    [EXERCISE_TYPES.GRID_BASED]: GridBasedPlayer,
+    [EXERCISE_TYPES.MULTIPLE_CHOICE]: MultipleChoicePlayer,
+    [EXERCISE_TYPES.ORDERING]: OrderingPlayer,
+    [EXERCISE_TYPES.MATCHING]: MatchingPlayer,
 };
 
 export default function PreviewPanel() {
     const { elements, canvas, meta, settings, solution, setMode } = useEditor();
+
+    const correctElementIds = Array.isArray(solution.correctElementIds) ? solution.correctElementIds : [];
 
     const config = useMemo(() => ({
         version: 1,
@@ -21,14 +47,19 @@ export default function PreviewPanel() {
         elements: JSON.parse(JSON.stringify(elements)),
         settings: { ...settings },
         solution: {
-            correctElementIds: Array.isArray(solution.correctElementIds)
-                ? solution.correctElementIds : [],
-            correctCount: Array.isArray(solution.correctElementIds)
-                ? solution.correctElementIds.length
-                : Object.keys(solution.dropMapping || {}).length,
+            correctElementIds,
+            correctElementId: correctElementIds[0] || null,
+            correctCount: correctElementIds.length || Object.keys(solution.dropMapping || {}).length,
             dropMapping: solution.dropMapping || {},
             correctAnswers: solution.correctAnswers || {},
+            correctCellKeys: solution.correctCellKeys || [],
+            correctColors: solution.correctColors || {},
+            coloringCount: solution.coloringCount || 0,
             targets: solution.targets || [],
+            alternativeAnswers: solution.alternativeAnswers || [],
+            correctOrder: solution.correctOrder || [],
+            matchMapping: solution.matchMapping || {},
+            puzzleMapping: solution.puzzleMapping || {},
         },
     }), [elements, canvas, meta, settings, solution]);
 
@@ -36,9 +67,17 @@ export default function PreviewPanel() {
         ...config,
         solution: {
             ...config.solution,
-            correctElementIds: solution.correctElementIds || [],
+            correctElementIds,
+            correctElementId: correctElementIds[0] || null,
             dropMapping: solution.dropMapping || {},
             correctAnswers: solution.correctAnswers || {},
+            correctCellKeys: solution.correctCellKeys || [],
+            correctColors: solution.correctColors || {},
+            coloringCount: solution.coloringCount || 0,
+            alternativeAnswers: solution.alternativeAnswers || [],
+            correctOrder: solution.correctOrder || [],
+            matchMapping: solution.matchMapping || {},
+            puzzleMapping: solution.puzzleMapping || {},
         },
     }), [config, solution]);
 
